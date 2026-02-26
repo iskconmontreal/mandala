@@ -1,0 +1,99 @@
+/* base.css — reset + element defaults */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; -webkit-font-smoothing: antialiased; }
+
+body {
+  min-height: 100%;
+  font-family: var(--f-sans);
+  font-size: var(--f-md);
+  font-weight: var(--f-wt);
+  line-height: 1.5;
+  color: var(--c-text);
+  background: var(--c-bg);
+}
+
+h1, h2, h3 { font-weight: var(--f-wt-b); line-height: 1.2; }
+h1 { font-size: var(--f-2xl); }
+h2 { font-size: var(--f-xl); }
+h3 { font-size: var(--f-lg); }
+
+a { color: var(--c-accent); text-decoration: none; }
+a:hover { color: var(--c-accent-h); }
+
+img, svg { display: block; max-width: 100%; }
+
+/* Forms */
+input, select, textarea, button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="date"],
+select, textarea {
+  width: 100%;
+  padding: var(--s-sm) var(--s-md);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px rgba(107, 92, 231, .12);
+}
+
+label {
+  display: block;
+  font-size: var(--f-sm);
+  font-weight: var(--f-wt-b);
+  margin-bottom: var(--s-xs);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-sm);
+  padding: var(--s-sm) var(--s-lg);
+  font-weight: var(--f-wt-b);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+.btn-primary {
+  background: var(--c-accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--c-accent-h); }
+
+.btn-outline {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+}
+.btn-outline:hover {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.btn-block { width: 100%; }
+
+/* Utility */
+.dim { color: var(--c-text-dim); }
+.mono { font-family: var(--f-mono); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); border: 0;
+}

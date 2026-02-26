@@ -1,0 +1,24 @@
+---
+---
+<div class="page-header">
+  <h1>Settings</h1>
+  <p>System settings.</p>
+</div>
+
+<div class="card">
+  <p class="dim" style="text-align:center; padding:var(--s-xl)">Coming soon</p>
+</div>
+
+<script type="module">
+  import sprae from '../lib/sprae.js'
+  import { auth } from '../lib/auth.js'
+
+  auth.capture()
+  const page = location.pathname.split('/').pop() || 'index.html'
+
+  sprae(document.getElementById('app'), {
+    user: auth.user,
+    active: (href) => href === page,
+    logout: () => auth.logout(),
+  })
+</script>

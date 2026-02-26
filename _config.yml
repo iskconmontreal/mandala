@@ -1,0 +1,19 @@
+defaults:
+  - scope:
+      path: "app"
+    values:
+      layout: "app"
+  - scope:
+      path: ""
+    values:
+      layout: "none"
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - package.json
+  - package-lock.json
+  - .work
+  - .ssl
+  - agents.md

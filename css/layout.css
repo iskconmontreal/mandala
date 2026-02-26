@@ -64,6 +64,8 @@
 .nav-item.active {
   color: var(--c-text);
   font-weight: var(--f-wt-b);
+  background-color: var(--c-surface);
+  box-shadow: var(--sh-sm);
 }
 .nav-item svg {
   width: 1.125rem;

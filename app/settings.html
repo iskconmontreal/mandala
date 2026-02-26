@@ -71,11 +71,7 @@
 </div>
 
 <script type="module">
-  import sprae from '../lib/sprae.js'
-  import { auth } from '../lib/auth.js'
-
-  auth.capture()
-  const page = location.pathname.split('/').pop() || 'index.html'
+  import { init } from '../lib/app.js'
 
   // Temp sample data — replace with api calls when ready
   const tmpAdmins = [
@@ -84,12 +80,7 @@
     { name: 'Yamuna Devi Dasi', email: 'yamuna@iskconmontreal.ca',  role: 'Viewer',    added: '2024-03-22', removable: true },
   ]
 
-  const s = sprae(document.getElementById('app'), {
-    user: auth.user,
-    active: (href) => href === page,
-    logout: () => auth.logout(),
-    userMenu: false,
-
+  const s = init({
     admins: tmpAdmins,
     showAdd: false,
     newAdmin: { name: '', email: '', password: '', role: 'admin' },

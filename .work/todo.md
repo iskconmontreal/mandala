@@ -2,45 +2,45 @@
 * [x] datatable.net example page for finance
 * [x] login page
 
-* [ ] Restructure
-  * [ ] Nav: 3 items only — Overview, Donations, Expenses
-    * [ ] Settings & Tax Receipts move to user menu (not nav)
-    * [ ] Members page deleted — donors are a sub-concern of Donations
-    * [ ] Reports page deleted — merged into Overview
-    * [ ] Tax page deferred — empty placeholder removed until real
-  * [ ] Overview (replaces Home + Reports)
-    * [ ] Net position (keep existing)
-    * [ ] Donation vs expense proportion — visual bar, not just numbers
-    * [ ] Category breakdown (move from Reports)
-    * [ ] Top donors (move from Reports)
-    * [ ] Recent transactions (keep existing)
-    * [ ] Month/year filter (keep existing)
-    * [ ] Quick-add "+" button (keep existing)
-  * [ ] Donations UX
-    * [ ] Filter bar: category, date range, search text
-    * [ ] Inline category summary at top (small breakdown, replaces Reports visit)
-    * [ ] Recurring donation flag
-    * [ ] Pagination for real data volumes
-    * [ ] Export CSV
-    * [ ] Donor autocomplete (keep existing)
-    * [ ] Receipt OCR (keep existing placeholder)
-  * [ ] Expenses UX
-    * [ ] Filter bar: category, date range, search text
-    * [ ] Inline category summary at top
-    * [ ] Recurring expense flag
-    * [ ] Pagination
-    * [ ] Export CSV
-    * [ ] Receipt OCR (keep existing placeholder)
-  * [ ] DRY: extract shared sprae init
-    * [ ] `user, active, logout, userMenu` repeated across every page → shared module
-    * [ ] Categories hardcoded in `<select>` across pages → shared constant or API-driven
-    * [ ] Year select hardcoded 2024/2025/2026 → dynamic
-  * [ ] Delete files
-    * [ ] `app/members.html`
-    * [ ] `app/reports.html`
-    * [ ] `app/tax.html`
-    * [ ] Remove `simple-datatables` CDN dependency
-  * [ ] Rename `setting.html` → `settings.html`
+* [x] Restructure
+  * [x] Nav: 3 items only — Overview, Donations, Expenses
+    * [x] Settings & Tax Receipts move to user menu (not nav)
+    * [x] Members page deleted — donors are a sub-concern of Donations
+    * [x] Reports page deleted — merged into Overview
+    * [x] Tax page deferred — empty placeholder removed until real
+  * [x] Overview (replaces Home + Reports)
+    * [x] Net position (keep existing)
+    * [x] Donation vs expense proportion — visual bar, not just numbers
+    * [x] Category breakdown (move from Reports)
+    * [x] Top donors (move from Reports)
+    * [x] Recent transactions (keep existing)
+    * [x] Month/year filter (keep existing)
+    * [x] Quick-add "+" button (keep existing)
+  * [x] Donations UX
+    * [x] Filter bar: category, date range, search text
+    * [x] Inline category summary at top (small breakdown, replaces Reports visit)
+    * [x] Recurring donation flag
+    * [x] Pagination for real data volumes
+    * [x] Export CSV
+    * [x] Donor autocomplete (keep existing)
+    * [x] Receipt OCR (keep existing placeholder)
+  * [x] Expenses UX
+    * [x] Filter bar: category, date range, search text
+    * [x] Inline category summary at top
+    * [x] Recurring expense flag
+    * [x] Pagination
+    * [x] Export CSV
+    * [x] Receipt OCR (keep existing placeholder)
+  * [x] DRY: extract shared sprae init
+    * [x] `user, active, logout, userMenu` repeated across every page → shared module
+    * [x] Categories hardcoded in `<select>` across pages → shared constant or API-driven
+    * [x] Year select hardcoded 2024/2025/2026 → dynamic
+  * [x] Delete files
+    * [x] `app/members.html`
+    * [x] `app/reports.html`
+    * [x] `app/tax.html`
+    * [x] Remove `simple-datatables` CDN dependency
+  * [x] Rename `setting.html` → `settings.html`
 
 * [ ] What Goloka needs to implement:
   * [ ] GET /auth/google — returns Google OAuth2 redirect URL

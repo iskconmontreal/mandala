@@ -3,9 +3,11 @@
 <div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
   <div>
     <h1>Expenses</h1>
-    <p>Track and manage expenses.</p>
   </div>
-  <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Expense</button>
+  <div style="display:flex; gap:var(--s-sm)">
+    <button class="btn btn-outline btn-sm" :onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Expense</button>
+  </div>
 </div>
 
 <!-- Add expense modal -->
@@ -31,15 +33,7 @@
           <div class="field">
             <label for="exp-cat">Category</label>
             <select id="exp-cat" :value="form.category">
-              <option value="Utilities">Utilities</option>
-              <option value="Kitchen">Kitchen</option>
-              <option value="Deity">Deity</option>
-              <option value="Maintenance">Maintenance</option>
-              <option value="Office">Office</option>
-              <option value="Rent">Rent</option>
-              <option value="Insurance">Insurance</option>
-              <option value="Travel">Travel</option>
-              <option value="Other">Other</option>
+              <option :each="c in cats" :value="c" :text="c"></option>
             </select>
           </div>
           <div class="field">
@@ -47,9 +41,16 @@
             <input id="exp-date" type="date" :value="form.date" required>
           </div>
         </div>
-        <div class="field" style="margin-bottom:var(--s-md)">
-          <label for="exp-note">Note</label>
-          <input id="exp-note" type="text" :value="form.note" placeholder="Optional note…">
+        <div class="form-row">
+          <div class="field">
+            <label for="exp-note">Note</label>
+            <input id="exp-note" type="text" :value="form.note" placeholder="Optional note…">
+          </div>
+          <div class="field" style="flex:0 0 auto; display:flex; align-items:end; gap:var(--s-sm); padding-bottom:var(--s-xs)">
+            <label style="display:flex; align-items:center; gap:var(--s-xs); font-weight:var(--f-wt); cursor:pointer">
+              <input type="checkbox" :checked="form.recurring"> Recurring
+            </label>
+          </div>
         </div>
 
         <!-- Image attachment / OCR -->
@@ -81,7 +82,7 @@
   </div>
 </div>
 
-<!-- Summary -->
+<!-- Inline category summary -->
 <div class="card-grid" style="margin-bottom:var(--s-lg)">
   <div class="card">
     <div class="stat-label">This Month</div>
@@ -92,9 +93,32 @@
     <div class="stat-value" :text="'$' + yearTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
   </div>
   <div class="card">
-    <div class="stat-label">Expenses</div>
-    <div class="stat-value" :text="expenses.length"></div>
+    <div class="stat-label">Count</div>
+    <div class="stat-value" :text="filtered.length"></div>
   </div>
+  <div class="card">
+    <div class="stat-label">By Category</div>
+    <div style="margin-top:var(--s-xs)">
+      <div :each="c in catSummary" style="display:flex; justify-content:space-between; font-size:var(--f-sm); padding:2px 0">
+        <span :text="c.cat"></span>
+        <span class="dim" :text="'$' + c.amt.toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar" style="display:flex; gap:var(--s-sm); margin-bottom:var(--s-md); flex-wrap:wrap">
+  <input type="search" placeholder="Search payee or note…" :value="search" :oninput="search = e.target.value"
+    style="flex:1; min-width:12rem">
+  <select :onchange="filterCat = e.target.value" style="width:auto">
+    <option value="">All categories</option>
+    <option :each="c in cats" :value="c" :text="c"></option>
+  </select>
+  <input type="date" :value="dateFrom" :onchange="dateFrom = e.target.value" title="From date" style="width:auto">
+  <input type="date" :value="dateTo" :onchange="dateTo = e.target.value" title="To date" style="width:auto">
+  <button class="btn btn-outline btn-sm" :if="search || filterCat || dateFrom || dateTo"
+    :onclick="search = ''; filterCat = ''; dateFrom = ''; dateTo = ''">Clear</button>
 </div>
 
 <!-- Expenses list -->
@@ -111,64 +135,95 @@
         </tr>
       </thead>
       <tbody>
-        <tr :each="x in expenses">
+        <tr :each="x in paged">
           <td :text="x.date"></td>
           <td :text="x.payee"></td>
           <td><span class="badge" :text="x.category"></span></td>
-          <td class="dim" :text="x.note || '—'"></td>
+          <td class="dim">
+            <span :text="x.note || '—'"></span>
+            <span :if="x.recurring" class="badge" style="margin-left:var(--s-xs)">↻</span>
+          </td>
           <td style="text-align:right" class="stat-err" :text="'−$' + x.amount.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
         </tr>
-        <tr :if="!expenses.length">
-          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No expenses yet</td>
+        <tr :if="!filtered.length">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No expenses found</td>
         </tr>
       </tbody>
     </table>
   </div>
+  <!-- Pagination -->
+  <div :if="totalPages > 1" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s-sm) var(--s-md); border-top:1px solid var(--c-border)">
+    <span class="dim" style="font-size:var(--f-sm)" :text="filtered.length + ' expenses'"></span>
+    <div style="display:flex; gap:var(--s-xs)">
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1)" :class="{dim: page === 1}">←</button>
+      <span style="padding:var(--s-xs) var(--s-sm); font-size:var(--f-sm)" :text="page + ' / ' + totalPages"></span>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1)" :class="{dim: page === totalPages}">→</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
-  import sprae from '../lib/sprae.js'
-  import { auth } from '../lib/auth.js'
+  import { init, EXP_CATS } from '../lib/app.js'
 
-  auth.capture()
-  const page = location.pathname.split('/').pop() || 'index.html'
   const today = new Date().toISOString().slice(0, 10)
+  const perPage = 20
 
   // Temp sample data
   const tmpExpenses = [
-    { date: '2026-02-25', payee: 'Hydro-Québec',       category: 'Utilities',    amount: 342.18, note: 'February bill' },
-    { date: '2026-02-24', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 287.45, note: 'Prasadam groceries' },
-    { date: '2026-02-23', payee: 'Fleuriste Shakti',    category: 'Deity',        amount: 125.00, note: 'Flower garlands' },
-    { date: '2026-02-22', payee: 'Staples',             category: 'Office',       amount: 89.99,  note: 'Printer ink & paper' },
-    { date: '2026-02-21', payee: 'Mario Plomberie',     category: 'Maintenance',  amount: 210.00, note: 'Basement pipe repair' },
-    { date: '2026-02-18', payee: 'Bell Canada',         category: 'Utilities',    amount: 79.99,  note: 'Internet' },
-    { date: '2026-02-15', payee: 'Landlord',            category: 'Rent',         amount: 3500.00, note: 'March rent' },
-    { date: '2026-02-12', payee: 'Intact Insurance',    category: 'Insurance',    amount: 450.00, note: 'Monthly premium' },
-    { date: '2026-02-08', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 195.30, note: 'Weekly groceries' },
-    { date: '2026-02-03', payee: 'Home Depot',          category: 'Maintenance',  amount: 67.42,  note: 'Light fixtures' },
+    { date: '2026-02-25', payee: 'Hydro-Québec',       category: 'Utilities',    amount: 342.18, note: 'February bill', recurring: true },
+    { date: '2026-02-24', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 287.45, note: 'Prasadam groceries', recurring: false },
+    { date: '2026-02-23', payee: 'Fleuriste Shakti',    category: 'Deity',        amount: 125.00, note: 'Flower garlands', recurring: false },
+    { date: '2026-02-22', payee: 'Staples',             category: 'Office',       amount: 89.99,  note: 'Printer ink & paper', recurring: false },
+    { date: '2026-02-21', payee: 'Mario Plomberie',     category: 'Maintenance',  amount: 210.00, note: 'Basement pipe repair', recurring: false },
+    { date: '2026-02-18', payee: 'Bell Canada',         category: 'Utilities',    amount: 79.99,  note: 'Internet', recurring: true },
+    { date: '2026-02-15', payee: 'Landlord',            category: 'Rent',         amount: 3500.00, note: 'March rent', recurring: true },
+    { date: '2026-02-12', payee: 'Intact Insurance',    category: 'Insurance',    amount: 450.00, note: 'Monthly premium', recurring: true },
+    { date: '2026-02-08', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 195.30, note: 'Weekly groceries', recurring: false },
+    { date: '2026-02-03', payee: 'Home Depot',          category: 'Maintenance',  amount: 67.42,  note: 'Light fixtures', recurring: false },
   ]
 
-  const emptyForm = () => ({ payee: '', amount: '', category: 'Utilities', date: today, note: '' })
+  const emptyForm = () => ({ payee: '', amount: '', category: 'Utilities', date: today, note: '', recurring: false })
 
-  sprae(document.getElementById('app'), {
-    user: auth.user,
-    active: (href) => href === page,
-    logout: () => auth.logout(),
-    userMenu: false,
-
+  init({
     showAdd: false,
     form: emptyForm(),
     expenses: tmpExpenses,
+    cats: EXP_CATS,
     preview: '',
     scanning: false,
 
+    // Filters
+    search: '',
+    filterCat: '',
+    dateFrom: '',
+    dateTo: '',
+    page: 1,
+
+    get filtered() {
+      const s = this.search.toLowerCase()
+      return this.expenses.filter(x => {
+        if (s && !x.payee.toLowerCase().includes(s) && !(x.note || '').toLowerCase().includes(s)) return false
+        if (this.filterCat && x.category !== this.filterCat) return false
+        if (this.dateFrom && x.date < this.dateFrom) return false
+        if (this.dateTo && x.date > this.dateTo) return false
+        return true
+      })
+    },
+    get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / perPage)) },
+    get paged() { return this.filtered.slice((this.page - 1) * perPage, this.page * perPage) },
+
     get monthTotal() {
       const prefix = today.slice(0, 7)
-      return this.expenses.filter(x => x.date.startsWith(prefix)).reduce((sum, x) => sum + x.amount, 0)
+      return this.filtered.filter(x => x.date.startsWith(prefix)).reduce((sum, x) => sum + x.amount, 0)
     },
     get yearTotal() {
       const yr = today.slice(0, 4)
-      return this.expenses.filter(x => x.date.startsWith(yr)).reduce((sum, x) => sum + x.amount, 0)
+      return this.filtered.filter(x => x.date.startsWith(yr)).reduce((sum, x) => sum + x.amount, 0)
+    },
+    get catSummary() {
+      const map = {}
+      for (const x of this.filtered) map[x.category] = (map[x.category] || 0) + x.amount
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([cat, amt]) => ({ cat, amt }))
     },
 
     handleFile(e) {
@@ -182,8 +237,6 @@
     processImage(file) {
       this.preview = URL.createObjectURL(file)
       this.scanning = true
-      // TODO: api.post('/ocr', file) → fill empty fields
-      // Simulating OCR delay for now
       setTimeout(() => { this.scanning = false }, 800)
     },
     clearImage() {
@@ -198,11 +251,24 @@
         category: this.form.category,
         amount: parseFloat(this.form.amount),
         note: this.form.note,
+        recurring: this.form.recurring,
       }
       this.expenses = [entry, ...this.expenses]
       this.clearImage()
       this.form = emptyForm()
       this.showAdd = false
+    },
+
+    exportCSV() {
+      const rows = [['Date', 'Payee', 'Category', 'Amount', 'Note', 'Recurring']]
+      for (const x of this.filtered) rows.push([x.date, x.payee, x.category, x.amount.toFixed(2), x.note || '', x.recurring ? 'Yes' : ''])
+      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'expenses.csv'
+      a.click()
+      URL.revokeObjectURL(a.href)
     },
   })
 </script>

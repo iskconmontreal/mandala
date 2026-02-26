@@ -1,6 +1,5 @@
 * [x] landing: basic setup with sprae
-* [ ] datatable.net example page for finance
-
+* [x] datatable.net example page for finance
 * [x] login page
 
   What Goloka needs to implement:

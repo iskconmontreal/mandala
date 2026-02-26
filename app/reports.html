@@ -1,12 +1,119 @@
 ---
 ---
-<div class="page-header">
-  <h1>Reports</h1>
-  <p>Financial reports and analytics.</p>
+<div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
+  <div>
+    <h1>Reports</h1>
+    <p>Financial reports and analytics.</p>
+  </div>
+  <div style="display:flex; align-items:center; gap:var(--s-md)">
+    <select class="year-select" :onchange="year = +e.target.value">
+      <option value="2026" selected>2026</option>
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+    <select class="year-select" :onchange="month = +e.target.value">
+      <option :each="m in months" :value="m.val" :text="m.label" :selected="m.val === month"></option>
+    </select>
+  </div>
 </div>
 
+<!-- Overview -->
+<div class="card-grid">
+  <div class="card">
+    <div class="stat-label stat-ok">Total Donations</div>
+    <div class="stat-value stat-ok" :text="'$' + totals.donations.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label stat-err">Total Expenses</div>
+    <div class="stat-value stat-err" :text="'$' + totals.expenses.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Net</div>
+    <div class="stat-value" :class="totals.net >= 0 ? 'stat-ok' : 'stat-err'"
+      :text="(totals.net >= 0 ? '+' : '−') + '$' + Math.abs(totals.net).toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+</div>
+
+<!-- Donation breakdown -->
+<div class="card" style="margin-bottom:var(--s-lg)">
+  <div class="card-header">
+    <h3>Donations by Category</h3>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">Count</th><th style="text-align:right">%</th></tr>
+      </thead>
+      <tbody>
+        <tr :each="c in donCats">
+          <td :text="c.cat"></td>
+          <td style="text-align:right" :text="'$' + c.amt.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td style="text-align:right" :text="c.count"></td>
+          <td style="text-align:right" class="dim" :text="c.pct + '%'"></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:var(--f-wt-b)">
+          <td>Total</td>
+          <td style="text-align:right" :text="'$' + totals.donations.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td style="text-align:right" :text="donCats.reduce((s,c) => s + c.count, 0)"></td>
+          <td style="text-align:right">100%</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Expense breakdown -->
+<div class="card" style="margin-bottom:var(--s-lg)">
+  <div class="card-header">
+    <h3>Expenses by Category</h3>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">Count</th><th style="text-align:right">%</th></tr>
+      </thead>
+      <tbody>
+        <tr :each="c in expCats">
+          <td :text="c.cat"></td>
+          <td style="text-align:right" :text="'$' + c.amt.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td style="text-align:right" :text="c.count"></td>
+          <td style="text-align:right" class="dim" :text="c.pct + '%'"></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:var(--f-wt-b)">
+          <td>Total</td>
+          <td style="text-align:right" :text="'$' + totals.expenses.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td style="text-align:right" :text="expCats.reduce((s,c) => s + c.count, 0)"></td>
+          <td style="text-align:right">100%</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Top donors -->
 <div class="card">
-  <p class="dim" style="text-align:center; padding:var(--s-xl)">Coming soon</p>
+  <div class="card-header">
+    <h3>Top Donors</h3>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Donor</th><th style="text-align:right">Total</th><th style="text-align:right">Count</th></tr>
+      </thead>
+      <tbody>
+        <tr :each="d, i in topDonors">
+          <td class="dim" :text="i + 1"></td>
+          <td :text="d.name"></td>
+          <td style="text-align:right" :text="'$' + d.total.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td style="text-align:right" :text="d.count"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script type="module">
@@ -16,9 +123,64 @@
   auth.capture()
   const page = location.pathname.split('/').pop() || 'index.html'
 
+  const don = 12480.00, exp = 8635.47
+
+  // Temp category breakdowns
+  const donCats = [
+    { cat: 'General',           amt: 3750.00, count: 8 },
+    { cat: 'Sunday Feast',      amt: 2850.00, count: 12 },
+    { cat: 'Deity Worship',     amt: 1980.00, count: 5 },
+    { cat: 'Book Distribution', amt: 1650.00, count: 4 },
+    { cat: 'Festival',          amt: 1200.00, count: 2 },
+    { cat: 'Annadana',          amt: 750.00,  count: 6 },
+    { cat: 'Building Fund',     amt: 300.00,  count: 1 },
+  ].map(c => ({ ...c, pct: Math.round(c.amt / don * 100) }))
+
+  const expCats = [
+    { cat: 'Rent',        amt: 3500.00, count: 1 },
+    { cat: 'Kitchen',     amt: 1835.30, count: 8 },
+    { cat: 'Utilities',   amt: 1122.17, count: 4 },
+    { cat: 'Insurance',   amt: 900.00,  count: 2 },
+    { cat: 'Maintenance', amt: 577.42,  count: 3 },
+    { cat: 'Deity',       amt: 425.00,  count: 4 },
+    { cat: 'Office',      amt: 275.58,  count: 2 },
+  ].map(c => ({ ...c, pct: Math.round(c.amt / exp * 100) }))
+
+  const topDonors = [
+    { name: 'Radha Devi Dasi',     total: 3200.00, count: 6 },
+    { name: 'Govinda Das',         total: 2500.00, count: 5 },
+    { name: 'Yamuna Devi',         total: 1800.00, count: 4 },
+    { name: 'Madhava Prabhu',      total: 1350.00, count: 3 },
+    { name: 'Bhakta Michel',       total: 1050.00, count: 8 },
+    { name: 'Syama Priya Dasi',    total: 880.00,  count: 3 },
+    { name: 'Gaura Hari Das',      total: 750.00,  count: 2 },
+    { name: 'Nitai Chandra Prabhu',total: 500.00,  count: 1 },
+    { name: 'Bhaktin Marie',       total: 250.00,  count: 2 },
+    { name: 'Tulasi Devi Dasi',    total: 200.00,  count: 1 },
+  ]
+
+  const months = [
+    { val: 0, label: 'All Year' },
+    { val: 1, label: 'January' },  { val: 2, label: 'February' },
+    { val: 3, label: 'March' },    { val: 4, label: 'April' },
+    { val: 5, label: 'May' },      { val: 6, label: 'June' },
+    { val: 7, label: 'July' },     { val: 8, label: 'August' },
+    { val: 9, label: 'September' },{ val: 10, label: 'October' },
+    { val: 11, label: 'November' },{ val: 12, label: 'December' },
+  ]
+
   sprae(document.getElementById('app'), {
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
+
+    year: 2026,
+    month: 0,
+    months,
+    totals: { donations: don, expenses: exp, net: don - exp },
+    donCats,
+    expCats,
+    topDonors,
   })
 </script>

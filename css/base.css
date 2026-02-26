@@ -77,6 +77,13 @@ label {
 }
 .btn-primary:hover { background: var(--c-accent-h); }
 
+.btn-secondary {
+  background: var(--c-bg);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+}
+.btn-secondary:hover { border-color: var(--c-text-dim); }
+
 .btn-outline {
   border: 1px solid var(--c-border);
   background: var(--c-surface);

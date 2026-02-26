@@ -1,12 +1,131 @@
 ---
 ---
-<div class="page-header">
-  <h1>Donations</h1>
-  <p>Track and manage donations.</p>
+<div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
+  <div>
+    <h1>Donations</h1>
+    <p>Track and manage donations.</p>
+  </div>
+  <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Donation</button>
 </div>
 
+<!-- Add donation modal -->
+<div class="modal-overlay" :if="showAdd" :onclick="e => { if (e.target === e.currentTarget) showAdd = false }">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add Donation</h2>
+      <button class="modal-close" :onclick="showAdd = false">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form :onsubmit.prevent="addDonation">
+        <div class="form-row">
+          <div class="field">
+            <label for="don-donor">Donor</label>
+            <input id="don-donor" type="text" :value="form.donor" placeholder="Name or search…" required list="donor-list">
+            <datalist id="donor-list">
+              <option :each="d in donors" :value="d"></option>
+            </datalist>
+          </div>
+          <div class="field">
+            <label for="don-amount">Amount ($)</label>
+            <input id="don-amount" type="number" :value="form.amount" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="don-cat">Category</label>
+            <select id="don-cat" :value="form.category">
+              <option value="General">General</option>
+              <option value="Sunday Feast">Sunday Feast</option>
+              <option value="Book Distribution">Book Distribution</option>
+              <option value="Deity Worship">Deity Worship</option>
+              <option value="Building Fund">Building Fund</option>
+              <option value="Annadana">Annadana</option>
+              <option value="Festival">Festival</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="don-date">Date</label>
+            <input id="don-date" type="date" :value="form.date" required>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:var(--s-md)">
+          <label for="don-note">Note</label>
+          <input id="don-note" type="text" :value="form.note" placeholder="Optional note…">
+        </div>
+
+        <!-- Image attachment / OCR -->
+        <div class="scan-area" :class="{['has-image']: preview}"
+          :onclick="if (!preview) fileInput.click()"
+          :ondragover.prevent=""
+          :ondrop.prevent="handleDrop(e)">
+          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
+          <div :if="scanning" class="scan-hint">Scanning…</div>
+          <div :if="!preview && !scanning">
+            <div class="scan-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="scan-hint">Drop receipt image or click to upload</div>
+            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
+          </div>
+          <div :if="preview && !scanning" style="position:relative">
+            <img :src="preview" alt="Receipt">
+            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-top:var(--s-lg)">
+          <button type="button" class="btn btn-secondary" :onclick="showAdd = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Donation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="card-grid" style="margin-bottom:var(--s-lg)">
+  <div class="card">
+    <div class="stat-label">This Month</div>
+    <div class="stat-value stat-ok" :text="'$' + monthTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">This Year</div>
+    <div class="stat-value" :text="'$' + yearTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Donations</div>
+    <div class="stat-value" :text="donations.length"></div>
+  </div>
+</div>
+
+<!-- Donations list -->
 <div class="card">
-  <p class="dim" style="text-align:center; padding:var(--s-xl)">Coming soon</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Donor</th>
+          <th>Category</th>
+          <th>Note</th>
+          <th style="text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="d in donations">
+          <td :text="d.date"></td>
+          <td :text="d.donor"></td>
+          <td><span class="badge" :text="d.category"></span></td>
+          <td class="dim" :text="d.note || '—'"></td>
+          <td style="text-align:right" class="stat-ok" :text="'+$' + d.amount.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+        </tr>
+        <tr :if="!donations.length">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No donations yet</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script type="module">
@@ -15,10 +134,81 @@
 
   auth.capture()
   const page = location.pathname.split('/').pop() || 'index.html'
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Temp sample data
+  const tmpDonations = [
+    { date: '2026-02-25', donor: 'Ananda Das',        category: 'Sunday Feast',      amount: 1250.00, note: 'Weekly contribution' },
+    { date: '2026-02-24', donor: 'Govinda Das',       category: 'General',            amount: 500.00,  note: 'Monthly pledge' },
+    { date: '2026-02-23', donor: 'Tulasi Devi Dasi',  category: 'Book Distribution',  amount: 830.00,  note: '' },
+    { date: '2026-02-22', donor: 'Nityananda Das',    category: 'Festival',           amount: 2000.00, note: 'Gaura Purnima sponsorship' },
+    { date: '2026-02-21', donor: 'Laxmi Devi Dasi',   category: 'Annadana',           amount: 375.00,  note: '' },
+    { date: '2026-02-19', donor: 'Madhava Das',       category: 'Deity Worship',      amount: 200.00,  note: 'Flower fund' },
+    { date: '2026-02-17', donor: 'Hari Das',          category: 'General',            amount: 150.00,  note: '' },
+    { date: '2026-02-15', donor: 'Radha Devi Dasi',   category: 'Building Fund',      amount: 5000.00, note: 'Annual pledge' },
+    { date: '2026-02-10', donor: 'Saraswati Devi Dasi', category: 'Sunday Feast',     amount: 175.00,  note: '' },
+    { date: '2026-02-05', donor: 'Damodar Das',       category: 'General',            amount: 2000.00, note: 'Tax receipt requested' },
+  ]
+
+  const knownDonors = [...new Set(tmpDonations.map(d => d.donor))]
+
+  const emptyForm = () => ({ donor: '', amount: '', category: 'General', date: today, note: '' })
 
   sprae(document.getElementById('app'), {
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
+
+    showAdd: false,
+    form: emptyForm(),
+    donors: knownDonors,
+    donations: tmpDonations,
+    preview: '',
+    scanning: false,
+
+    get monthTotal() {
+      const prefix = today.slice(0, 7)
+      return this.donations.filter(d => d.date.startsWith(prefix)).reduce((sum, d) => sum + d.amount, 0)
+    },
+    get yearTotal() {
+      const yr = today.slice(0, 4)
+      return this.donations.filter(d => d.date.startsWith(yr)).reduce((sum, d) => sum + d.amount, 0)
+    },
+
+    handleFile(e) {
+      const file = e.target.files?.[0]
+      if (file) this.processImage(file)
+    },
+    handleDrop(e) {
+      const file = e.dataTransfer.files?.[0]
+      if (file?.type.startsWith('image/')) this.processImage(file)
+    },
+    processImage(file) {
+      this.preview = URL.createObjectURL(file)
+      this.scanning = true
+      // TODO: api.post('/ocr', file) → fill empty fields
+      // Simulating OCR delay for now
+      setTimeout(() => { this.scanning = false }, 800)
+    },
+    clearImage() {
+      if (this.preview) URL.revokeObjectURL(this.preview)
+      this.preview = ''
+    },
+
+    addDonation() {
+      const entry = {
+        date: this.form.date,
+        donor: this.form.donor,
+        category: this.form.category,
+        amount: parseFloat(this.form.amount),
+        note: this.form.note,
+      }
+      this.donations = [entry, ...this.donations]
+      if (!this.donors.includes(entry.donor)) this.donors = [...this.donors, entry.donor]
+      this.clearImage()
+      this.form = emptyForm()
+      this.showAdd = false
+    },
   })
 </script>

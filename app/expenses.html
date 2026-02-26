@@ -1,12 +1,129 @@
 ---
 ---
-<div class="page-header">
-  <h1>Expenses</h1>
-  <p>Track and manage expenses.</p>
+<div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
+  <div>
+    <h1>Expenses</h1>
+    <p>Track and manage expenses.</p>
+  </div>
+  <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Expense</button>
 </div>
 
+<!-- Add expense modal -->
+<div class="modal-overlay" :if="showAdd" :onclick="e => { if (e.target === e.currentTarget) showAdd = false }">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add Expense</h2>
+      <button class="modal-close" :onclick="showAdd = false">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form :onsubmit.prevent="addExpense">
+        <div class="form-row">
+          <div class="field">
+            <label for="exp-payee">Payee</label>
+            <input id="exp-payee" type="text" :value="form.payee" placeholder="Who was paid…" required>
+          </div>
+          <div class="field">
+            <label for="exp-amount">Amount ($)</label>
+            <input id="exp-amount" type="number" :value="form.amount" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="exp-cat">Category</label>
+            <select id="exp-cat" :value="form.category">
+              <option value="Utilities">Utilities</option>
+              <option value="Kitchen">Kitchen</option>
+              <option value="Deity">Deity</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Office">Office</option>
+              <option value="Rent">Rent</option>
+              <option value="Insurance">Insurance</option>
+              <option value="Travel">Travel</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="exp-date">Date</label>
+            <input id="exp-date" type="date" :value="form.date" required>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:var(--s-md)">
+          <label for="exp-note">Note</label>
+          <input id="exp-note" type="text" :value="form.note" placeholder="Optional note…">
+        </div>
+
+        <!-- Image attachment / OCR -->
+        <div class="scan-area" :class="{['has-image']: preview}"
+          :onclick="if (!preview) fileInput.click()"
+          :ondragover.prevent=""
+          :ondrop.prevent="handleDrop(e)">
+          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
+          <div :if="scanning" class="scan-hint">Scanning…</div>
+          <div :if="!preview && !scanning">
+            <div class="scan-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="scan-hint">Drop receipt image or click to upload</div>
+            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
+          </div>
+          <div :if="preview && !scanning" style="position:relative">
+            <img :src="preview" alt="Receipt">
+            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-top:var(--s-lg)">
+          <button type="button" class="btn btn-secondary" :onclick="showAdd = false">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="card-grid" style="margin-bottom:var(--s-lg)">
+  <div class="card">
+    <div class="stat-label">This Month</div>
+    <div class="stat-value stat-err" :text="'$' + monthTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">This Year</div>
+    <div class="stat-value" :text="'$' + yearTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Expenses</div>
+    <div class="stat-value" :text="expenses.length"></div>
+  </div>
+</div>
+
+<!-- Expenses list -->
 <div class="card">
-  <p class="dim" style="text-align:center; padding:var(--s-xl)">Coming soon</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Payee</th>
+          <th>Category</th>
+          <th>Note</th>
+          <th style="text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="x in expenses">
+          <td :text="x.date"></td>
+          <td :text="x.payee"></td>
+          <td><span class="badge" :text="x.category"></span></td>
+          <td class="dim" :text="x.note || '—'"></td>
+          <td style="text-align:right" class="stat-err" :text="'−$' + x.amount.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+        </tr>
+        <tr :if="!expenses.length">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No expenses yet</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script type="module">
@@ -15,10 +132,77 @@
 
   auth.capture()
   const page = location.pathname.split('/').pop() || 'index.html'
+  const today = new Date().toISOString().slice(0, 10)
+
+  // Temp sample data
+  const tmpExpenses = [
+    { date: '2026-02-25', payee: 'Hydro-Québec',       category: 'Utilities',    amount: 342.18, note: 'February bill' },
+    { date: '2026-02-24', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 287.45, note: 'Prasadam groceries' },
+    { date: '2026-02-23', payee: 'Fleuriste Shakti',    category: 'Deity',        amount: 125.00, note: 'Flower garlands' },
+    { date: '2026-02-22', payee: 'Staples',             category: 'Office',       amount: 89.99,  note: 'Printer ink & paper' },
+    { date: '2026-02-21', payee: 'Mario Plomberie',     category: 'Maintenance',  amount: 210.00, note: 'Basement pipe repair' },
+    { date: '2026-02-18', payee: 'Bell Canada',         category: 'Utilities',    amount: 79.99,  note: 'Internet' },
+    { date: '2026-02-15', payee: 'Landlord',            category: 'Rent',         amount: 3500.00, note: 'March rent' },
+    { date: '2026-02-12', payee: 'Intact Insurance',    category: 'Insurance',    amount: 450.00, note: 'Monthly premium' },
+    { date: '2026-02-08', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 195.30, note: 'Weekly groceries' },
+    { date: '2026-02-03', payee: 'Home Depot',          category: 'Maintenance',  amount: 67.42,  note: 'Light fixtures' },
+  ]
+
+  const emptyForm = () => ({ payee: '', amount: '', category: 'Utilities', date: today, note: '' })
 
   sprae(document.getElementById('app'), {
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
+
+    showAdd: false,
+    form: emptyForm(),
+    expenses: tmpExpenses,
+    preview: '',
+    scanning: false,
+
+    get monthTotal() {
+      const prefix = today.slice(0, 7)
+      return this.expenses.filter(x => x.date.startsWith(prefix)).reduce((sum, x) => sum + x.amount, 0)
+    },
+    get yearTotal() {
+      const yr = today.slice(0, 4)
+      return this.expenses.filter(x => x.date.startsWith(yr)).reduce((sum, x) => sum + x.amount, 0)
+    },
+
+    handleFile(e) {
+      const file = e.target.files?.[0]
+      if (file) this.processImage(file)
+    },
+    handleDrop(e) {
+      const file = e.dataTransfer.files?.[0]
+      if (file?.type.startsWith('image/')) this.processImage(file)
+    },
+    processImage(file) {
+      this.preview = URL.createObjectURL(file)
+      this.scanning = true
+      // TODO: api.post('/ocr', file) → fill empty fields
+      // Simulating OCR delay for now
+      setTimeout(() => { this.scanning = false }, 800)
+    },
+    clearImage() {
+      if (this.preview) URL.revokeObjectURL(this.preview)
+      this.preview = ''
+    },
+
+    addExpense() {
+      const entry = {
+        date: this.form.date,
+        payee: this.form.payee,
+        category: this.form.category,
+        amount: parseFloat(this.form.amount),
+        note: this.form.note,
+      }
+      this.expenses = [entry, ...this.expenses]
+      this.clearImage()
+      this.form = emptyForm()
+      this.showAdd = false
+    },
   })
 </script>

@@ -1,34 +1,64 @@
 ---
 ---
-<div class="page-header">
-  <h1>Dashboard</h1>
-  <p :text="'Overview for ' + currentMonth"></p>
+<div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
+  <div>
+    <h1>Summary</h1>
+  </div>
+  <div style="display:flex; align-items:center; gap:var(--s-md)">
+    <div style="position:relative">
+      <button class="btn btn-primary btn-sm" :onclick="showAdd = !showAdd">+</button>
+      <div class="quick-add" :if="showAdd">
+        <a href="donations.html" class="quick-add-item">+ Donation</a>
+        <a href="expenses.html" class="quick-add-item">+ Expense</a>
+      </div>
+    </div>
+    <select class="year-select" :onchange="year = +e.target.value">
+      <option value="2026" selected>2026</option>
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+  </div>
 </div>
 
-<!-- Stats cards -->
+<!-- Net total -->
+<div class="summary-card">
+  <div class="summary-main">
+    <div class="stat-label">Net Total</div>
+    <div class="stat-value" :text="'$' + Math.abs(stats.net).toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+    <div class="stat-sub" :text="stats.netChange"></div>
+  </div>
+</div>
+
+<!-- Stat cards -->
 <div class="card-grid">
   <div class="card">
-    <div class="stat-label">Donations this month</div>
-    <div class="stat-value stat-ok" :text="'$' + stats.donations.toLocaleString()"></div>
+    <div class="stat-label stat-ok">Donations</div>
+    <div class="stat-value" :text="'$' + stats.donations.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+    <div class="stat-sub stat-ok" :text="stats.donationChange"></div>
   </div>
   <div class="card">
-    <div class="stat-label">Expenses this month</div>
-    <div class="stat-value stat-err" :text="'$' + stats.expenses.toLocaleString()"></div>
+    <div class="stat-label stat-err">Expenses</div>
+    <div class="stat-value" :text="'$' + stats.expenses.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+    <div class="stat-sub stat-err" :text="stats.expenseChange"></div>
   </div>
   <div class="card">
-    <div class="stat-label">Net</div>
-    <div class="stat-value" :class="stats.net >= 0 ? 'stat-ok' : 'stat-err'"
-      :text="(stats.net >= 0 ? '+$' : '-$') + Math.abs(stats.net).toLocaleString()"></div>
+    <div class="stat-label">Members</div>
+    <div class="stat-value" :text="stats.members"></div>
+    <div class="stat-sub" :text="stats.memberSub"></div>
   </div>
   <div class="card">
-    <div class="stat-label">Active donors</div>
+    <div class="stat-label">Donors</div>
     <div class="stat-value" :text="stats.donors"></div>
+    <div class="stat-sub" :text="stats.donorSub"></div>
   </div>
 </div>
 
-<!-- Recent activity -->
+<!-- Transactions -->
 <div class="card">
-  <h3 style="margin-bottom: var(--s-md)">Recent Activity</h3>
+  <div class="card-header">
+    <h3>Transactions</h3>
+    <div class="stat-sub" :text="stats.txSummary"></div>
+  </div>
   <div class="table-wrap">
     <table>
       <thead>
@@ -42,15 +72,10 @@
       <tbody>
         <tr :each="item in recent">
           <td :text="item.date"></td>
-          <td :text="item.description"></td>
-          <td :text="item.category"></td>
-          <td style="text-align:right" :class="item.type === 'donation' ? 'stat-ok' : 'stat-err'"
-            :text="(item.type === 'donation' ? '+' : '-') + '$' + item.amount.toLocaleString()"></td>
-        </tr>
-        <tr :if="!recent.length">
-          <td colspan="4" class="dim" style="text-align:center; padding: var(--s-lg)">
-            No recent activity
-          </td>
+          <td :text="item.desc"></td>
+          <td><span class="badge" :text="item.cat"></span></td>
+          <td style="text-align:right" :class="item.type === 'in' ? 'stat-ok' : 'stat-err'"
+            :text="(item.type === 'in' ? '+' : '−') + '$' + item.amt.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
         </tr>
       </tbody>
     </table>
@@ -63,25 +88,54 @@
   import { api } from '../lib/api.js'
 
   auth.capture()
-  // if (!auth.guard()) throw 'redirect'
 
   const page = location.pathname.split('/').pop() || 'index.html'
-  const months = ['January','February','March','April','May','June',
-    'July','August','September','October','November','December']
-  const now = new Date()
+
+  // Temp sample data — replace with api.get('/home') when ready
+  const tmpRecent = [
+    { date: '2026-02-25', desc: 'Sunday Feast donation',       cat: 'Donation',    type: 'in',  amt: 1250.00 },
+    { date: '2026-02-25', desc: 'Electricity bill',            cat: 'Utilities',   type: 'out', amt: 342.18 },
+    { date: '2026-02-24', desc: 'Monthly pledge — Govinda Das', cat: 'Donation',    type: 'in',  amt: 500.00 },
+    { date: '2026-02-24', desc: 'Groceries for prasadam',      cat: 'Kitchen',     type: 'out', amt: 287.45 },
+    { date: '2026-02-23', desc: 'Book distribution proceeds',  cat: 'Donation',    type: 'in',  amt: 830.00 },
+    { date: '2026-02-23', desc: 'Flower garlands',             cat: 'Deity',       type: 'out', amt: 125.00 },
+    { date: '2026-02-22', desc: 'Gaura Purnima sponsorship',   cat: 'Donation',    type: 'in',  amt: 2000.00 },
+    { date: '2026-02-22', desc: 'Printer ink & paper',         cat: 'Office',      type: 'out', amt: 89.99 },
+    { date: '2026-02-21', desc: 'Annadana donation',           cat: 'Donation',    type: 'in',  amt: 375.00 },
+    { date: '2026-02-21', desc: 'Plumber repair',              cat: 'Maintenance', type: 'out', amt: 210.00 },
+  ]
+
+  const don = 12480.00, exp = 8635.47, total = don + exp
 
   const s = sprae(document.getElementById('app'), {
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
 
-    currentMonth: months[now.getMonth()] + ' ' + now.getFullYear(),
-    stats: { donations: 0, expenses: 0, net: 0, donors: 0 },
-    recent: [],
+    year: 2026,
+    showAdd: false,
+    stats: {
+      donations: don,
+      expenses: exp,
+      net: don - exp,
+      donPct: Math.round(don / total * 100),
+      expPct: Math.round(exp / total * 100),
+      netChange: '+1.3% from last year',
+      donationChange: '↑ 18% vs last year',
+      expenseChange: '↑ 4% vs last year',
+      members: 47,
+      memberSub: '3 new this month',
+      donors: 23,
+      donorSub: '5 recurring',
+      txSummary: 'You had 5 donations and 5 expenses this month',
+    },
+    recent: tmpRecent,
   })
 
-  api.get('/dashboard').then(data => {
-    if (data.stats) Object.assign(s.stats, data.stats)
-    if (data.recent) s.recent = data.recent
-  }).catch(() => {})
+  // When API is ready:
+  // api.get('/home').then(data => {
+  //   if (data.stats) Object.assign(s.stats, data.stats)
+  //   if (data.recent) s.recent = data.recent
+  // }).catch(() => {})
 </script>

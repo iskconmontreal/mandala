@@ -18,9 +18,13 @@
         <a href="index.html" class="login-brand-logo">
           <img src="assets/iskcon-montreal.svg" alt="ISKCON Montreal" width="108" height="108" style="filter: brightness(0) invert(1)">
         </a>
-        <div class="login-brand-text" :scope="{ quote: quotes[Math.floor(Math.random() * quotes.length)] }" :onclick="quote = quotes[Math.floor(Math.random() * quotes.length)]" style="cursor: pointer;">
+        <div class="login-brand-text" :scope="{ quote: quotes[Math.floor(Math.random() * quotes.length)], fading: false }"
+          :class="{fading: fading}"
+          :onclick="fading=true"
+          :onclick.delay-150="fading=false; quote = quotes.filter(q => q !== quote)[Math.floor(Math.random() * (quotes.length - 1))]"
+          style="cursor: pointer;">
           <p>— Śrīla Prabhupāda:</p>
-          <h2 :scope="{q: quote.text}" :text="quote.text"></h2>
+          <h2 :text="quote.text"></h2>
           <p style="opacity:.6; margin-top:var(--s-sm); font-size:var(--f-sm)" :text="quote.source"></p>
         </div>
       </div>

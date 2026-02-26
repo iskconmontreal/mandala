@@ -2,11 +2,72 @@
 ---
 <div class="page-header">
   <h1>Settings</h1>
-  <p>System settings.</p>
+  <p>System configuration and admin management.</p>
 </div>
 
+<!-- Admins -->
 <div class="card">
-  <p class="dim" style="text-align:center; padding:var(--s-xl)">Coming soon</p>
+  <div class="card-header">
+    <h3>Administrators</h3>
+    <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Admin</button>
+  </div>
+
+  <!-- Add admin form (inline, toggled) -->
+  <div :if="showAdd" class="add-admin-form">
+    <form :onsubmit.prevent="addAdmin">
+      <div style="display:flex; gap:var(--s-sm); align-items:end; flex-wrap:wrap">
+        <div class="field" style="flex:1; min-width:12rem; margin:0">
+          <label for="admin-name">Name</label>
+          <input id="admin-name" type="text" :value="newAdmin.name" placeholder="Full name" required>
+        </div>
+        <div class="field" style="flex:1; min-width:14rem; margin:0">
+          <label for="admin-email">Email</label>
+          <input id="admin-email" type="email" :value="newAdmin.email" placeholder="name@example.com" required>
+        </div>
+        <div class="field" style="flex:1; min-width:10rem; margin:0">
+          <label for="admin-pw">Password</label>
+          <input id="admin-pw" type="text" :value="newAdmin.password" placeholder="Initial password" autocomplete="off">
+        </div>
+        <div class="field" style="min-width:8rem; margin:0">
+          <label for="admin-role">Role</label>
+          <select id="admin-role" :value="newAdmin.role">
+            <option value="admin">Admin</option>
+            <option value="treasurer">Treasurer</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </div>
+        <div style="display:flex; gap:var(--s-xs)">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" class="btn btn-outline btn-sm" :onclick="showAdd = false">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="admin in admins">
+          <td :text="admin.name"></td>
+          <td :text="admin.email"></td>
+          <td><span class="badge" :text="admin.role"></span></td>
+          <td :text="admin.added"></td>
+          <td style="text-align:right">
+            <button class="btn-link dim" :onclick="removeAdmin(admin)" :if="admin.removable">Remove</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <script type="module">
@@ -16,9 +77,37 @@
   auth.capture()
   const page = location.pathname.split('/').pop() || 'index.html'
 
-  sprae(document.getElementById('app'), {
+  // Temp sample data — replace with api calls when ready
+  const tmpAdmins = [
+    { name: 'Radha Devi Dasi',  email: 'radha@iskconmontreal.ca',  role: 'Admin',     added: '2023-01-15', removable: false },
+    { name: 'Govinda Das',      email: 'govinda@iskconmontreal.ca', role: 'Treasurer', added: '2023-06-01', removable: true },
+    { name: 'Yamuna Devi Dasi', email: 'yamuna@iskconmontreal.ca',  role: 'Viewer',    added: '2024-03-22', removable: true },
+  ]
+
+  const s = sprae(document.getElementById('app'), {
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
+
+    admins: tmpAdmins,
+    showAdd: false,
+    newAdmin: { name: '', email: '', password: '', role: 'admin' },
+
+    addAdmin() {
+      s.admins = [...s.admins, {
+        name: s.newAdmin.name,
+        email: s.newAdmin.email,
+        role: s.newAdmin.role,
+        added: new Date().toISOString().slice(0, 10),
+        removable: true,
+      }]
+      s.newAdmin = { name: '', email: '', password: '', role: 'admin' }
+      s.showAdd = false
+    },
+
+    removeAdmin(admin) {
+      s.admins = s.admins.filter(a => a !== admin)
+    },
   })
 </script>

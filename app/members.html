@@ -46,6 +46,7 @@
     user: auth.user,
     active: (href) => href === page,
     logout: () => auth.logout(),
+    userMenu: false,
   })
 
   new simpleDatatables.DataTable('#members-table', {

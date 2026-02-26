@@ -48,6 +48,14 @@
 .login-brand-text {
   position: relative;
 }
+.login-brand-text h2,
+.login-brand-text p:last-child {
+  transition: opacity .15s ease;
+}
+.login-brand-text.fading h2,
+.login-brand-text.fading p:last-child {
+  opacity: 0;
+}
 .login-brand-text p {
   font-size: var(--f-sm);
   opacity: .8;

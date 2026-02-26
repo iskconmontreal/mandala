@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sprae :onclick repro</title>
+</head>
+<body>
+  <div id="app">
+    <p>showAdd = <span :text="showAdd"></span></p>
+
+    <!-- This works: arrow function -->
+    <button :if="showAdd" :onclick="() => showAdd = !showAdd">Toggle (arrow)</button>
+
+    <!-- This may throw: bare assignment -->
+    <button :onclick="showAdd = !showAdd">Toggle (assign)</button>
+
+    <!-- This may throw: bare value -->
+    <button :onclick="showAdd">Toggle (bare)</button>
+
+    <div :if="showAdd" style="padding:1rem; margin-top:1rem; border:1px solid #ccc">
+      Popup visible
+    </div>
+  </div>
+
+  <script type="module">
+    import sprae from './lib/sprae.js'
+    sprae(document.getElementById('app'), { showAdd: false })
+  </script>
+</body>
+</html>

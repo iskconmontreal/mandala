@@ -1,0 +1,250 @@
+---
+---
+<div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
+  <div>
+    <h1>Members</h1>
+  </div>
+  <div style="display:flex; gap:var(--s-sm)">
+    <button class="btn btn-outline btn-sm" :onclick="exportCSV()">Export CSV</button>
+    <button class="btn btn-primary btn-sm" :onclick="showAdd = true">+ Add Member</button>
+  </div>
+</div>
+
+<!-- Add/Edit member modal -->
+<div class="modal-overlay" :if="showAdd" :onclick="e => { if (e.target === e.currentTarget) closeModal() }">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 :text="editing ? 'Edit Member' : 'Add Member'"></h2>
+      <button class="modal-close" :onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form :onsubmit.prevent="saveMember">
+        <div class="form-row">
+          <div class="field">
+            <label for="m-name">Full Name</label>
+            <input id="m-name" type="text" :value="form.name" placeholder="Legal name…" required>
+          </div>
+          <div class="field">
+            <label for="m-email">Email</label>
+            <input id="m-email" type="email" :value="form.email" placeholder="email@example.com">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="m-phone">Phone</label>
+            <input id="m-phone" type="tel" :value="form.phone" placeholder="514-000-0000">
+          </div>
+          <div class="field">
+            <label for="m-role">Role</label>
+            <select id="m-role" :value="form.role">
+              <option :each="r in roles" :value="r" :text="r"></option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="m-status">Status</label>
+            <select id="m-status" :value="form.status">
+              <option :each="s in statuses" :value="s" :text="s"></option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="m-joined">Joined</label>
+            <input id="m-joined" type="date" :value="form.joined">
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:var(--s-md)">
+          <label for="m-address">Address</label>
+          <input id="m-address" type="text" :value="form.address" placeholder="For tax receipts…">
+        </div>
+        <div class="field" style="margin-bottom:var(--s-md)">
+          <label for="m-notes">Notes</label>
+          <input id="m-notes" type="text" :value="form.notes" placeholder="Optional…">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-top:var(--s-lg)">
+          <button type="button" class="btn btn-secondary" :onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" :text="editing ? 'Update' : 'Save Member'"></button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Summary cards -->
+<div class="card-grid" style="margin-bottom:var(--s-lg)">
+  <div class="card">
+    <div class="stat-label">Total</div>
+    <div class="stat-value" :text="members.length"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Active</div>
+    <div class="stat-value stat-ok" :text="members.filter(m => m.status === 'Active').length"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">Joined This Year</div>
+    <div class="stat-value" :text="members.filter(m => m.joined?.startsWith(thisYear)).length"></div>
+  </div>
+  <div class="card">
+    <div class="stat-label">By Role</div>
+    <div style="margin-top:var(--s-xs)">
+      <div :each="r in roleSummary" style="display:flex; justify-content:space-between; font-size:var(--f-sm); padding:2px 0">
+        <span :text="r.role"></span>
+        <span class="dim" :text="r.count"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar" style="display:flex; gap:var(--s-sm); margin-bottom:var(--s-md); flex-wrap:wrap">
+  <input type="search" placeholder="Search name, email or phone…" :value="search" :oninput="search = e.target.value"
+    style="flex:1; min-width:12rem">
+  <select :onchange="filterRole = e.target.value" style="width:auto">
+    <option value="">All roles</option>
+    <option :each="r in roles" :value="r" :text="r"></option>
+  </select>
+  <select :onchange="filterStatus = e.target.value" style="width:auto">
+    <option value="">All statuses</option>
+    <option :each="s in statuses" :value="s" :text="s"></option>
+  </select>
+  <button class="btn btn-outline btn-sm" :if="search || filterRole || filterStatus"
+    :onclick="search = ''; filterRole = ''; filterStatus = ''">Clear</button>
+</div>
+
+<!-- Members list -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Joined</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="m in paged">
+          <td :text="m.name"></td>
+          <td><a :href="'mailto:' + m.email" :text="m.email || '—'" style="color:var(--c-accent)"></a></td>
+          <td :text="m.phone || '—'"></td>
+          <td><span class="badge" :text="m.role"></span></td>
+          <td>
+            <span class="badge" :class="{'stat-ok': m.status === 'Active', 'stat-err': m.status === 'Inactive'}" :text="m.status"></span>
+          </td>
+          <td class="dim" :text="m.joined || '—'"></td>
+          <td style="text-align:right">
+            <button class="btn-link" style="color:var(--c-accent)" :onclick="editMember(m)">Edit</button>
+          </td>
+        </tr>
+        <tr :if="!filtered.length">
+          <td colspan="7" class="dim" style="text-align:center; padding:var(--s-lg)">No members found</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- Pagination -->
+  <div :if="totalPages > 1" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s-sm) var(--s-md); border-top:1px solid var(--c-border)">
+    <span class="dim" style="font-size:var(--f-sm)" :text="filtered.length + ' members'"></span>
+    <div style="display:flex; gap:var(--s-xs)">
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1)" :class="{dim: page === 1}">←</button>
+      <span style="padding:var(--s-xs) var(--s-sm); font-size:var(--f-sm)" :text="page + ' / ' + totalPages"></span>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1)" :class="{dim: page === totalPages}">→</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { init, ROLES, STATUSES } from '../lib/app.js'
+
+  const today = new Date().toISOString().slice(0, 10)
+  const thisYear = today.slice(0, 4)
+  const perPage = 20
+
+  // Temp sample data
+  const tmpMembers = [
+    { name: 'Radha Sharma',     email: 'radha.sharma@gmail.com',   phone: '514-555-0101', role: 'Board Member',  status: 'Active',   joined: '2019-03-15', address: '1234 Rue Saint-Denis, Montréal', notes: '' },
+    { name: 'Govinda Patel',    email: 'govinda.p@outlook.com',    phone: '514-555-0102', role: 'Treasurer',     status: 'Active',   joined: '2020-06-01', address: '567 Ave du Parc, Montréal', notes: 'Handles all bank deposits' },
+    { name: 'Yamuna Devi',      email: 'yamuna.d@gmail.com',       phone: '514-555-0103', role: 'Volunteer',     status: 'Active',   joined: '2021-01-10', address: '', notes: 'Sunday feast kitchen lead' },
+    { name: 'Madhava Das',      email: 'madhava.das@proton.me',    phone: '514-555-0104', role: 'President',     status: 'Active',   joined: '2018-09-20', address: '890 Boul Saint-Laurent, Montréal', notes: '' },
+    { name: 'Tulsi Roy',        email: 'tulsi.roy@gmail.com',      phone: '438-555-0105', role: 'Devotee',       status: 'Active',   joined: '2022-04-05', address: '234 Rue Sherbrooke, Montréal', notes: '' },
+    { name: 'Hari Krishnan',    email: 'hari.k@yahoo.com',         phone: '438-555-0106', role: 'Volunteer',     status: 'Active',   joined: '2023-08-12', address: '', notes: 'Book distribution team' },
+    { name: 'Lakshmi Narayan',  email: 'lakshmi.n@gmail.com',      phone: '514-555-0107', role: 'Devotee',       status: 'Inactive', joined: '2020-02-28', address: '678 Ave Papineau, Montréal', notes: 'Moved to Toronto' },
+    { name: 'Saraswati Dasi',   email: 'saraswati.d@outlook.com',  phone: '438-555-0108', role: 'Volunteer',     status: 'Active',   joined: '2024-01-15', address: '', notes: 'Deity worship assistant' },
+    { name: 'Nityananda Prabhu',email: 'nityananda.p@gmail.com',   phone: '514-555-0109', role: 'Devotee',       status: 'Active',   joined: '2025-11-03', address: '345 Rue Rachel, Montréal', notes: '' },
+    { name: 'Gauranga Das',     email: 'gauranga@gmail.com',       phone: '514-555-0110', role: 'Board Member',  status: 'Active',   joined: '2019-07-22', address: '12 Rue Mont-Royal, Montréal', notes: '' },
+  ]
+
+  const emptyForm = () => ({ name: '', email: '', phone: '', role: 'Devotee', status: 'Active', joined: today, address: '', notes: '' })
+
+  init({
+    showAdd: false,
+    editing: null,
+    form: emptyForm(),
+    members: tmpMembers,
+    roles: ROLES,
+    statuses: STATUSES,
+    thisYear,
+
+    // Filters
+    search: '',
+    filterRole: '',
+    filterStatus: '',
+    page: 1,
+
+    get filtered() {
+      const s = this.search.toLowerCase()
+      return this.members.filter(m => {
+        if (s && !m.name.toLowerCase().includes(s) && !m.email.toLowerCase().includes(s) && !(m.phone || '').includes(s)) return false
+        if (this.filterRole && m.role !== this.filterRole) return false
+        if (this.filterStatus && m.status !== this.filterStatus) return false
+        return true
+      })
+    },
+    get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / perPage)) },
+    get paged() { return this.filtered.slice((this.page - 1) * perPage, this.page * perPage) },
+
+    get roleSummary() {
+      const map = {}
+      for (const m of this.members) map[m.role] = (map[m.role] || 0) + 1
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).map(([role, count]) => ({ role, count }))
+    },
+
+    editMember(m) {
+      this.editing = m
+      this.form = { ...m }
+      this.showAdd = true
+    },
+
+    closeModal() {
+      this.showAdd = false
+      this.editing = null
+      this.form = emptyForm()
+    },
+
+    saveMember() {
+      const data = { ...this.form }
+      if (this.editing) {
+        Object.assign(this.editing, data)
+      } else {
+        this.members = [data, ...this.members]
+      }
+      this.closeModal()
+    },
+
+    exportCSV() {
+      const rows = [['Name', 'Email', 'Phone', 'Role', 'Status', 'Joined', 'Address', 'Notes']]
+      for (const m of this.filtered) rows.push([m.name, m.email, m.phone, m.role, m.status, m.joined || '', m.address || '', m.notes || ''])
+      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n')
+      const blob = new Blob([csv], { type: 'text/csv' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = 'members.csv'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    },
+  })
+</script>

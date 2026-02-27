@@ -10,14 +10,14 @@ What users do. Not UI specs, not infrastructure.
 2. Attaches receipt photo, fills amount/vendor/category/date
 3. Submits
 4. Approval flow based on amount (< $100 auto-approved, >= $100 needs 2 approvals)
-5. Treasurer pays, marks paid
+5. Treasurer pays, attaches payment proof (e-transfer screenshot), marks paid
 6. Confirmed in bank reconciliation → closed
 
 **1.b Advance** — money needed before purchase, reconcile after
 1. Member creates voucher → type: advance
 2. Fills purpose, estimated amount, category
 3. Submits → 2 approvals required (always, regardless of amount)
-4. Treasurer disburses, marks paid
+4. Treasurer disburses, attaches payment proof, marks paid
 5. Member purchases, uploads receipt(s) as attachments, enters actual amount
 6. Difference settled (member returns overage or receives shortfall)
 7. Closed
@@ -26,7 +26,7 @@ What users do. Not UI specs, not infrastructure.
 1. Member or treasurer creates voucher → type: direct payment
 2. Attaches invoice, fills vendor/amount/due date/category
 3. Submits → approval flow based on amount
-4. Treasurer pays vendor, marks paid
+4. Treasurer pays vendor, attaches payment proof, marks paid
 5. Confirmed in bank reconciliation → closed
 
 **1.d Bank Reconciliation** — match bank records to vouchers/donations

@@ -277,7 +277,18 @@ Tapping a list item opens this. "+" opens this blank.
 Status determines behavior:
 - **draft/returned** → all fields editable, Submit button
 - **submitted** → read-only, shows approval progress
-- **approved** → read-only, treasurer sees "Mark Paid"
+- **approved** → read-only, treasurer sees payment section:
+
+```
+│  ── Pay ──                      │
+│  ┌─────────────────────────┐    │
+│  │ 📷  Payment Proof       │    │  ← e-transfer screenshot,
+│  └─────────────────────────┘    │    cheque scan, etc.
+│  ┌─────────────────────────┐    │
+│  │       Mark Paid ✓       │    │
+│  └─────────────────────────┘    │
+```
+
 - **paid + type=advance** → shows receipt upload section:
 
 ```

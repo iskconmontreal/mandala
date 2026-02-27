@@ -37,8 +37,9 @@ Derived from scenarios. Conceptual, not physical.
 
 **Attachment** `1.a-c, 2.c`
 - parent → Voucher | Donation (polymorphic)
-- file (photo/scan/PDF)
-- type: `receipt` | `invoice` | `appraisal`
+- file_path (relative to data root, human-navigable — see datalogy.md)
+- type: `receipt` | `invoice` | `payment` | `appraisal`
+- *`receipt`/`invoice`: member attaches on submit. `payment`: treasurer attaches on pay (e-transfer screenshot, cheque scan). `appraisal`: in-kind FMV doc.*
 - *Advance reconciliation receipts are Attachments on the advance Voucher, not child Vouchers.*
 
 **Donation** `2.a-d`

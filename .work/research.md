@@ -9,5 +9,7 @@
 
 ## Database
 
-* Master db
-* Per-year
+* settings.db — org config, fiscal year flags
+* members.db — User, Donor, Pledge (cross-year)
+* `<year>/finance.db` — all financial transactions (year-scoped, locked after close)
+* See datalogy.md for full structure

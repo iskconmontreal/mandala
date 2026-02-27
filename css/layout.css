@@ -18,7 +18,7 @@
   transition: width .3s ease, opacity .3s;
 }
 .progress.loading { width: 70%; }
-.progress.done { width: 100%; opacity: 0; }
+.progress.done { width: 100%; }
 
 .app {
   display: flex;

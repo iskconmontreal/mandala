@@ -149,8 +149,8 @@ Tabs visible per role:
 │                                 │
 │  Tax Receipts                   │
 │  ┌─────────────────────────┐    │
-│  │ 2025   R-2025-0014  ⤓  │    │
-│  │ 2024   R-2024-0014  ⤓  │    │
+│  │ 2025   R-2025-0014  ⤓   │    │
+│  │ 2024   R-2024-0014  ⤓   │    │
 │  └─────────────────────────┘    │
 │                                 │
 │  Giving History                 │
@@ -158,7 +158,7 @@ Tabs visible per role:
 │  │ Feb 2026  $108  e-xfer  │    │
 │  │ Jan 2026  $108  e-xfer  │    │
 │  │ Dec 2025  $108  e-xfer  │    │
-│  │          ···             │    │
+│  │          ···            │    │
 │  └─────────────────────────┘    │
 │                                 │
 └─────────────────────────────────┘
@@ -175,11 +175,11 @@ lands here with a pre-set filter. User can change filter.
 
 ```
 ┌─────────────────────────────────┐
-│ ☰  Expenses                 + │
+│ ☰  Expenses                 +  │
 ├─────────────────────────────────┤
 │                                 │
 │  ┌─────────────────────────┐    │
-│  │ All ▾   Any status ▾   │    │
+│  │ All ▾   Any status ▾    │    │
 │  └─────────────────────────┘    │
 │                                 │
 │  ┌─────────────────────────┐    │
@@ -187,7 +187,7 @@ lands here with a pre-set filter. User can change filter.
 │  │ Reimb · $230 · Prasadam │    │
 │  │ submitted · 0/2 approved│    │
 │  │                         │    │
-│  │ [Approve]  [Return ↩]  │    │  ← approver sees actions
+│  │ [Approve]  [Return ↩]   │    │  ← approver sees actions
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │
 │  │ V-0042  Nani Gopal      │    │

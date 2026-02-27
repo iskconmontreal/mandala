@@ -9,7 +9,10 @@
   <link rel="stylesheet" href="{{ '/css/layout.css' | relative_url }}">
 </head>
 <body>
-  <div class="progress loading"></div>
+  <div class="progress"
+      :scope="{loading: true}"
+      :class="{loading, done: !loading}"
+      :onload.window="loading = false"></div>
   <div class="app" id="app">
 
     <!-- Top navigation -->
@@ -61,6 +64,5 @@
     </main>
 
   </div>
-  <script>window.addEventListener('load', () => { let p = document.querySelector('.progress'); p.classList.replace('loading', 'done'); setTimeout(() => p.remove(), 400) })</script>
 </body>
 </html>

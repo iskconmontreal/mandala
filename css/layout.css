@@ -1,8 +1,12 @@
 /* layout.css — shared app shell: top nav + main */
 
-/* Accent stripe — temple gradient */
-.accent-stripe {
+/* Progress bar — top loading indicator */
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
   height: 3px;
+  width: 0;
   background: linear-gradient(
     90deg,
     rgba(26, 10, 62, .9) 0%,
@@ -10,7 +14,11 @@
     rgba(167, 139, 250, .7) 70%,
     rgba(196, 181, 253, .5) 100%
   );
+  z-index: 999;
+  transition: width .3s ease, opacity .3s;
 }
+.progress.loading { width: 70%; }
+.progress.done { width: 100%; opacity: 0; }
 
 .app {
   display: flex;
@@ -42,7 +50,7 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: var(--s-xs);
+  gap: var(--s-sm);
   margin: 0 auto;
 }
 
@@ -312,11 +320,15 @@
 }
 
 /* Form rows */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md)
+}
 .form-row {
   display: flex;
   gap: var(--s-md);
   flex-wrap: wrap;
-  margin-bottom: var(--s-md);
 }
 .form-row .field {
   flex: 1;

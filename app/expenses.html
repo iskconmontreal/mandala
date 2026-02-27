@@ -19,6 +19,26 @@
     </div>
     <div class="modal-body">
       <form :onsubmit.prevent="addExpense">
+        <!-- Image attachment / OCR -->
+        <div class="scan-area" :class="{['has-image']: preview}"
+          :onclick="if (!preview) fileInput.click()"
+          :ondragover.prevent=""
+          :ondrop.prevent="handleDrop(e)">
+          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
+          <div :if="scanning" class="scan-hint">Scanning…</div>
+          <div :if="!preview && !scanning">
+            <div class="scan-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+            <div class="scan-hint">Drop receipt image or click to upload</div>
+            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
+          </div>
+          <div :if="preview && !scanning" style="position:relative">
+            <img :src="preview" alt="Receipt">
+            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="field">
             <label for="exp-payee">Payee</label>
@@ -50,26 +70,6 @@
             <label style="display:flex; align-items:center; gap:var(--s-xs); font-weight:var(--f-wt); cursor:pointer">
               <input type="checkbox" :checked="form.recurring"> Recurring
             </label>
-          </div>
-        </div>
-
-        <!-- Image attachment / OCR -->
-        <div class="scan-area" :class="{['has-image']: preview}"
-          :onclick="if (!preview) fileInput.click()"
-          :ondragover.prevent=""
-          :ondrop.prevent="handleDrop(e)">
-          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
-          <div :if="scanning" class="scan-hint">Scanning…</div>
-          <div :if="!preview && !scanning">
-            <div class="scan-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-            <div class="scan-hint">Drop receipt image or click to upload</div>
-            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
-          </div>
-          <div :if="preview && !scanning" style="position:relative">
-            <img :src="preview" alt="Receipt">
-            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
           </div>
         </div>
 

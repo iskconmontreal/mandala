@@ -56,25 +56,16 @@
   * [ ] Auth helper module that attaches Authorization: Bearer to every fetch
   * [ ] Redirect to login.html when 401 received
 
-## [ ] Happy Path
-  1. Treasurer opens mandala (bookmarked on phone/laptop)
-  2. Sees login → enters credentials → JWT stored
-  3. Dashboard: donation total this month, expense total, net, recent activity
-  4. Taps "+" → "Donation" → selects/creates donor → amount, category, date, note → Save
-  5. Donation appears in list. Running total updates.
-  6. Later: President opens same URL → logs in → sees same dashboard truth
-  7. Month-end: Treasurer taps "Reports" → selects month → sees summary → exports PDF
-
 * [ ] Donations
-  * [ ] "+" → "Donation" → selects/creates donor → amount, category, date, note → Save
+  * [ ] "+" → "Donation" → selects/creates donor → amount, category, date, note → Save or save and add one more
+
+* [ ] Limit user/pass login only to temple internal network
 
 * [ ] Dashboard
   * [ ] donation total this month
   * [ ] expense total
   * [ ] net
   * [ ] recent activity
-
-## Backlog
 
 * [ ] Tax receipt template formatting / PDF generation (necessary, not exciting)
 * [ ] Auth/session management for cross-domain static→API (real friction, must solve cleanly)

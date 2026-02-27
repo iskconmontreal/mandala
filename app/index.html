@@ -2,41 +2,22 @@
 ---
 <div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
   <div>
-    <h1>Finance</h1>
+    <h1>Overview</h1>
   </div>
   <div style="display:flex; align-items:center; gap:var(--s-md)">
-    <div style="position:relative">
+    <!-- <div style="position:relative">
       <button class="btn btn-primary btn-sm" :onclick="showAdd = !showAdd">+</button>
       <div class="quick-add" :if="showAdd">
         <a href="donations.html" class="quick-add-item">+ Donation</a>
         <a href="expenses.html" class="quick-add-item">+ Expense</a>
       </div>
-    </div>
+    </div> -->
     <select class="year-select" :onchange="year = +e.target.value">
       <option :each="y in years" :value="y" :text="y" :selected="y === year"></option>
     </select>
     <select class="year-select" :onchange="month = +e.target.value">
       <option :each="m in months" :value="m.val" :text="m.label" :selected="m.val === month"></option>
     </select>
-  </div>
-</div>
-
-<!-- Net position -->
-<div class="summary-card">
-  <div class="summary-main">
-    <div class="stat-label">Net Position</div>
-    <div class="stat-value" :class="totals.net >= 0 ? 'stat-ok' : 'stat-err'"
-      :text="(totals.net >= 0 ? '+' : '−') + '$' + Math.abs(totals.net).toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
-    <div class="stat-sub" :text="totals.netNote"></div>
-  </div>
-  <!-- Proportion bar -->
-  <div class="ratio-bar" style="margin-top:var(--s-md)">
-    <span style="border-radius:var(--r-sm) 0 0 var(--r-sm)" :style="{width: totals.donPct + '%', background: 'var(--c-ok)'}"></span>
-    <span style="border-radius:0 var(--r-sm) var(--r-sm) 0" :style="{width: totals.expPct + '%', background: 'var(--c-err)'}"></span>
-  </div>
-  <div style="display:flex; justify-content:space-between; font-size:var(--f-sm); color:var(--c-text-dim); margin-top:var(--s-xs)">
-    <span class="stat-ok" :text="'Donations ' + totals.donPct + '%'"></span>
-    <span class="stat-err" :text="'Expenses ' + totals.expPct + '%'"></span>
   </div>
 </div>
 

@@ -9,8 +9,8 @@
   <link rel="stylesheet" href="{{ '/css/layout.css' | relative_url }}">
 </head>
 <body>
+  <div class="progress loading"></div>
   <div class="app" id="app">
-    <div class="accent-stripe"></div>
 
     <!-- Top navigation -->
     <header class="topbar">
@@ -61,5 +61,6 @@
     </main>
 
   </div>
+  <script>window.addEventListener('load', () => { let p = document.querySelector('.progress'); p.classList.replace('loading', 'done'); setTimeout(() => p.remove(), 400) })</script>
 </body>
 </html>

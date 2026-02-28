@@ -1,3 +1,4 @@
 /_site
 /.ssl
 /node_modules
+/test-results

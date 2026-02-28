@@ -21,6 +21,11 @@ Cross-domain: CORS + Authorization: Bearer header, no cookies
 
 No build step. No bundler. No framework beyond sprae. No Tailwind.
 
+## API
+
+Goloka REST API: `https://api.iskconmontreal.ca`
+Swagger: `https://api.iskconmontreal.ca/swagger/index.html`
+
 ## Stack
 
 - **Sprae v12.4.7** — DOM microhydration (`lib/sprae.js`). Directives: `:scope`, `:text`, `:if`, `:each`, `:class`, `:onclick`, `:onsubmit`. Loaded with `data-start` attribute for auto-init.

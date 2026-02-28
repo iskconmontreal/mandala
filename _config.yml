@@ -17,3 +17,6 @@ exclude:
   - .work
   - .ssl
   - agents.md
+  - tests
+  - playwright.config.js
+  - playwright-report

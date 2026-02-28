@@ -5,23 +5,26 @@ How data is stored on disk. Human-navigable without the app.
 
 ### Directory Structure
 
-Root: `data/<tenant>/`
+Root: `storage/<tenant>/`
 
 ```
-data/
+storage/
+  montreal/
+    app.db            ← users, donors, members, roles (shared identity)
+    finance.db        ← expenses, donations, tax receipts, bank txns
+    library.db        ← book lending, inventory
+    website.db        ← content, pages, events
+
+uploads/
   iskcon-montreal/
-    settings.db                          # org config, fiscal year flags
-    members.db                           # User, Donor, Pledge
     2026/
-      finance.db                         # Voucher, Approval, Attachment,
-                                         # Donation, TaxReceipt, BankTransaction
       expense/
-        V-0042-costco-prasadam-receipt.webp
-        V-0042-costco-prasadam-payment.webp
-        V-0043-festival-supplies-receipt-1.webp
-        V-0043-festival-supplies-receipt-2.webp
-        V-0039-hydro-quebec-utilities-invoice.pdf
-        V-0039-hydro-quebec-utilities-payment.webp
+        E-0042-costco-prasadam-receipt.webp
+        E-0042-costco-prasadam-payment.webp
+        E-0043-festival-supplies-receipt-1.webp
+        E-0043-festival-supplies-receipt-2.webp
+        E-0039-hydro-quebec-utilities-invoice.pdf
+        E-0039-hydro-quebec-utilities-payment.webp
       donation/
         arjuna-das-2026-02-26-in-kind-appraisal.pdf
       tax-receipt/
@@ -31,7 +34,6 @@ data/
         desjardins-2026-02.csv
         td-2026-02.csv
     2025/
-      finance.db                         # read-only after year-end close
       expense/
       donation/
       tax-receipt/
@@ -39,35 +41,15 @@ data/
 ```
 
 
-### Databases
-
-Three SQLite files per tenant:
-
-| DB            | Contains                                      | Lifecycle           |
-|---------------|-----------------------------------------------|---------------------|
-| settings.db   | Org config (name, address, CRA reg no, etc.), fiscal year flags | Persistent, rarely changes |
-| members.db    | User, Donor, Pledge                           | Persistent, cross-year |
-| `<year>/finance.db` | Voucher, Approval, Attachment, Donation, TaxReceipt, BankTransaction | One per year. Read-only after year-end close. |
-
-Why this split:
-- **settings.db** — config that changes almost never. Separate from member data that changes regularly.
-- **members.db** — donors and users span years. A donor created in 2024 donates in 2026. Pledges generate expected donations across years.
-- **finance.db per year** — all financial transactions are year-scoped. Year-end close locks the file. Backup = copy folder. Archive = zip old years. No cross-year joins needed.
-
-Cross-DB lookups: finance.db stores `donor_id`, `submitted_by` (user_id), etc. as integer foreign keys. App resolves names from members.db. Two simple queries, not a join.
-
-Multi-tenant: one directory per tenant. Zero code changes — just a path prefix.
-
-
 ### File Naming
 
 #### Expense attachments
 
-`<voucher_no>-<vendor>-<category>-<type>[-n].<ext>`
+`<expense_no>-<vendor>-<category>-<type>[-n].<ext>`
 
-- voucher_no: `V-0042` (lowercased from Voucher.voucher_no)
+- expense_no: `E-0042` (lowercased from Expense.expense_no)
 - vendor: slugified (`hydro-quebec`, `costco`)
-- category: from voucher (`prasadam`, `utilities`)
+- category: from expense (`prasadam`, `utilities`)
 - type: `receipt` | `invoice` | `payment`
 - n: counter when multiple (advance with several receipts)
 - ext: `webp` for photos, `pdf` for documents
@@ -99,16 +81,37 @@ Camera captures converted on upload.
 
 | Type      | On Entity | When Created        | What It Is                    |
 |-----------|-----------|---------------------|-------------------------------|
-| receipt   | Voucher   | Member submits      | Proof of purchase             |
-| invoice   | Voucher   | Member submits      | Vendor bill (direct payment)  |
-| payment   | Voucher   | Treasurer pays      | Proof of payment (e-transfer screenshot, cheque scan) |
+| receipt   | Expense   | Member submits      | Proof of purchase             |
+| invoice   | Expense   | Member submits      | Vendor bill (direct payment)  |
+| payment   | Expense   | Treasurer pays      | Proof of payment (e-transfer screenshot, cheque scan) |
 | appraisal | Donation  | In-kind entry       | Independent FMV appraisal (CRA, if FMV > $1,000) |
 
 
 ### Why No Status in Filenames
 
-Status is mutable — a voucher moves through draft → submitted → approved → paid → closed. The file doesn't change when the voucher changes. The attachment **type** already implies the relevant state:
+Status is mutable — an expense moves through draft → submitted → approved → paid → closed. The file doesn't change when the expense changes. The attachment **type** already implies the relevant state:
 - `receipt` / `invoice` → exists from submission
 - `payment` → exists from payment
 
 Query the database for state, not the filesystem. The filesystem stores evidence.
+
+
+## Managing multiple connections in GORM
+
+With GORM, you manage multiple connections — not ATTACH. Each database gets its own *gorm.DB instance.
+
+
+montrealApp := openDB("montreal/app.db")
+montrealFinance := openDB("montreal/finance-2025.db")
+ottawaApp := openDB("ottawa/app.db")
+
+// Query whichever you need
+montrealFinance.Find(&transactions)
+ottawaApp.Find(&users)
+Cross-database joins won't work this way. If you need that, use ATTACH via raw SQL on a single connection:
+
+
+db := openDB("montreal/app.db")
+db.Exec("ATTACH DATABASE 'montreal/finance-2025.db' AS finance")
+
+db.Raw("SELECT u.name, t.amount FROM users u JOIN finance.transactions t ON u.id = t.user_id").Scan(&results)

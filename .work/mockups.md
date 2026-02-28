@@ -3,7 +3,7 @@
 Mobile-first. 10 screens total.
 
 Core principle: **editable until finalized**. No separate "returned" or
-"reconcile" screens. One voucher form, one voucher list (filtered by context).
+"reconcile" screens. One expense form, one expense list (filtered by context).
 
 
 ### App Shell
@@ -104,20 +104,20 @@ Tabs visible per role:
 │  └───────┴────────┴──────────┘  │
 │                                 │
 │  ┌─────────────────────────┐    │ ← treasurer
-│  │ ▸ To Pay          5 $820│    │   (vouchers: approved)
+│  │ ▸ To Pay          5 $820│    │   (expenses: approved)
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │ ← approver
-│  │ ▸ To Approve          3 │    │   (vouchers: submitted,
+│  │ ▸ To Approve          3 │    │   (expenses: submitted,
 │  └─────────────────────────┘    │    needs my approval)
 │  ┌─────────────────────────┐    │ ← treasurer
 │  │ ▸ Overdue Pledges     2 │    │
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │ ← member
-│  │ ▸ Returned            1 │    │   (my vouchers: returned)
+│  │ ▸ Returned            1 │    │   (my expenses: returned)
 │  └─────────────────────────┘    │
 │                                 │
 │  ┌─────────────────────────┐    │ ← member
-│  │      + New Voucher      │    │
+│  │      + New Expense      │    │
 │  └─────────────────────────┘    │
 │                                 │
 │  Recent                         │
@@ -128,7 +128,7 @@ Tabs visible per role:
 │  │ Hari Das    Advance $300│    │
 │  │ 1 hr ago       awaiting │    │
 │  ├─────────────────────────┤    │
-│  │ Hydro-Qc   Direct  $180│    │
+│  │ Hydro-Qc   Direct  $180 │    │
 │  │ Yesterday        paid   │    │
 │  └─────────────────────────┘    │
 │                                 │
@@ -168,7 +168,7 @@ Tabs visible per role:
 ---
 
 
-### 4. Voucher List (one list, context-filtered)
+### 4. Expense List (one list, context-filtered)
 
 Tapping dashboard cards ("To Pay", "To Approve", "Returned")
 lands here with a pre-set filter. User can change filter.
@@ -183,26 +183,26 @@ lands here with a pre-set filter. User can change filter.
 │  └─────────────────────────┘    │
 │                                 │
 │  ┌─────────────────────────┐    │
-│  │ V-0044  Nani Gopal      │    │
+│  │ E-0044  Nani Gopal      │    │
 │  │ Reimb · $230 · Prasadam │    │
 │  │ submitted · 0/2 approved│    │
 │  │                         │    │
 │  │ [Approve]  [Return ↩]   │    │  ← approver sees actions
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │
-│  │ V-0042  Nani Gopal      │    │
+│  │ E-0042  Nani Gopal      │    │
 │  │ Reimb · $47 · Prasadam  │    │
 │  │ approved                │    │
 │  │                         │    │
 │  │ [Mark Paid ✓]           │    │  ← treasurer sees action
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │
-│  │ V-0038  Hari Das        │    │
+│  │ E-0038  Hari Das        │    │
 │  │ Advance · $300 · Suppl  │    │
 │  │ paid · awaiting receipts│    │
 │  └─────────────────────────┘    │
 │  ┌─────────────────────────┐    │
-│  │ V-0035  Nani Gopal      │    │
+│  │ E-0035  Nani Gopal      │    │
 │  │ Reimb · $230 · Prasadam │    │
 │  │ closed                  │    │
 │  └─────────────────────────┘    │
@@ -215,14 +215,14 @@ No separate "Approval Queue" or "Payment Queue" screen.
 Just this list with contextual inline actions per role.
 
 
-### 5. Voucher Form (create + edit — same screen)
+### 5. Expense Form (create + edit — same screen)
 
 Editable until finalized (paid/closed/rejected).
 Tapping a list item opens this. "+" opens this blank.
 
 ```
 ┌─────────────────────────────────┐
-│  ← Expenses    V-2026-0044      │
+│  ← Expenses    E-2026-0044      │
 │                          DRAFT  │
 ├─────────────────────────────────┤
 │                                 │
@@ -268,7 +268,7 @@ Tapping a list item opens this. "+" opens this blank.
 │  ┌─────────────────────────┐    │
 │  │ ✓ Govinda    Approved   │    │
 │  │ ↩ Radha      Returned   │    │
-│  │   "Receipt blurry"     │    │
+│  │   "Receipt blurry"      │    │
 │  └─────────────────────────┘    │
 │                                 │
 └─────────────────────────────────┘
@@ -327,7 +327,7 @@ List view:
 ├─────────────────────────────────┤
 │                                 │
 │  ┌─────────────────────────┐    │
-│  │ 🔍 Search donors..     │    │
+│  │ 🔍 Search donors..      │    │
 │  └─────────────────────────┘    │
 │                                 │
 │  ┌─────────────────────────┐    │
@@ -335,10 +335,10 @@ List view:
 │  │ $1,296 ytd · pledge $108│    │
 │  ├─────────────────────────┤    │
 │  │ Bhakta Tom              │    │
-│  │ $600 ytd               │    │
+│  │ $600 ytd                │    │
 │  ├─────────────────────────┤    │
 │  │ Nani Gopal Das          │    │
-│  │ $200 ytd               │    │
+│  │ $200 ytd                │    │
 │  └─────────────────────────┘    │
 │         ···                     │
 │                                 │
@@ -565,19 +565,19 @@ Genuinely unique workflow. Stays.
 │  42 transactions                │
 │                                 │
 │  ┌──────────┬───────┬────────┐  │
-│  │▌Match 35▐│Vchr 4 │Bank 3  │  │
+│  │▌Match 35▐│Exp 4 │Bank 3  │  │
 │  └──────────┴───────┴────────┘  │
 │                                 │
 │  ┌─────────────────────────┐    │
-│  │ ✓ $47   Costco ↔ V-0042│    │
-│  │ ✓ $180  Hydro  ↔ V-0039│    │
+│  │ ✓ $47   Costco ↔ E-0042│    │
+│  │ ✓ $180  Hydro  ↔ E-0039│    │
 │  │         ···              │    │
 │  └─────────────────────────┘    │
 │                                 │
 │  ── Unmatched Bank (3) ──       │
 │  ┌─────────────────────────┐    │
 │  │ ? $15.99  "NETFLIX"     │    │
-│  │   [Create Voucher]      │    │
+│  │   [Create Expense]      │    │
 │  │ ? $200    "E-TFR J DOE" │    │
 │  │   [Create Donation]     │    │
 │  └─────────────────────────┘    │
@@ -638,8 +638,8 @@ Genuinely unique workflow. Stays.
 | 1  | Login          | Auth + password reset (inline)            |
 | 2  | Set Password   | Invite accept + reset (shared)            |
 | 3  | Dashboard      | Adaptive by role (1 layout, 4 variants)   |
-| 4  | Voucher List   | All vouchers, filtered. Inline approve/pay|
-| 5  | Voucher Form   | Create + edit + reconcile. Status governs  |
+| 4  | Expense List   | All expenses, filtered. Inline approve/pay|
+| 5  | Expense Form   | Create + edit + reconcile. Status governs  |
 | 6  | Donor List     | All donors + search                       |
 | 7  | Donation Form  | Cash/in-kind/collection. Pledge via donor |
 | 8  | Reports        | Summary/Tax/GST tabs. One screen          |
@@ -649,7 +649,7 @@ Genuinely unique workflow. Stays.
 ### Design Principles
 
 - **Editable until finalized.** No separate screens for "returned" or "reconcile" states.
-- **One list, contextual actions.** Voucher list serves as approval queue, payment queue, and "my vouchers" — filtered by role.
+- **One list, contextual actions.** Expense list serves as approval queue, payment queue, and "my expenses" — filtered by role.
 - **Form = detail.** Creating and viewing are the same screen. Status governs editability.
 - **Inline over separate.** Password reset on login, invite on people, pledge on donor detail.
 - **Deferred.** Donor Board, Year-End Close — not core accounting.

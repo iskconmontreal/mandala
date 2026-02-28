@@ -49,18 +49,18 @@
     FiscalYear entity — it's a config flag, not an entity. "Is 2025 closed?" is one boolean.
     batch_id — already killed, still in file.
     Donor.board_opt_in — deferred feature, polluting core model.
-  * Cleanup and resolve: Scenarios 1.e already says "UI convenience, not a separate voucher type." The document knew it was ornament but included it anyway. Several scenarios are actually UI specs (dashboards, notifications, reports) or rules (approval thresholds) pretending to be user stories.
+  * Cleanup and resolve: Scenarios 1.e already says "UI convenience, not a separate expense type." The document knew it was ornament but included it anyway. Several scenarios are actually UI specs (dashboards, notifications, reports) or rules (approval thresholds) pretending to be user stories.
   * Delete:
     From infology:
     Kill	Why
     Event entity	event_name string on Donation. total_collected is sum(donations where event_name=X).
-    Notification entity	Derived. "Vouchers where status=submitted and needs_my_approval" is a query, not stored data.
+    Notification entity	Derived. "Expenses where status=submitted and needs_my_approval" is a query, not stored data.
     FiscalYear entity	Config value. One row in settings.
-    batch_id on Voucher	Already decided.
-    advance_id → Voucher	Bug. Reconciliation receipts are Attachments on the advance, not child Vouchers. Scenario 1.c says "uploads receipt(s)" — those are files, not new vouchers.
+    batch_id on Expense	Already decided.
+    advance_id → Expense	Bug. Reconciliation receipts are Attachments on the advance, not child Expenses. Scenario 1.c says "uploads receipt(s)" — those are files, not new expenses.
     Donation.receipt_no	Denormalization. TaxReceipt already links donor+year.
-    BankTransaction.match_status	Derivable from voucher_id is null.
-    Voucher status reconciling	Derivable: type=advance AND status=paid AND actual_amount is null.
+    BankTransaction.match_status	Derivable from expense_id is null.
+    Expense status reconciling	Derivable: type=advance AND status=paid AND actual_amount is null.
     Donor.board_opt_in	Deferred feature.
     TaxReceipt CRA fields	Org-level config (charity name, address, reg no). Not per-receipt data. Receipt only needs: no, donor, year, amount, date_issued, pdf.
     From scenarios:
@@ -72,13 +72,13 @@
     7.b Annual Report	Same as 7.a with different period selector.
     7.c Donor Report	It's a step inside 3.a (tax receipts), not a separate scenario.
     4.b Donor Board	Deferred.
-    * Resolve: The advance_id relationship is wrong. Infology says "Voucher (advance) links to 0..n Vouchers (reconciliation receipts via advance_id)." But receipts uploaded during reconciliation aren't new vouchers — they're Attachments. The current model invents phantom child vouchers that don't exist in any scenario. This would cause real confusion during implementation.
-    8 voucher statuses. draft | submitted | returned | rejected | approved | paid | reconciling | closed. Kill reconciling (derived). That leaves 7, which maps cleanly to the lifecycle:
+    * Resolve: The advance_id relationship is wrong. Infology says "Expense (advance) links to 0..n Expenses (reconciliation receipts via advance_id)." But receipts uploaded during reconciliation aren't new expenses — they're Attachments. The current model invents phantom child expenses that don't exist in any scenario. This would cause real confusion during implementation.
+    8 expense statuses. draft | submitted | returned | rejected | approved | paid | reconciling | closed. Kill reconciling (derived). That leaves 7, which maps cleanly to the lifecycle:
     draft → submitted → approved → paid → closed
                   ↘ returned (fix, resubmit)
                   ↘ rejected (terminal)
     For non-advances: paid could be terminal. But bank reconciliation wants to confirm payment cleared, so closed = "confirmed in bank." Consistent across types.
-    Donation categories ≠ Voucher categories. This is correct (income sources ≠ expense purposes) but the infology doesn't explain why they differ. Someone reading it later will wonder.
+    Donation categories ≠ Expense categories. This is correct (income sources ≠ expense purposes) but the infology doesn't explain why they differ. Someone reading it later will wonder.
     * Resolve: "Scenarios are complete." They're not. No scenario mentions draft status — every story jumps straight to "submits." But the mockups introduced "editable until finalized" and the infology has draft. Gap between what's written and what's designed.
     "Event is an entity." It's a string. total_collected is sum(). The desire to make it an entity is the desire to build more than needed.
 

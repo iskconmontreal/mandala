@@ -6,7 +6,7 @@ What users do. Not UI specs, not infrastructure.
 ### 1. Expenses
 
 **1.a Reimbursement** — member already paid, wants money back
-1. Member creates voucher → type: reimbursement
+1. Member creates expense → type: reimbursement
 2. Attaches receipt photo, fills amount/vendor/category/date
 3. Submits
 4. Approval flow based on amount (< $100 auto-approved, >= $100 needs 2 approvals)
@@ -14,7 +14,7 @@ What users do. Not UI specs, not infrastructure.
 6. Confirmed in bank reconciliation → closed
 
 **1.b Advance** — money needed before purchase, reconcile after
-1. Member creates voucher → type: advance
+1. Member creates expense → type: advance
 2. Fills purpose, estimated amount, category
 3. Submits → 2 approvals required (always, regardless of amount)
 4. Treasurer disburses, attaches payment proof, marks paid
@@ -23,20 +23,20 @@ What users do. Not UI specs, not infrastructure.
 7. Closed
 
 **1.c Direct Payment** — pay vendor/bill directly
-1. Member or treasurer creates voucher → type: direct payment
+1. Member or treasurer creates expense → type: direct payment
 2. Attaches invoice, fills vendor/amount/due date/category
 3. Submits → approval flow based on amount
 4. Treasurer pays vendor, attaches payment proof, marks paid
 5. Confirmed in bank reconciliation → closed
 
-**1.d Bank Reconciliation** — match bank records to vouchers/donations
+**1.d Bank Reconciliation** — match bank records to expenses/donations
 1. Treasurer uploads CSV from bank
-2. System auto-matches transactions to existing vouchers/donations (amount + date)
+2. System auto-matches transactions to existing expenses/donations (amount + date)
 3. Three buckets:
    - **Matched** — auto-confirmed
-   - **Unmatched vouchers** — paid but no bank record (investigate)
-   - **Unmatched bank txns** — no voucher exists (create from txn)
-4. Treasurer reviews, confirms. Matched vouchers → closed.
+   - **Unmatched expenses** — paid but no bank record (investigate)
+   - **Unmatched bank txns** — no expense exists (create from txn)
+4. Treasurer reviews, confirms. Matched expenses → closed.
 
 
 ### 2. Donations
@@ -76,7 +76,7 @@ What users do. Not UI specs, not infrastructure.
 6. In-kind: FMV + description shown separately. Advantage amounts deducted.
 
 **3.b GST/HST Rebate** — 50% back on GST paid
-1. System totals GST/HST from expense vouchers for selected period
+1. System totals GST/HST from expenses for selected period
 2. Calculates 50% rebate amount
 3. Treasurer exports for Form GST66
 4. When rebate received, recorded as income
@@ -115,6 +115,6 @@ What users do. Not UI specs, not infrastructure.
 
 **6.a Year-End Close**
 1. Treasurer selects year to close
-2. System checks: all vouchers closed/rejected, all donations receipted, bank reconciled
+2. System checks: all expenses closed/rejected, all donations receipted, bank reconciled
 3. Gaps shown as checklist
 4. Once clean: year locked (read-only), new year active

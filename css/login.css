@@ -140,6 +140,14 @@
   height: 1.25rem;
 }
 
+.otp-input {
+  font-family: var(--f-mono, monospace);
+  font-size: var(--f-2xl);
+  letter-spacing: .5em;
+  text-align: center;
+  padding: var(--s-md);
+}
+
 .login-error {
   background: rgba(226, 92, 92, .08);
   color: var(--c-err);

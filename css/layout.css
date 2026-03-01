@@ -1,6 +1,10 @@
 /* layout.css — shared app shell: top nav + main */
 
 /* Progress bar — top loading indicator */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .progress {
   position: fixed;
   top: 0;
@@ -10,10 +14,15 @@
   background: linear-gradient(
     90deg,
     rgba(26, 10, 62, .9) 0%,
-    rgba(107, 92, 231, .9) 40%,
-    rgba(167, 139, 250, .7) 70%,
-    rgba(196, 181, 253, .5) 100%
+    rgba(107, 92, 231, .9) 20%,
+    rgba(167, 139, 250, .7) 35%,
+    rgba(196, 181, 253, .5) 50%,
+    rgba(167, 139, 250, .7) 65%,
+    rgba(107, 92, 231, .9) 80%,
+    rgba(26, 10, 62, .9) 100%
   );
+  background-size: 200% 100%;
+  animation: shimmer 68s linear infinite;
   z-index: 999;
   transition: width .3s ease, opacity .3s;
 }

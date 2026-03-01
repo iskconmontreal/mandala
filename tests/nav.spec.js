@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test'
 
-// Helper: inject fake auth into localStorage before page loads
+const TEST_TOKEN = 'header.' + btoa(JSON.stringify({ permissions: ['users:view', 'users:create', 'clients:view', 'clients:create'] })) + '.sig'
+
 async function login(page) {
-  await page.addInitScript(() => {
-    localStorage.setItem('mandala_token', 'test-jwt')
+  await page.addInitScript((token) => {
+    localStorage.setItem('mandala_token', token)
     localStorage.setItem('mandala_user', JSON.stringify({ name: 'Test User', email: 'test@example.com' }))
-  })
+  }, TEST_TOKEN)
 }
 
 test.describe('navigation', () => {

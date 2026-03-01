@@ -40,7 +40,7 @@
 
       <div class="topbar-user" style="position:relative">
         <button class="user-trigger" :onclick="userMenu = !userMenu" :onclick.outside="userMenu = false">
-          <span :text="user?.meta?.first_name || user?.name || user?.email?.split('@')[0] || 'User'"></span>
+          <span :text="[user?.meta?.first_name, user?.meta?.last_name].filter(Boolean).join(' ') || user?.email?.split('@')[0] || 'User'"></span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
         </button>
         <div class="user-menu" :if="userMenu">

@@ -28,67 +28,7 @@ Tabs visible per role:
 - **Donor**: Home (only — shows giving + receipts)
 
 
----
-
-
-### 1. Login
-
-```
-┌─────────────────────────────────┐
-│                                 │
-│           ◈ Mandala             │
-│       ISKCON Montreal           │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │ Email                   │    │
-│  └─────────────────────────┘    │
-│  ┌─────────────────────────┐    │
-│  │ Password            👁  │    │
-│  └─────────────────────────┘    │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │        Sign In          │    │
-│  └─────────────────────────┘    │
-│                                 │
-│        Forgot password?         │
-│  ┌─────────────────────────┐    │
-│  │ Email                   │    │  ← inline expand,
-│  └─────────────────────────┘    │    not separate screen
-│  ┌─────────────────────────┐    │
-│  │     Send Reset Link     │    │
-│  └─────────────────────────┘    │
-│                                 │
-└─────────────────────────────────┘
-```
-
-
-### 2. Set Password (shared: invite accept + reset)
-
-```
-┌─────────────────────────────────┐
-│                                 │
-│           ◈ Mandala             │
-│       Set Your Password         │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │ New Password         👁 │    │
-│  └─────────────────────────┘    │
-│  ┌─────────────────────────┐    │
-│  │ Confirm               👁│    │
-│  └─────────────────────────┘    │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │        Continue         │    │
-│  └─────────────────────────┘    │
-│                                 │
-└─────────────────────────────────┘
-```
-
-
----
-
-
-### 3. Dashboard (adaptive — one screen, role determines cards)
+### Dashboard (adaptive — one screen, role determines cards)
 
 **Treasurer sees all cards. Others see subset.**
 

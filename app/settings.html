@@ -42,7 +42,7 @@
           <div :if="detail.device">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--s-md)">
               <div>
-                <code style="font-size:var(--f-sm)" :text="detail.device.device_id.slice(0, 8) + '…'"></code>
+                <span style="font-size:var(--f-sm)" :text="detail.device.device_id"></span>
                 <span class="dim" style="font-size:var(--f-sm); margin-left:var(--s-sm)" :text="'since ' + detail.device.created_at.slice(0, 10)"></span>
               </div>
               <button class="btn btn-outline btn-sm" style="color:var(--c-err); border-color:var(--c-err)" :onclick="revoke(detail)" :class="{dim: revoking}">Revoke</button>
@@ -190,5 +190,5 @@
     },
   })
 
-  if (auth.can('users:view')) api.getUsers().then(users => { s.admins = users }).catch(e => { s.loadErr = e.message })
+  if (auth.can('users:view')) api.getUsers({ itemsPerPage: 100 }).then(res => { s.admins = res.items || [] }).catch(e => { s.loadErr = e.message })
 </script>

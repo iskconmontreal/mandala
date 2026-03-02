@@ -248,8 +248,9 @@
           <td :text="m.phone || '—'"></td>
           <td><span class="badge" :text="m.role || '—'"></span></td>
           <td class="dim" :text="m.joined || '—'"></td>
-          <td style="text-align:right">
+          <td style="text-align:right; white-space:nowrap">
             <button class="btn-link" style="color:var(--c-accent)" :onclick="editMember(m)">Edit</button>
+            <button class="btn-link dim" :if="m.email && !m._user_id" :onclick="inviteMember(m)">Invite</button>
           </td>
         </tr>
         <tr :if="!members.length && !loadErr">
@@ -289,7 +290,7 @@
 
   function toMember(c) {
     const d = typeof c.client === 'string' ? JSON.parse(c.client) : c.client
-    return { _id: c.client_id, _public: c.public_id, ...d }
+    return { _id: c.id, _public: c.public_id, _user_id: c.user_id, ...d }
   }
 
   let debounceTimer
@@ -337,6 +338,16 @@
       s.formErr = null
       s.showAdd = true
       window.scrollTo({ top: 0, behavior: 'smooth' })
+    },
+
+    async inviteMember(m) {
+      if (!confirm(`Send invite to ${m.email}?`)) return
+      try {
+        await api.inviteMember(m._id)
+        alert(`Invite sent to ${m.email}`)
+      } catch (e) {
+        alert(e.message || 'Failed to send invite')
+      }
     },
 
     closeForm() {

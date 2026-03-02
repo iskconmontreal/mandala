@@ -195,13 +195,11 @@ test.describe('otp flow', () => {
 
   test('device_id is persisted in localStorage', async ({ page }) => {
     await page.goto('/login.html')
-    const deviceId = await page.evaluate(() => {
-      const key = 'mandala_device'
-      let id = localStorage.getItem(key)
-      if (!id) { id = crypto.randomUUID(); localStorage.setItem(key, id) }
-      return id
+    const deviceId = await page.evaluate(async () => {
+      const { auth } = await import('./lib/auth.js')
+      return auth.deviceId
     })
-    expect(deviceId).toMatch(/^[0-9a-f]{8}-/)
+    expect(deviceId).toMatch(/.+ · .+/)
     const same = await page.evaluate(() => localStorage.getItem('mandala_device'))
     expect(same).toBe(deviceId)
   })

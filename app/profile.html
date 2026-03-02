@@ -22,6 +22,14 @@
   </div>
 </div>
 
+<div class="card" style="margin-bottom:var(--s-xl)">
+  <h3 style="margin-bottom:var(--s-md)">Permissions</h3>
+  <div :if="permissions.length" style="display:flex; flex-wrap:wrap; gap:var(--s-xs)">
+    <span class="badge" :each="p in permissions" :text="fmtPerm(p)"></span>
+  </div>
+  <div :if="!permissions.length" class="dim" style="font-size:var(--f-sm)">No permissions assigned</div>
+</div>
+
 <div class="card">
   <h3 style="margin-bottom:var(--s-md)">Trusted Device</h3>
   <div style="display:flex; align-items:center; justify-content:space-between; gap:var(--s-md)">
@@ -33,7 +41,7 @@
 </div>
 
 <script type="module">
-  import { init, auth } from '../lib/app.js'
+  import { init, auth, fmtCat } from '../lib/app.js'
 
   const u = auth.user
   const meta = u?.meta || {}
@@ -47,6 +55,11 @@
         return parsed?.name || '—'
       } catch { return '—' }
     })(),
+    permissions: auth.permissions,
+    fmtPerm(key) {
+      const [scope, action] = key.split(':')
+      return fmtCat(scope) + ' — ' + action
+    },
     deviceLabel: auth.deviceLabel,
     deviceId: auth.deviceId,
   })

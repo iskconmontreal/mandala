@@ -5,140 +5,117 @@
     <h1>Finance</h1>
   </div>
   <div style="display:flex; align-items:center; gap:var(--s-md)">
-    <select class="year-select" :onchange="year = +e.target.value">
+    <select class="year-select" :onchange="e => { year = +e.target.value; loadAll() }">
       <option :each="y in years" :value="y" :text="y" :selected="y === year"></option>
     </select>
   </div>
 </div>
 
 <!-- Stat cards as tabs -->
-<div class="card-tab-group" :scope.parent="{ activeTab: 'expenses' }">
+<div class="card-tab-group">
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'expenses'}"
     :onclick="e => { activeTab = 'expenses'; e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label stat-err">Expenses</div>
-    <div class="stat-value" :text="'$' + totals.expenses.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
-    <div class="stat-sub stat-err" :text="totals.expenseChange"></div>
+    <div class="stat-value" :text="'$' + expTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+    <div class="stat-sub dim" :text="expenses.length + ' entries'"></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donations'}"
-    :onclick="e => { activeTab = 'donations'; e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
+    :onclick="e => { activeTab = 'donations'; page = 1; e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label stat-ok">Donations</div>
-    <div class="stat-value" :text="'$' + totals.donations.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
-    <div class="stat-sub stat-ok" :text="totals.donationChange"></div>
+    <div class="stat-value" :text="'$' + donTotal.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+    <div class="stat-sub dim" :text="donations.length + ' entries'"></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donors'}"
-    :onclick="e => { activeTab = 'donors'; e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
+    :onclick="e => { activeTab = 'donors'; page = 1; e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Donors</div>
-    <div class="stat-value" :text="totals.donors"></div>
-    <div class="stat-sub" :text="totals.donorSub"></div>
+    <div class="stat-value" :text="donors.length"></div>
+    <div class="stat-sub dim" :text="donors.filter(d => d.count > 1).length + ' recurring'"></div>
   </div>
 </div>
 
-<!-- Add donation modal -->
+<!-- Donation modal (add/edit) -->
 <div class="modal-overlay" :if="showAdd && activeTab === 'donations'" :onclick="e => { if (e.target === e.currentTarget) showAdd = false }">
   <div class="modal">
     <div class="modal-header">
-      <h2>Add Donation</h2>
+      <h2 :text="editId ? 'Edit Donation' : 'Add Donation'"></h2>
       <button class="modal-close" :onclick="showAdd = false">&times;</button>
     </div>
     <div class="modal-body">
-      <form :onsubmit.prevent="addDonation">
+      <form :onsubmit.prevent="saveDonation">
         <div class="form-row">
-          <div class="field">
-            <label for="don-donor">Donor</label>
-            <input id="don-donor" type="text" :value="donForm.donor" placeholder="Name or search…" required list="donor-list">
-            <datalist id="donor-list">
-              <option :each="d in knownDonors" :value="d"></option>
-            </datalist>
-          </div>
           <div class="field">
             <label for="don-amount">Amount ($)</label>
             <input id="don-amount" type="number" :value="donForm.amount" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="field">
+            <label for="don-method">Method</label>
+            <select id="don-method" :value="donForm.method">
+              <option :each="m in donMethods" :value="m" :text="fmt(m)"></option>
+            </select>
           </div>
         </div>
         <div class="form-row">
           <div class="field">
             <label for="don-cat">Category</label>
             <select id="don-cat" :value="donForm.category">
-              <option :each="c in donCats" :value="c" :text="c"></option>
+              <option :each="c in donCats" :value="c" :text="fmt(c)"></option>
             </select>
           </div>
           <div class="field">
             <label for="don-date">Date</label>
-            <input id="don-date" type="date" :value="donForm.date" required>
+            <input id="don-date" type="date" :value="donForm.date_received" required>
           </div>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="don-note">Note</label>
-            <input id="don-note" type="text" :value="donForm.note" placeholder="Optional note…">
-          </div>
-          <div class="field" style="flex:0 0 auto; display:flex; align-items:end; gap:var(--s-sm); padding-bottom:var(--s-xs)">
-            <label style="display:flex; align-items:center; gap:var(--s-xs); font-weight:var(--f-wt); cursor:pointer">
-              <input type="checkbox" :checked="donForm.recurring"> Recurring
-            </label>
-          </div>
+        <div class="field">
+          <label for="don-note">Note</label>
+          <input id="don-note" type="text" :value="donForm.note" placeholder="Optional note…">
         </div>
 
-        <div class="scan-area" :class="{['has-image']: preview}"
-          :onclick="if (!preview) fileInput.click()"
-          :ondragover.prevent=""
-          :ondrop.prevent="handleDrop(e)">
-          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
-          <div :if="scanning" class="scan-hint">Scanning…</div>
-          <div :if="!preview && !scanning">
-            <div class="scan-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-            <div class="scan-hint">Drop receipt image or click to upload</div>
-            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
-          </div>
-          <div :if="preview && !scanning" style="position:relative">
-            <img :src="preview" alt="Receipt">
-            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
-          </div>
-        </div>
+        <div class="login-error" :if="addErr" :text="addErr" style="margin:var(--s-sm) 0"></div>
 
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-top:var(--s-lg)">
-          <button type="button" class="btn btn-secondary" :onclick="showAdd = false">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Donation</button>
+          <button :if="editId" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :class="{dim: adding}" :onclick="delDonation()">Delete</button>
+          <button type="button" class="btn btn-outline" :onclick="showAdd = false">Cancel</button>
+          <button type="submit" class="btn btn-primary" :class="{dim: adding}" :text="adding ? 'Saving…' : editId ? 'Update' : 'Save Donation'"></button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<!-- Add expense modal -->
+<!-- Expense modal (add/edit) -->
 <div class="modal-overlay" :if="showAdd && activeTab === 'expenses'" :onclick="e => { if (e.target === e.currentTarget) showAdd = false }">
   <div class="modal">
     <div class="modal-header">
-      <h2>Add Expense</h2>
+      <h2 :text="editId ? 'Edit Expense' : 'Add Expense'"></h2>
       <button class="modal-close" :onclick="showAdd = false">&times;</button>
     </div>
     <div class="modal-body">
-      <form :onsubmit.prevent="addExpense">
-        <div class="scan-area" :class="{['has-image']: preview}"
-          :onclick="if (!preview) fileInput.click()"
-          :ondragover.prevent=""
-          :ondrop.prevent="handleDrop(e)">
-          <input type="file" accept="image/*" hidden :ref="fileInput" :onchange="handleFile">
-          <div :if="scanning" class="scan-hint">Scanning…</div>
-          <div :if="!preview && !scanning">
-            <div class="scan-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-            <div class="scan-hint">Drop receipt image or click to upload</div>
-            <div class="scan-hint" style="margin-top:var(--s-xs)">OCR will try to fill empty fields</div>
+      <div :if="!editId" class="scan-area" :class="{'has-image': receiptPreview}"
+        :onclick="document.getElementById('receipt-input').click()"
+        :ondragover="e => e.preventDefault()"
+        :ondrop="e => { e.preventDefault(); scanFile(e.dataTransfer.files[0]) }">
+        <img :if="receiptPreview" :src="receiptPreview">
+        <div :if="!receiptPreview && !extracting">
+          <div class="scan-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="3" x2="9" y2="9"/><circle cx="14" cy="15" r="2.5"/><path d="M16 17l2.5 2.5"/>
+            </svg>
           </div>
-          <div :if="preview && !scanning" style="position:relative">
-            <img :src="preview" alt="Receipt">
-            <button type="button" class="btn-link" style="margin-top:var(--s-sm)" :onclick.stop="clearImage()">Remove image</button>
-          </div>
+          <div style="font-weight:var(--f-wt-b)">Scan receipt</div>
+          <div class="scan-hint">Drop image or PDF, or click to browse</div>
         </div>
+        <div :if="extracting" class="dim">Extracting data…</div>
+      </div>
+      <input id="receipt-input" type="file" accept="image/*,.pdf" style="display:none"
+        :onchange="e => { scanFile(e.target.files[0]); e.target.value = '' }">
 
+      <form :onsubmit.prevent="saveExpense">
         <div class="form-row">
           <div class="field">
-            <label for="exp-payee">Payee</label>
-            <input id="exp-payee" type="text" :value="expForm.payee" placeholder="Who was paid…" required>
+            <label for="exp-vendor">Paid to</label>
+            <input id="exp-vendor" type="text" :value="expForm.vendor" placeholder="Store, service, supplier…" required>
           </div>
           <div class="field">
             <label for="exp-amount">Amount ($)</label>
@@ -149,29 +126,25 @@
           <div class="field">
             <label for="exp-cat">Category</label>
             <select id="exp-cat" :value="expForm.category">
-              <option :each="c in expCats" :value="c" :text="c"></option>
+              <option :each="c in expCats" :value="c" :text="fmt(c)"></option>
             </select>
           </div>
           <div class="field">
             <label for="exp-date">Date</label>
-            <input id="exp-date" type="date" :value="expForm.date" required>
+            <input id="exp-date" type="date" :value="expForm.expense_date" required>
           </div>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="exp-note">Note</label>
-            <input id="exp-note" type="text" :value="expForm.note" placeholder="Optional note…">
-          </div>
-          <div class="field" style="flex:0 0 auto; display:flex; align-items:end; gap:var(--s-sm); padding-bottom:var(--s-xs)">
-            <label style="display:flex; align-items:center; gap:var(--s-xs); font-weight:var(--f-wt); cursor:pointer">
-              <input type="checkbox" :checked="expForm.recurring"> Recurring
-            </label>
-          </div>
+        <div class="field">
+          <label for="exp-desc">Description</label>
+          <input id="exp-desc" type="text" :value="expForm.description" placeholder="Optional description…">
         </div>
 
+        <div class="login-error" :if="addErr" :text="addErr" style="margin:var(--s-sm) 0"></div>
+
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-top:var(--s-lg)">
-          <button type="button" class="btn btn-secondary" :onclick="showAdd = false">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Expense</button>
+          <button :if="editId" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :class="{dim: adding}" :onclick="delExpense()">Delete</button>
+          <button type="button" class="btn btn-outline" :onclick="showAdd = false">Cancel</button>
+          <button type="submit" class="btn btn-primary" :class="{dim: adding}" :text="adding ? 'Saving…' : editId ? 'Update' : 'Save Expense'"></button>
         </div>
       </form>
     </div>
@@ -179,15 +152,15 @@
 </div>
 
 <!-- Filter bar -->
-<div :if="activeTab !== 'donors'" class="filter-bar">
-  <button class="btn btn-primary btn-sm" :onclick="showAdd = true"
+<div class="filter-bar">
+  <button class="btn btn-primary btn-sm" :if="activeTab !== 'donors'" :onclick="openAdd()"
     :text="activeTab === 'donations' ? '+ Donation' : '+ Expense'"></button>
 
   <input class="filter-search" type="search"
-    :placeholder="activeTab === 'donations' ? 'Search donor or note…' : 'Search payee or note…'"
-    :value="search" :oninput="e => { search = e.target.value; page = 1 }">
+    :placeholder="activeTab === 'donors' ? 'Search donor…' : activeTab === 'donations' ? 'Search note…' : 'Search paid to or note…'"
+    :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1 }">
 
-  <button class="btn btn-outline btn-sm" :onclick="showFilter = true"
+  <button class="btn btn-outline btn-sm" :if="activeTab !== 'donors'" :onclick="showFilter = true"
     :style="{color: filterCat || dateFrom || dateTo ? 'var(--c-accent)' : '', borderColor: filterCat || dateFrom || dateTo ? 'var(--c-accent)' : ''}">
     <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
 
@@ -196,8 +169,8 @@
 </div>
 
 <!-- Active filter chips -->
-<div :if="activeTab !== 'donors' && (filterCat || dateFrom || dateTo)" class="filter-chips">
-  <span :if="filterCat" class="chip" :onclick="e => { filterCat = ''; page = 1 }" :text="filterCat + ' ×'"></span>
+<div :if="filterCat || dateFrom || dateTo" class="filter-chips">
+  <span :if="filterCat" class="chip" :onclick="e => { filterCat = ''; page = 1 }" :text="fmt(filterCat) + ' ×'"></span>
   <span :if="dateFrom" class="chip" :onclick="e => { dateFrom = ''; page = 1 }" :text="'From ' + dateFrom + ' ×'"></span>
   <span :if="dateTo" class="chip" :onclick="e => { dateTo = ''; page = 1 }" :text="'To ' + dateTo + ' ×'"></span>
   <button class="btn-link" style="font-size:var(--f-sm);color:var(--c-text-dim)"
@@ -216,7 +189,7 @@
         <label>Category</label>
         <select :value="filterCat" :onchange="e => { filterCat = e.target.value; page = 1 }">
           <option value="">All categories</option>
-          <option :each="c in activeCats" :value="c" :text="c"></option>
+          <option :each="c in activeCats" :value="c" :text="fmt(c)"></option>
         </select>
       </div>
       <div class="field">
@@ -241,30 +214,31 @@
 
 <!-- Donations table -->
 <div class="card" :if="activeTab === 'donations'">
+  <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Date</th>
-          <th>Donor</th>
+          <th>Method</th>
           <th>Category</th>
           <th>Note</th>
           <th style="text-align:right">Amount</th>
         </tr>
       </thead>
       <tbody>
-        <tr :each="d in paged">
-          <td :text="d.date"></td>
-          <td :text="d.donor"></td>
-          <td><span class="badge" :text="d.category"></span></td>
-          <td class="dim">
-            <span :text="d.note || '—'"></span>
-            <span :if="d.recurring" class="badge" style="margin-left:var(--s-xs)">↻</span>
-          </td>
-          <td style="text-align:right" class="stat-ok" :text="'+$' + d.amount.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+        <tr :each="d in paged" class="row-link" :onclick="editDonation(d)">
+          <td :text="d.date_received?.slice(0,10) || '—'"></td>
+          <td :text="fmt(d.method)"></td>
+          <td><span class="badge" :text="fmt(d.category)"></span></td>
+          <td class="dim" :text="d.note || '—'"></td>
+          <td style="text-align:right" class="stat-ok" :text="'+$' + (d.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
         </tr>
-        <tr :if="!filtered.length">
+        <tr :if="!filtered.length && !loading">
           <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No donations found</td>
+        </tr>
+        <tr :if="loading">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">Loading…</td>
         </tr>
       </tbody>
     </table>
@@ -281,30 +255,31 @@
 
 <!-- Expenses table -->
 <div class="card" :if="activeTab === 'expenses'">
+  <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Date</th>
-          <th>Payee</th>
+          <th>Paid to</th>
           <th>Category</th>
-          <th>Note</th>
+          <th>Description</th>
           <th style="text-align:right">Amount</th>
         </tr>
       </thead>
       <tbody>
-        <tr :each="x in paged">
-          <td :text="x.date"></td>
-          <td :text="x.payee"></td>
-          <td><span class="badge" :text="x.category"></span></td>
-          <td class="dim">
-            <span :text="x.note || '—'"></span>
-            <span :if="x.recurring" class="badge" style="margin-left:var(--s-xs)">↻</span>
-          </td>
-          <td style="text-align:right" class="stat-err" :text="'−$' + x.amount.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+        <tr :each="x in paged" class="row-link" :onclick="editExpense(x)">
+          <td :text="x.expense_date?.slice(0,10) || '—'"></td>
+          <td :text="x.vendor"></td>
+          <td><span class="badge" :text="fmt(x.category)"></span></td>
+          <td class="dim" :text="x.description || '—'"></td>
+          <td style="text-align:right" class="stat-err" :text="'−$' + (x.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
         </tr>
-        <tr :if="!filtered.length">
+        <tr :if="!filtered.length && !loading">
           <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">No expenses found</td>
+        </tr>
+        <tr :if="loading">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)">Loading…</td>
         </tr>
       </tbody>
     </table>
@@ -321,32 +296,46 @@
 
 <!-- Donors table -->
 <div class="card" :if="activeTab === 'donors'">
+  <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>#</th>
           <th>Donor</th>
+          <th style="text-align:right">Donations</th>
           <th style="text-align:right">Total</th>
-          <th style="text-align:right">Count</th>
-          <th>Last donation</th>
+          <th>Last Donation</th>
         </tr>
       </thead>
       <tbody>
-        <tr :each="d, i in topDonors">
-          <td class="dim" :text="i + 1"></td>
+        <tr :each="d in paged">
           <td :text="d.name"></td>
-          <td style="text-align:right" class="stat-ok" :text="'$' + d.total.toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
           <td style="text-align:right" :text="d.count"></td>
-          <td class="dim" :text="d.last"></td>
+          <td style="text-align:right" class="stat-ok" :text="'$' + (d.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})"></td>
+          <td class="dim" :text="d.lastDate"></td>
+        </tr>
+        <tr :if="!filtered.length && !loading">
+          <td colspan="4" class="dim" style="text-align:center; padding:var(--s-lg)">No donors found</td>
+        </tr>
+        <tr :if="loading">
+          <td colspan="4" class="dim" style="text-align:center; padding:var(--s-lg)">Loading…</td>
         </tr>
       </tbody>
     </table>
   </div>
+  <div :if="totalPages > 1" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s-sm) var(--s-md); border-top:1px solid var(--c-border)">
+    <span class="dim" style="font-size:var(--f-sm)" :text="filtered.length + ' donors'"></span>
+    <div style="display:flex; gap:var(--s-xs)">
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1)" :class="{dim: page === 1}">←</button>
+      <span style="padding:var(--s-xs) var(--s-sm); font-size:var(--f-sm)" :text="page + ' / ' + totalPages"></span>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1)" :class="{dim: page === totalPages}">→</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
-  import { init, DON_CATS, EXP_CATS } from '../lib/app.js'
+  import { init, DON_CATS, EXP_CATS, DON_METHODS, fmtCat } from '../lib/app.js'
+  import { api } from '../lib/api.js'
 
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
@@ -354,92 +343,48 @@
   const years = Array.from({ length: 3 }, (_, i) => curYear - i)
   const perPage = 20
 
-  const months = [
-    { val: 0, label: 'All Year' },
-    { val: 1, label: 'Jan' },  { val: 2, label: 'Feb' },
-    { val: 3, label: 'Mar' },  { val: 4, label: 'Apr' },
-    { val: 5, label: 'May' },  { val: 6, label: 'Jun' },
-    { val: 7, label: 'Jul' },  { val: 8, label: 'Aug' },
-    { val: 9, label: 'Sep' },  { val: 10, label: 'Oct' },
-    { val: 11, label: 'Nov' }, { val: 12, label: 'Dec' },
-  ]
+  const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '' })
+  const emptyExpForm = () => ({ vendor: '', amount: '', category: 'utilities', expense_date: today, description: '' })
 
-  const tmpDonations = [
-    { date: '2026-02-25', donor: 'Ananda Das',        category: 'Sunday Feast',      amount: 1250.00, note: 'Weekly contribution', recurring: false },
-    { date: '2026-02-24', donor: 'Govinda Das',       category: 'General',            amount: 500.00,  note: 'Monthly pledge', recurring: true },
-    { date: '2026-02-23', donor: 'Tulasi Devi Dasi',  category: 'Book Distribution',  amount: 830.00,  note: '', recurring: false },
-    { date: '2026-02-22', donor: 'Nityananda Das',    category: 'Festival',           amount: 2000.00, note: 'Gaura Purnima sponsorship', recurring: false },
-    { date: '2026-02-21', donor: 'Laxmi Devi Dasi',   category: 'Annadana',           amount: 375.00,  note: '', recurring: false },
-    { date: '2026-02-19', donor: 'Madhava Das',       category: 'Deity Worship',      amount: 200.00,  note: 'Flower fund', recurring: true },
-    { date: '2026-02-17', donor: 'Hari Das',          category: 'General',            amount: 150.00,  note: '', recurring: false },
-    { date: '2026-02-15', donor: 'Radha Devi Dasi',   category: 'Building Fund',      amount: 5000.00, note: 'Annual pledge', recurring: true },
-    { date: '2026-02-10', donor: 'Saraswati Devi Dasi', category: 'Sunday Feast',     amount: 175.00,  note: '', recurring: false },
-    { date: '2026-02-05', donor: 'Damodar Das',       category: 'General',            amount: 2000.00, note: 'Tax receipt requested', recurring: false },
-  ]
-
-  const tmpExpenses = [
-    { date: '2026-02-25', payee: 'Hydro-Québec',       category: 'Utilities',    amount: 342.18, note: 'February bill', recurring: true },
-    { date: '2026-02-24', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 287.45, note: 'Prasadam groceries', recurring: false },
-    { date: '2026-02-23', payee: 'Fleuriste Shakti',    category: 'Deity',        amount: 125.00, note: 'Flower garlands', recurring: false },
-    { date: '2026-02-22', payee: 'Staples',             category: 'Office',       amount: 89.99,  note: 'Printer ink & paper', recurring: false },
-    { date: '2026-02-21', payee: 'Mario Plomberie',     category: 'Maintenance',  amount: 210.00, note: 'Basement pipe repair', recurring: false },
-    { date: '2026-02-18', payee: 'Bell Canada',         category: 'Utilities',    amount: 79.99,  note: 'Internet', recurring: true },
-    { date: '2026-02-15', payee: 'Landlord',            category: 'Rent',         amount: 3500.00, note: 'March rent', recurring: true },
-    { date: '2026-02-12', payee: 'Intact Insurance',    category: 'Insurance',    amount: 450.00, note: 'Monthly premium', recurring: true },
-    { date: '2026-02-08', payee: 'Marché Jean-Talon',   category: 'Kitchen',      amount: 195.30, note: 'Weekly groceries', recurring: false },
-    { date: '2026-02-03', payee: 'Home Depot',          category: 'Maintenance',  amount: 67.42,  note: 'Light fixtures', recurring: false },
-  ]
-
-  const don = tmpDonations.reduce((s, d) => s + d.amount, 0)
-  const exp = tmpExpenses.reduce((s, x) => s + x.amount, 0)
-  const gross = don + exp
-  const emptyDonForm = () => ({ donor: '', amount: '', category: 'General', date: today, note: '', recurring: false })
-  const emptyExpForm = () => ({ payee: '', amount: '', category: 'Utilities', date: today, note: '', recurring: false })
-
-  init({
+  const s = init({
     year: curYear,
-    month: 0,
     years,
-    months,
+    activeTab: 'expenses',
+    editId: null,
     showAdd: false,
     showFilter: false,
-    preview: '',
-    scanning: false,
+    loading: false,
+    adding: false,
+    extracting: false,
+    receiptPreview: '',
+    loadErr: null,
+    addErr: null,
 
-    donations: tmpDonations,
-    expenses: tmpExpenses,
+    donations: [],
+    expenses: [],
+    memberNames: {},
     donForm: emptyDonForm(),
     expForm: emptyExpForm(),
     donCats: DON_CATS,
     expCats: EXP_CATS,
-    knownDonors: [...new Set(tmpDonations.map(d => d.donor))],
+    donMethods: DON_METHODS,
+    fmt: fmtCat,
 
-    totals: {
-      donations: don,
-      expenses: exp,
-      net: don - exp,
-      donPct: Math.round(don / gross * 100),
-      expPct: Math.round(exp / gross * 100),
-      netNote: (don - exp) >= 0 ? '+$' + (don - exp).toLocaleString(undefined, {minimumFractionDigits: 2}) + ' surplus' : '−$' + Math.abs(don - exp).toLocaleString(undefined, {minimumFractionDigits: 2}) + ' deficit',
-      donationChange: '↑ 18% vs last year',
-      expenseChange: '↑ 4% vs last year',
-      netChange: '↑ 32% vs last year',
-      donors: 23,
-      donorSub: '5 recurring',
+    get donTotal() { return this.donations.reduce((s, d) => s + (d.amount || 0), 0) },
+    get expTotal() { return this.expenses.reduce((s, x) => s + (x.amount || 0), 0) },
+
+    get donors() {
+      const map = {}
+      for (const d of this.donations) {
+        const key = d.client_id || 0
+        if (!map[key]) map[key] = { id: key, name: this.memberNames[key] || 'Anonymous', count: 0, total: 0, lastDate: '' }
+        map[key].count++
+        map[key].total += d.amount || 0
+        const dt = d.date_received?.slice(0, 10) || ''
+        if (dt > map[key].lastDate) map[key].lastDate = dt
+      }
+      return Object.values(map).sort((a, b) => b.total - a.total)
     },
-
-    topDonors: [
-      { name: 'Radha Devi Dasi',      total: 5000.00, count: 1, last: '2026-02-15' },
-      { name: 'Damodar Das',          total: 2000.00, count: 1, last: '2026-02-05' },
-      { name: 'Nityananda Das',       total: 2000.00, count: 1, last: '2026-02-22' },
-      { name: 'Ananda Das',           total: 1250.00, count: 1, last: '2026-02-25' },
-      { name: 'Tulasi Devi Dasi',     total: 830.00,  count: 1, last: '2026-02-23' },
-      { name: 'Govinda Das',          total: 500.00,  count: 1, last: '2026-02-24' },
-      { name: 'Laxmi Devi Dasi',      total: 375.00,  count: 1, last: '2026-02-21' },
-      { name: 'Madhava Das',          total: 200.00,  count: 1, last: '2026-02-19' },
-      { name: 'Saraswati Devi Dasi',  total: 175.00,  count: 1, last: '2026-02-10' },
-      { name: 'Hari Das',             total: 150.00,  count: 1, last: '2026-02-17' },
-    ],
 
     search: '',
     filterCat: '',
@@ -450,96 +395,191 @@
     get activeCats() { return this.activeTab === 'donations' ? DON_CATS : EXP_CATS },
 
     get filtered() {
-      const s = this.search.toLowerCase()
-      if (this.activeTab === 'donations') {
-        return this.donations.filter(d => {
-          if (s && !d.donor.toLowerCase().includes(s) && !(d.note || '').toLowerCase().includes(s)) return false
-          if (this.filterCat && d.category !== this.filterCat) return false
-          if (this.dateFrom && d.date < this.dateFrom) return false
-          if (this.dateTo && d.date > this.dateTo) return false
-          return true
-        })
+      const q = this.search.toLowerCase()
+      if (this.activeTab === 'donors') {
+        return q ? this.donors.filter(d => d.name.toLowerCase().includes(q)) : this.donors
       }
-      return this.expenses.filter(x => {
-        if (s && !x.payee.toLowerCase().includes(s) && !(x.note || '').toLowerCase().includes(s)) return false
-        if (this.filterCat && x.category !== this.filterCat) return false
-        if (this.dateFrom && x.date < this.dateFrom) return false
-        if (this.dateTo && x.date > this.dateTo) return false
-        return true
+      const list = this.activeTab === 'donations' ? this.donations : this.expenses
+      return list.filter(r => {
+        const dateField = r.date_received?.slice(0, 10) || r.expense_date?.slice(0, 10) || ''
+        if (this.filterCat && r.category !== this.filterCat) return false
+        if (this.dateFrom && dateField < this.dateFrom) return false
+        if (this.dateTo && dateField > this.dateTo) return false
+        if (!q) return true
+        const hay = [r.vendor, r.note, r.description, r.method].filter(Boolean).join(' ').toLowerCase()
+        return hay.includes(q)
       })
     },
     get totalPages() { return Math.max(1, Math.ceil(this.filtered.length / perPage)) },
     get paged() { return this.filtered.slice((this.page - 1) * perPage, this.page * perPage) },
 
-    handleFile(e) {
-      const file = e.target.files?.[0]
-      if (file) this.processImage(file)
-    },
-    handleDrop(e) {
-      const file = e.dataTransfer.files?.[0]
-      if (file?.type.startsWith('image/')) this.processImage(file)
-    },
-    processImage(file) {
-      this.preview = URL.createObjectURL(file)
-      this.scanning = true
-      setTimeout(() => { this.scanning = false }, 800)
-    },
-    clearImage() {
-      if (this.preview) URL.revokeObjectURL(this.preview)
-      this.preview = ''
+    openAdd() {
+      s.editId = null
+      s.addErr = null
+      s.receiptPreview = ''
+      s.extracting = false
+      s.donForm = emptyDonForm()
+      s.expForm = emptyExpForm()
+      s.showAdd = true
     },
 
-    addDonation() {
-      const entry = {
-        date: this.donForm.date,
-        donor: this.donForm.donor,
-        category: this.donForm.category,
-        amount: parseFloat(this.donForm.amount),
-        note: this.donForm.note,
-        recurring: this.donForm.recurring,
+    async scanFile(file) {
+      if (!file) return
+      s.extracting = true
+      s.addErr = null
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = () => { s.receiptPreview = reader.result }
+        reader.readAsDataURL(file)
       }
-      this.donations = [entry, ...this.donations]
-      if (!this.knownDonors.includes(entry.donor)) this.knownDonors = [...this.knownDonors, entry.donor]
-      this.clearImage()
-      this.donForm = emptyDonForm()
-      this.showAdd = false
+      try {
+        const res = await api.extractDoc(file)
+        const d = res.extracted_data || {}
+        s.expForm = {
+          vendor: d.vendor || s.expForm.vendor,
+          amount: d.amount || s.expForm.amount,
+          category: d.category || s.expForm.category,
+          expense_date: d.date || s.expForm.expense_date,
+          description: d.description || s.expForm.description,
+        }
+      } catch (e) { s.addErr = e.message }
+      finally { s.extracting = false }
     },
 
-    addExpense() {
-      const entry = {
-        date: this.expForm.date,
-        payee: this.expForm.payee,
-        category: this.expForm.category,
-        amount: parseFloat(this.expForm.amount),
-        note: this.expForm.note,
-        recurring: this.expForm.recurring,
-      }
-      this.expenses = [entry, ...this.expenses]
-      this.clearImage()
-      this.expForm = emptyExpForm()
-      this.showAdd = false
+    editDonation(d) {
+      s.editId = d.id
+      s.addErr = null
+      s.donForm = { amount: d.amount, method: d.method || 'cash', category: d.category || 'general', date_received: (d.date_received || '').slice(0, 10), note: d.note || '' }
+      s.showAdd = true
+    },
+
+    editExpense(x) {
+      s.editId = x.id
+      s.addErr = null
+      s.expForm = { vendor: x.vendor || '', amount: x.amount, category: x.category || 'utilities', expense_date: (x.expense_date || '').slice(0, 10), description: x.description || '' }
+      s.showAdd = true
+    },
+
+    async saveDonation() {
+      s.addErr = null
+      s.adding = true
+      try {
+        const data = {
+          amount: parseFloat(s.donForm.amount),
+          method: s.donForm.method,
+          category: s.donForm.category,
+          date_received: s.donForm.date_received,
+          note: s.donForm.note,
+        }
+        if (s.editId) await api.updateDonation(s.editId, data)
+        else await api.createDonation(data)
+        s.donForm = emptyDonForm()
+        s.editId = null
+        s.showAdd = false
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.adding = false }
+    },
+
+    async saveExpense() {
+      s.addErr = null
+      s.adding = true
+      try {
+        const data = {
+          amount: parseFloat(s.expForm.amount),
+          type: 'direct',
+          vendor: s.expForm.vendor,
+          description: s.expForm.description,
+          category: s.expForm.category,
+          currency: 'CAD',
+          expense_date: s.expForm.expense_date,
+        }
+        if (s.editId) await api.updateExpense(s.editId, data)
+        else await api.createExpense(data)
+        s.expForm = emptyExpForm()
+        s.editId = null
+        s.showAdd = false
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.adding = false }
+    },
+
+    async delDonation() {
+      if (!confirm('Delete this donation?')) return
+      s.adding = true
+      try {
+        await api.deleteDonation(s.editId)
+        s.editId = null
+        s.showAdd = false
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.adding = false }
+    },
+
+    async delExpense() {
+      if (!confirm('Delete this expense?')) return
+      s.adding = true
+      try {
+        await api.deleteExpense(s.editId)
+        s.editId = null
+        s.showAdd = false
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.adding = false }
     },
 
     exportCSV() {
-      if (this.activeTab === 'donations') {
-        const rows = [['Date', 'Donor', 'Category', 'Amount', 'Note', 'Recurring']]
-        for (const d of this.filtered) rows.push([d.date, d.donor, d.category, d.amount.toFixed(2), d.note || '', d.recurring ? 'Yes' : ''])
-        this._downloadCSV(rows, 'donations.csv')
+      if (this.activeTab === 'donors') {
+        const rows = [['Donor', 'Donations', 'Total', 'Last Donation']]
+        for (const d of this.filtered) rows.push([d.name, d.count, (d.total || 0).toFixed(2), d.lastDate])
+        dlCSV(rows, 'donors.csv')
+      } else if (this.activeTab === 'donations') {
+        const rows = [['Date', 'Method', 'Category', 'Amount', 'Note']]
+        for (const d of this.filtered) rows.push([d.date_received?.slice(0, 10), d.method, d.category, (d.amount || 0).toFixed(2), d.note || ''])
+        dlCSV(rows, 'donations.csv')
       } else {
-        const rows = [['Date', 'Payee', 'Category', 'Amount', 'Note', 'Recurring']]
-        for (const x of this.filtered) rows.push([x.date, x.payee, x.category, x.amount.toFixed(2), x.note || '', x.recurring ? 'Yes' : ''])
-        this._downloadCSV(rows, 'expenses.csv')
+        const rows = [['Date', 'Vendor', 'Category', 'Amount', 'Description']]
+        for (const x of this.filtered) rows.push([x.expense_date?.slice(0, 10), x.vendor, x.category, (x.amount || 0).toFixed(2), x.description || ''])
+        dlCSV(rows, 'expenses.csv')
       }
     },
 
-    _downloadCSV(rows, name) {
-      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n')
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = name
-      a.click()
-      URL.revokeObjectURL(a.href)
-    },
+    loadAll,
   })
+
+  function dlCSV(rows, name) {
+    const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = name
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  async function loadAll() {
+    s.loading = true
+    s.loadErr = null
+    try {
+      const [don, exp, mem] = await Promise.all([
+        api.getDonations({ limit: 200, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
+        api.getExpenses({ limit: 200, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
+        api.getMembers({ limit: 200 }),
+      ])
+      s.donations = don.items || []
+      s.expenses = exp.items || []
+      const names = {}
+      for (const c of mem.items || []) {
+        const d = typeof c.client === 'string' ? JSON.parse(c.client) : c.client
+        names[c.id] = [d.first_name, d.last_name].filter(Boolean).join(' ') || d.email || 'Unknown'
+      }
+      s.memberNames = names
+    } catch (e) {
+      s.loadErr = e.message || 'Failed to load finance data'
+    } finally {
+      s.loading = false
+    }
+  }
+
+  loadAll()
 </script>

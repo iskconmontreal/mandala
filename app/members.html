@@ -228,9 +228,17 @@
       <div :if="detail._user_id && can('users:view')" style="border-top:1px solid var(--c-border); padding-top:var(--s-md)">
         <div style="display:flex; align-items:center; gap:var(--s-sm); margin-bottom:var(--s-sm)">
           <span class="badge" style="background:rgba(107,92,231,.1); color:var(--c-accent)">System User</span>
-          <span class="dim" style="font-size:var(--f-sm)" :if="userDetail.role" :text="userRoleName(userDetail)"></span>
         </div>
         <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap; font-size:var(--f-sm)">
+          <div>
+            <div class="stat-label">Role</div>
+            <div :if="!can('roles:update')" :text="userRoleName(userDetail)"></div>
+            <select :if="can('roles:update')" style="width:auto; font-size:var(--f-sm)"
+              :onchange="e => changeRole(+e.target.value)">
+              <option value="0" :selected="!userDetail.role_id">None</option>
+              <option :each="r in sysRoles" :value="r.id" :text="r.name" :selected="r.id === userDetail.role_id"></option>
+            </select>
+          </div>
           <div>
             <div class="stat-label">Last Login</div>
             <div :text="userDetail.last_login?.slice(0, 10) || 'Never'"></div>
@@ -246,6 +254,20 @@
             <div class="stat-label">Trusted Device</div>
             <div class="dim">None</div>
           </div>
+        </div>
+
+        <!-- Permission grid -->
+        <div :if="can('roles:update') && userDetail.role_id" style="margin-top:var(--s-md)">
+          <div class="stat-label" style="margin-bottom:var(--s-xs)">Permissions</div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(11rem, 1fr)); gap:var(--s-xs)">
+            <label :each="p in allPerms" style="display:flex; align-items:center; gap:var(--s-xs); font-size:var(--f-sm); cursor:pointer">
+              <input type="checkbox" style="width:auto"
+                :checked="userRolePerms.includes(p.key)"
+                :onchange="e => togglePerm(p.id, e.target.checked)">
+              <span :text="fmtPerm(p.key)"></span>
+            </label>
+          </div>
+          <div class="dim" style="font-size:var(--f-xs); margin-top:var(--s-xs)">Changes apply to all users with this role</div>
         </div>
       </div>
 
@@ -316,7 +338,7 @@
 </div>
 
 <script type="module">
-  import { init, ROLES, auth } from '../lib/app.js'
+  import { init, ROLES, auth, fmtCat } from '../lib/app.js'
   import { api } from '../lib/api.js'
 
   const today = new Date().toISOString().slice(0, 10)
@@ -344,6 +366,8 @@
     form: emptyForm(),
     detail: {},
     userDetail: {},
+    sysRoles: [],
+    allPerms: [],
     members: [],
     total: 0,
     roles: ROLES,
@@ -359,6 +383,16 @@
 
     get totalPages() { return Math.max(1, Math.ceil(this.total / perPage)) },
 
+    get userRolePerms() {
+      const role = this.sysRoles.find(r => r.id === this.userDetail.role_id)
+      return role?.permissions || []
+    },
+
+    fmtPerm(key) {
+      const [scope, action] = key.split(':')
+      return fmtCat(scope) + ' — ' + action
+    },
+
     openAdd() {
       s.editing = null
       s.form = emptyForm()
@@ -373,6 +407,13 @@
       if (m._user_id && auth.can('users:view')) {
         try { s.userDetail = await api.getUser(m._user_id) }
         catch {}
+        if (auth.can('roles:update') && !s.sysRoles.length) {
+          try {
+            const res = await api.getRoles()
+            s.sysRoles = res.roles || []
+            s.allPerms = res.all_permissions || []
+          } catch {}
+        }
       }
     },
 
@@ -432,6 +473,22 @@
       } catch (e) {
         alert(e.message || 'Failed to send invite')
       } finally { s.inviting = false }
+    },
+
+    async changeRole(roleId) {
+      try {
+        await api.updateUser(s.userDetail.id, { role_id: roleId })
+        s.userDetail = { ...s.userDetail, role_id: roleId }
+      } catch (e) { alert(e.message || 'Failed to change role') }
+    },
+
+    async togglePerm(permId, enabled) {
+      const roleId = s.userDetail.role_id
+      try {
+        await api.updateRolePerms(roleId, { permission_id: permId, enabled })
+        const res = await api.getRoles()
+        s.sysRoles = res.roles || []
+      } catch (e) { alert(e.message || 'Failed to update permission') }
     },
 
     async revokeDevice() {

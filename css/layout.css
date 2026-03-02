@@ -474,6 +474,20 @@ form {
 }
 .btn-link:hover { color: var(--c-err); }
 
+/* Danger button */
+.btn-danger {
+  color: var(--c-err);
+  border-color: var(--c-err);
+  background: none;
+}
+.btn-danger:hover {
+  background: rgba(226, 92, 92, .06);
+}
+
+/* Clickable table row */
+.row-link { cursor: pointer; transition: background .1s; }
+.row-link:hover { background: rgba(107, 92, 231, .03); }
+
 /* Table */
 .table-wrap {
   overflow-x: auto;

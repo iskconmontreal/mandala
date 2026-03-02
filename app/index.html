@@ -78,21 +78,34 @@
 
 <script type="module">
   import { init } from '../lib/app.js'
+  import { api } from '../lib/api.js'
 
-  const don = 12480.00, exp = 8635.47, gross = don + exp
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const monthStart = `${y}-${m}-01`
+  const monthEnd = `${y}-${m}-31`
 
-  init({
-    fin: {
-      donations: don,
-      expenses: exp,
-      net: don - exp,
-      donPct: Math.round(don / gross * 100),
-      expPct: Math.round(exp / gross * 100),
-    },
-    members: {
-      total: 47,
-      active: 38,
-      recent: 3,
-    },
+  const s = init({
+    fin: { donations: 0, expenses: 0, net: 0, donPct: 0, expPct: 0 },
+    members: { total: 0, active: 0, recent: 0 },
   })
+
+  Promise.all([
+    api.getDonations({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }),
+    api.getExpenses({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }),
+    api.getMembers({ limit: 1 }),
+  ]).then(([don, exp, mem]) => {
+    const donAmt = (don.items || []).reduce((s, d) => s + (d.amount || 0), 0)
+    const expAmt = (exp.items || []).reduce((s, x) => s + (x.amount || 0), 0)
+    const gross = donAmt + expAmt || 1
+    s.fin = {
+      donations: donAmt,
+      expenses: expAmt,
+      net: donAmt - expAmt,
+      donPct: Math.round(donAmt / gross * 100),
+      expPct: Math.round(expAmt / gross * 100),
+    }
+    s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
+  }).catch(() => {})
 </script>

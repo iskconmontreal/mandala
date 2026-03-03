@@ -3,3 +3,11 @@
 /node_modules
 /test-results
 /.mcp_data
+/.jekyll-cache
+/.jekyll-metadata
+/.sass-cache
+.DS_Store
+**/.DS_Store
+/.claude
+/.claude
+.claude/settings.json

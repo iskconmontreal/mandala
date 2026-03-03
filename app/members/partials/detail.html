@@ -19,6 +19,12 @@
           <div class="stat-label">Role</div>
           <span class="badge" :text="detail.role || '—'"></span>
         </div>
+        <div :if="detail.services?.length">
+          <div class="stat-label">Services</div>
+          <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs)">
+            <span class="badge" :each="sv in detail.services" :text="sv"></span>
+          </div>
+        </div>
         <div>
           <div class="stat-label">Joined</div>
           <div :text="detail.joined || '—'"></div>

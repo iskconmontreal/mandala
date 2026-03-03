@@ -2,18 +2,7 @@
 ---
 <div class="page-header">
   <h1 :text="'Hare Krishna, ' + ([user?.meta?.first_name, user?.meta?.last_name].filter(Boolean).join(' ') || user?.email?.split('@')[0] || 'Prabhu') + '!'"></h1>
-  <p :scope="((h, d, vis) => {
-    const pk = a => a[Math.floor(Math.random() * a.length)]
-    const sub = h >= 4 && h < 7 ? ['Up for mangala-arati?', 'Early morning hours are most auspicious']
-      : h < 12 ? [`Ready for today's seva`, 'A fresh day of service']
-      : h < 17 ? ['Steady afternoon seva'] : h < 21 ? ['Evening service']
-      : ['Burning the midnight lamp', 'Late night dedication']
-    if (d === 0) sub.push('Happy Sunday feast!')
-    if (vis > 168) sub.push('Welcome back!')
-    else if (vis > 0 && vis < 2) sub.push('Back at it')
-    sub.push('Your service matters', 'Krishna sees every effort')
-    return { _t: pk(sub) }
-  })(new Date().getHours(), new Date().getDay(), _vis)" :text="_t"></p>
+  <p :text="_greeting"></p>
 </div>
 
 <!-- Financial pulse (admin only) -->
@@ -88,14 +77,6 @@
       <div class="stat-label">Total members</div>
       <div class="stat-value" :text="members.total"></div>
     </div>
-    <div>
-      <div class="stat-label">Active</div>
-      <div class="stat-value" :text="members.active"></div>
-    </div>
-    <div>
-      <div class="stat-label">Joined this month</div>
-      <div class="stat-value" :text="members.recent"></div>
-    </div>
   </div>
 </div>
 
@@ -148,6 +129,7 @@
 <script type="module">
   import { init, fmtAmt, fmtCat, auth } from '../lib/app.js'
   import { api } from '../lib/api.js'
+  import { greeting } from '../lib/greeting.js'
 
   const now = new Date()
   const y = now.getFullYear()
@@ -157,12 +139,13 @@
 
   const prev = +localStorage.getItem('mandala_last_visit') || 0
   localStorage.setItem('mandala_last_visit', Date.now())
+  const vis = prev ? (Date.now() - prev) / 3600000 : Infinity
 
   const s = init({
-    _vis: prev ? (Date.now() - prev) / 3600000 : Infinity,
+    _greeting: greeting(now, vis),
     fin: { donations: 0, expenses: 0, net: 0, donPct: 0, expPct: 0 },
     finLoading: true,
-    members: { total: 0, active: 0, recent: 0 },
+    members: { total: 0 },
     memLoading: true,
     giving: { total: 0, count: 0, byCategory: {}, receipts: [] },
     activity: [],
@@ -192,7 +175,7 @@
         s.finLoading = false
       }
       if (mem) {
-        s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
+        s.members = { total: mem.total || 0 }
         s.memLoading = false
       }
     }).catch(() => { s.finLoading = false; s.memLoading = false })

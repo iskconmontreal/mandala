@@ -364,6 +364,9 @@
   font-weight: var(--f-wt-b);
   line-height: 1;
 }
+.badge-active    { background: var(--c-accent); color: #fff; }
+button.badge     { cursor: pointer; border: none; font-family: inherit; font-size: inherit; }
+button.badge:hover { opacity: 0.82; }
 .badge-draft     { background: rgba(0,0,0,.06); color: var(--c-text-dim); }
 .badge-submitted { background: rgba(107,92,231,.1); color: var(--c-accent); }
 .badge-returned  { background: rgba(230,162,60,.12); color: #96700a; }
@@ -705,76 +708,9 @@ form {
   border-radius: var(--r-sm);
 }
 
-/* Small buttons */
-.btn-sm {
-  padding: var(--s-xs) var(--s-md);
-  font-size: var(--f-sm);
-}
-
-/* Link button */
-.btn-link {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: var(--f-sm);
-  cursor: pointer;
-  color: var(--c-text-dim);
-  font-family: var(--f-sans);
-}
-.btn-link:hover { color: var(--c-err); }
-
-/* Danger button */
-.btn-danger {
-  color: var(--c-err);
-  border-color: var(--c-err);
-  background: none;
-}
-.btn-danger:hover {
-  background: rgba(226, 92, 92, .06);
-}
-
 /* Clickable table row */
 .row-link { cursor: pointer; transition: background .1s; }
 .row-link:hover { background: rgba(107, 92, 231, .03); }
-
-/* Table */
-.table-wrap {
-  overflow-x: auto;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--f-sm);
-}
-th {
-  text-align: left;
-  font-weight: var(--f-wt-b);
-  color: var(--c-text-dim);
-  padding: var(--s-sm) var(--s-md);
-  border-bottom: 2px solid var(--c-border);
-}
-td {
-  padding: var(--s-sm) var(--s-md);
-  border-bottom: 1px solid var(--c-border);
-}
-
-/* Icon button — square, minimal */
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--c-border);
-  background: var(--c-surface);
-  cursor: pointer;
-  color: var(--c-text-dim);
-  transition: color .15s, border-color .15s;
-}
-.btn-icon:hover { color: var(--c-text); border-color: var(--c-text-dim); }
-.btn-icon svg { width: 1rem; height: 1rem; }
 
 /* Filter bar */
 .filter-bar {

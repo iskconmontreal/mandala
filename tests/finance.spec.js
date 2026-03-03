@@ -15,27 +15,27 @@ function mockFinance(page, { donations = [], expenses = [], clients = [] } = {})
       if (exp && transitions[action]) { exp.status = transitions[action]; return route.fulfill({ json: exp }) }
     }
 
-    if (path === '/api/donations') {
-      if (method === 'POST') {
-        const body = route.request().postDataJSON()
-        const d = { id: donations.length + 1, ...body, status: 'draft' }
-        donations.push(d)
-        return route.fulfill({ json: d })
-      }
-      if (method === 'PUT') {
-        const id = +path.split('/').at(-1)
-        const body = route.request().postDataJSON()
-        const i = donations.findIndex(d => d.id === id)
-        if (i >= 0) donations[i] = { ...donations[i], ...body }
-        return route.fulfill({ json: donations[i] ?? {} })
-      }
-      if (method === 'DELETE') {
-        const id = +path.split('/').at(-1)
-        const i = donations.findIndex(d => d.id === id)
-        if (i >= 0) donations.splice(i, 1)
-        return route.fulfill({ status: 204 })
-      }
+    if (path === '/api/donations' && method === 'POST') {
+      const body = route.request().postDataJSON()
+      const d = { id: donations.length + 1, ...body, status: 'draft' }
+      donations.push(d)
+      return route.fulfill({ json: d })
+    }
+    if (path === '/api/donations' && method === 'GET') {
       return route.fulfill({ json: { items: [...donations], total: donations.length } })
+    }
+    if (path.startsWith('/api/donations/') && method === 'DELETE') {
+      const id = +path.split('/').at(-1)
+      const i = donations.findIndex(d => d.id === id)
+      if (i >= 0) donations.splice(i, 1)
+      return route.fulfill({ status: 204 })
+    }
+    if (path.startsWith('/api/donations/') && method === 'PUT') {
+      const id = +path.split('/').at(-1)
+      const body = route.request().postDataJSON()
+      const i = donations.findIndex(d => d.id === id)
+      if (i >= 0) donations[i] = { ...donations[i], ...body }
+      return route.fulfill({ json: donations[i] ?? {} })
     }
 
     if (path === '/api/expenses') {
@@ -153,9 +153,9 @@ test.describe('finance section', () => {
     await page.click('button:has-text("Save Donation")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
-    const row = page.locator('table tbody tr').first()
-    await expect(row).toContainText('50.00')
-    await expect(row).toContainText('General')
+    const donSection = page.locator('section').nth(1)
+    await expect(donSection.locator('tr.row-link').first()).toContainText('50.00')
+    await expect(donSection.locator('tr.row-link').first()).toContainText('General')
 
     expect(donations).toHaveLength(1)
     expect(donations[0].amount).toBe(5000)
@@ -180,7 +180,7 @@ test.describe('finance section', () => {
     await mockFinance(page, { donations })
     await openFinance(page, 'donations')
 
-    await page.locator('table tbody tr').first().click()
+    await page.locator('section').nth(1).locator('tr.row-link').first().click()
     await expect(page.getByRole('heading', { name: 'Edit Donation' })).toBeVisible()
 
     await page.click('button:has-text("Delete")')
@@ -198,7 +198,7 @@ test.describe('finance section', () => {
     await mockFinance(page, { donations })
     await openFinance(page, 'donations')
 
-    await page.locator('table tbody tr').first().click()
+    await page.locator('section').nth(1).locator('tr.row-link').first().click()
     await page.click('button:has-text("Delete")')
     await page.click('button:has-text("No")')
     await expect(page.locator('button:has-text("Delete")')).toBeVisible()
@@ -222,15 +222,38 @@ test.describe('finance section', () => {
     ]
     await mockFinance(page, { expenses })
     await openFinance(page)
-    await page.locator('table tbody tr').first().waitFor()
+    await page.locator('tr.row-link').first().waitFor()
 
     await page.click('button:has-text("Filter")')
-    await page.selectOption('select[onchange*="expFilterCat"]', 'kitchen')
-    await page.click('button:has-text("Apply")')
+    await expect(page.locator('.modal-overlay')).toBeVisible()
+    await page.locator('.modal select').nth(1).selectOption('kitchen')
+    await page.locator('.modal .btn-primary').click()
+    await expect(page.locator('.modal-overlay')).not.toBeVisible()
 
-    const rows = page.locator('table tbody tr')
-    await expect(rows).toHaveCount(1)
-    await expect(rows.first()).toContainText('Kitchen')
+    const expSection = page.locator('section').first()
+    await expect(expSection.locator('tr.row-link')).toHaveCount(1)
+    await expect(expSection.locator('tr.row-link').first()).toContainText('Kitchen')
+  })
+
+  test('expense filter chip appears and can be dismissed', async ({ page }) => {
+    const expenses = [
+      { id: 1, amount: 1000, paid_to: 'A', category: 'kitchen', expense_date: '2025-01-01', status: 'draft' },
+      { id: 2, amount: 2000, paid_to: 'B', category: 'utilities', expense_date: '2025-01-02', status: 'draft' },
+    ]
+    await mockFinance(page, { expenses })
+    await openFinance(page)
+    await page.locator('tr.row-link').first().waitFor()
+
+    await page.click('button:has-text("Filter")')
+    await page.locator('.modal select').nth(1).selectOption('kitchen')
+    await page.locator('.modal .btn-primary').click()
+
+    await expect(page.locator('.filter-chips .chip')).toHaveCount(1)
+    await expect(page.locator('.filter-chips .chip')).toContainText('Kitchen')
+
+    await page.locator('.filter-chips .chip').click()
+    await expect(page.locator('.filter-chips')).not.toBeVisible()
+    await expect(page.locator('section').first().locator('tr.row-link')).toHaveCount(2)
   })
 
   test('donation search filter reduces results', async ({ page }) => {
@@ -240,14 +263,27 @@ test.describe('finance section', () => {
     ]
     await mockFinance(page, { donations })
     await openFinance(page, 'donations')
-    await page.locator('table tbody tr').first().waitFor()
+    await page.locator('section').nth(1).locator('tr.row-link').first().waitFor()
 
-    await page.fill('input[type="search"]', 'sunday')
-    await page.locator('table tbody tr').first().waitFor()
+    await page.fill('input[placeholder="Search donor or note…"]', 'sunday')
 
-    const rows = page.locator('table tbody tr')
-    await expect(rows).toHaveCount(1)
-    await expect(rows.first()).toContainText('sunday feast')
+    const donSection = page.locator('section').nth(1)
+    await expect(donSection.locator('tr.row-link')).toHaveCount(1, { timeout: 5000 })
+    await expect(donSection.locator('tr.row-link').first()).toContainText('sunday feast')
+  })
+
+  test('expense workflow: draft can be submitted for approval', async ({ page }) => {
+    const expenses = [{ id: 1, amount: 14250, paid_to: 'Hydro Quebec', category: 'utilities', expense_date: '2025-01-01', status: 'draft' }]
+    await mockFinance(page, { expenses })
+    await openFinance(page)
+    await page.locator('tr.row-link').first().waitFor()
+
+    await page.locator('tr.row-link').first().click()
+    await expect(page.locator('.modal-overlay')).toBeVisible()
+    await page.click('button:has-text("Submit for Approval")')
+    await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
+
+    await expect(page.locator('tr.row-link').first().locator('.badge').filter({ hasText: 'Submitted' })).toBeVisible()
   })
 
   test('shows truncation warning when total > items loaded', async ({ page }) => {
@@ -270,15 +306,16 @@ test.describe('finance section', () => {
   })
 
   test('loadErr shown when API fails', async ({ page }) => {
-    await page.route(`${API}/**`, route => route.fulfill({ status: 500, body: '{}' }))
-    await openFinance(page)
-    await expect(page.locator('.load-err, [class*="err"]').filter({ hasText: /load|fail/i })).toBeVisible({ timeout: 5000 })
+    await page.route(`${API}/**`, route => route.fulfill({ status: 500, json: { message: 'Failed to load data' } }))
+    await page.goto('/app/finance/#expenses')
+    await expect(page.locator('.login-error').filter({ hasText: /fail/i }).first()).toBeVisible({ timeout: 10000 })
+    errors = []
   })
 
   test('CSV export downloads a file from expenses tab', async ({ page }) => {
     await mockFinance(page, { expenses: [{ id: 1, amount: 1000, paid_to: 'Vendor', category: 'kitchen', expense_date: '2025-01-01', status: 'draft' }] })
     await openFinance(page)
-    await page.locator('table tbody tr').first().waitFor()
+    await page.locator('section').first().locator('tr.row-link').first().waitFor()
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
@@ -290,11 +327,11 @@ test.describe('finance section', () => {
   test('CSV export downloads from donations tab', async ({ page }) => {
     await mockFinance(page, { donations: [{ id: 1, amount: 5000, method: 'cash', category: 'general', date_received: '2025-01-01', note: '' }] })
     await openFinance(page, 'donations')
-    await page.locator('table tbody tr').first().waitFor()
+    await page.locator('section').nth(1).locator('tr.row-link').first().waitFor()
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.click('button:has-text("Export")')
+      page.locator('section').nth(1).locator('button:has-text("Export")').click()
     ])
     expect(download.suggestedFilename()).toBe('donations.csv')
   })

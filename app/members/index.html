@@ -63,7 +63,7 @@
 </div>
 
 <script type="module">
-  import { init, ROLES, auth, fmtCat, toast } from '../../lib/app.js'
+  import { init, ROLES, SERVICES, auth, fmtCat, toast } from '../../lib/app.js'
   import { api } from '../../lib/api.js'
 
   if (!auth.can('clients:view')) {
@@ -78,7 +78,7 @@
   const emptyForm = () => ({
     first_name: '', last_name: '', email: '', phone: '', role: 'Devotee', joined: today,
     address: '', notes: '', status: '',
-    initiated_name: '', diksa_guru: '', guiding_devotee: '', services: '',
+    initiated_name: '', diksa_guru: '', guiding_devotee: '', services: [],
     rounds: '', rounds_years: '', four_regs_years: '',
     kc_years: '', temple: '', dob: '', gender: '', nationality: '', occupation: '',
     marriage_status: '', spouse: '', children: '',
@@ -87,7 +87,9 @@
 
   function toMember(c) {
     const d = typeof c.client === 'string' ? JSON.parse(c.client) : c.client
-    return { _id: c.id, _public: c.public_id, _user_id: c.user_id, ...d }
+    const services = Array.isArray(d.services) ? d.services
+      : (d.services ? d.services.split(',').map(s => s.trim()).filter(Boolean) : [])
+    return { _id: c.id, _public: c.public_id, _user_id: c.user_id, ...d, services }
   }
 
   async function loadModal(name) {
@@ -111,6 +113,14 @@
     members: [],
     total: 0,
     roles: ROLES,
+    SERVICES,
+
+    toggleService(sv) {
+      const svcs = [...(s.form.services || [])]
+      const i = svcs.indexOf(sv)
+      if (i >= 0) svcs.splice(i, 1); else svcs.push(sv)
+      s.form.services = svcs
+    },
     loading: false,
     saving: false,
     inviting: false,
@@ -289,6 +299,6 @@
   Promise.all([loadModal('edit'), loadModal('detail')]).then(([e, d]) => {
     s.editHTML = e
     s.detailHTML = d
-  })
+  }).catch(e => { s.loadErr = e.message || 'Failed to load page templates' })
   load()
 </script>

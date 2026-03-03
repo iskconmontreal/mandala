@@ -33,6 +33,12 @@
       <div class="login-form-panel">
         <div class="login-form-wrap" :scope="state">
 
+          <button :if="step !== 'email'" type="button" class="btn-link login-back"
+            :onclick="step = 'email'; password = ''; otp = ''; err = null">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Back
+          </button>
+
           <h1 :text="{email: 'Sign in', password: 'Password', otp: 'Verify'}[step]"></h1>
           <p :text="{email: 'Access temple management dashboard.', password: email, otp: 'Enter the 6-digit code sent to ' + email}[step]"></p>
 
@@ -54,7 +60,6 @@
               <button type="button" class="toggle-pw" :onclick="showPw = !showPw" :text="showPw ? '🙈' : '👁'" aria-label="Toggle password visibility"></button>
             </div>
             <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Sign In</button>
-            <button type="button" class="btn-link" :onclick="step = 'email'; password = ''; err = null" style="margin-top: var(--s-sm); align-self: center;">Back</button>
           </form>
 
           <form class="login-form" :if="step === 'otp'" :onsubmit.prevent="verify">
@@ -63,7 +68,6 @@
               <input id="otp" class="otp-input" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" :value="otp" required autofocus autocomplete="one-time-code">
             </div>
             <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Verify</button>
-            <button type="button" class="btn-link" :onclick="step = 'email'; otp = ''; err = null" style="margin-top: var(--s-sm); align-self: center;">Back</button>
           </form>
 
           <div :if="step === 'email'">

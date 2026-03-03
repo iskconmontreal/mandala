@@ -80,6 +80,16 @@
   max-width: 24rem;
 }
 
+.login-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-xs);
+  font-size: var(--f-sm);
+  color: var(--c-text-dim);
+  margin-bottom: var(--s-lg);
+}
+.login-back:hover { color: var(--c-text); }
+
 .login-form-wrap h1 {
   margin-bottom: var(--s-xs);
 }

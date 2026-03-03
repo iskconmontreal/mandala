@@ -140,8 +140,12 @@
                 <input id="m-temple" type="text" :value="form.temple" placeholder="ISKCON Montreal">
               </div>
               <div class="field">
-                <label for="m-services">Services</label>
-                <input id="m-services" type="text" :value="form.services" placeholder="Cooking, pujari, etc.">
+                <label>Services</label>
+                <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs); margin-top:var(--s-xs)">
+                  <button type="button" :each="sv in SERVICES"
+                    :class="(form.services||[]).includes(sv) ? 'badge badge-active' : 'badge'"
+                    :onclick="toggleService(sv)" :text="sv"></button>
+                </div>
               </div>
             </div>
             <div class="form-row">

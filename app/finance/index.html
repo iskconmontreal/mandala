@@ -36,16 +36,270 @@
   </div>
 </div>
 
-<!-- Form modals (loaded once, not switched with tabs) -->
+<!-- ===== EXPENSES TAB ===== -->
+<section :class="{'hidden': activeTab !== 'expenses'}" :scope="{showFilter: false}">
+
+  <div class="filter-bar">
+    <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Expense</button>
+    <input class="filter-search" type="search" placeholder="Search paid to or description…"
+      :value="expSearch" :oninput.debounce-150="e => { expSearch = e.target.value; expPage = 1 }">
+    <button class="btn btn-outline btn-sm" :onclick="showFilter = true"
+      :style="{color: expFilterCat || expFilterStatus || expDateFrom || expDateTo ? 'var(--c-accent)' : '', borderColor: expFilterCat || expFilterStatus || expDateFrom || expDateTo ? 'var(--c-accent)' : ''}">
+      <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
+    <button class="btn btn-outline btn-sm" :onclick="exportCSV()">
+      <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+  </div>
+
+  <div :if="expFilterCat || expFilterStatus || expDateFrom || expDateTo" class="filter-chips">
+    <span :if="expFilterStatus" class="chip" :onclick="e => { expFilterStatus = ''; expPage = 1 }" :text="fmt(expFilterStatus) + ' ×'"></span>
+    <span :if="expFilterCat" class="chip" :onclick="e => { expFilterCat = ''; expPage = 1 }" :text="fmt(expFilterCat) + ' ×'"></span>
+    <span :if="expDateFrom" class="chip" :onclick="e => { expDateFrom = ''; expPage = 1 }" :text="'From ' + expDateFrom + ' ×'"></span>
+    <span :if="expDateTo" class="chip" :onclick="e => { expDateTo = ''; expPage = 1 }" :text="'To ' + expDateTo + ' ×'"></span>
+    <button class="btn-link" style="font-size:var(--f-sm);color:var(--c-text-dim)"
+      :onclick="e => { expFilterCat = ''; expFilterStatus = ''; expDateFrom = ''; expDateTo = ''; expPage = 1 }">Clear all</button>
+  </div>
+
+  <div class="modal-overlay" :if="showFilter" :onkeydown.esc.document="showFilter = false" :onclick="e => { if (e.target === e.currentTarget) showFilter = false }">
+    <div class="modal" style="max-width:28rem">
+      <div class="modal-header">
+        <h2>Filters</h2>
+        <button class="modal-close" :onclick="showFilter = false">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:var(--s-md)">
+        <div class="field">
+          <label>Status</label>
+          <select :value="expFilterStatus" :onchange="e => { expFilterStatus = e.target.value; expPage = 1 }">
+            <option value="">All statuses</option>
+            <option :each="st in expStatuses" :value="st" :text="fmt(st)"></option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select :value="expFilterCat" :onchange="e => { expFilterCat = e.target.value; expPage = 1 }">
+            <option value="">All categories</option>
+            <option :each="c in expCats" :value="c" :text="fmt(c)"></option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date range</label>
+          <div style="display:flex;gap:var(--s-sm);align-items:center">
+            <input type="date" :value="expDateFrom" :onchange="e => { expDateFrom = e.target.value; expPage = 1 }" style="flex:1">
+            <span class="dim">—</span>
+            <input type="date" :value="expDateTo" :onchange="e => { expDateTo = e.target.value; expPage = 1 }" style="flex:1">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--s-md)">
+          <button class="btn btn-outline btn-sm" :if="expFilterCat || expFilterStatus || expDateFrom || expDateTo"
+            :onclick="e => { expFilterCat = ''; expFilterStatus = ''; expDateFrom = ''; expDateTo = ''; expPage = 1 }">Clear all</button>
+          <span :if="!expFilterCat && !expFilterStatus && !expDateFrom && !expDateTo"></span>
+          <button class="btn btn-primary btn-sm" :onclick="showFilter = false"
+            :text="'Show ' + expFiltered.length + ' results'"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Status</th><th>Paid to</th><th>Category</th><th style="text-align:right">Amount</th></tr>
+        </thead>
+        <tbody>
+          <tr :each="x in expPaged" class="row-link" :onclick="editExpense(x)">
+            <td :text="x.expense_date?.slice(0,10) || '—'"></td>
+            <td><span class="badge" :class="'badge-' + (x.status || 'draft')" :text="fmt(x.status || 'draft')"></span></td>
+            <td :text="x.paid_to"></td>
+            <td><span class="badge" :text="fmt(x.category)"></span></td>
+            <td style="text-align:right" class="stat-err" :text="'−$' + fmtAmt(x.amount)"></td>
+          </tr>
+          <tr :if="!expenses.length && !loading">
+            <td colspan="5" style="text-align:center;padding:var(--s-xl)">
+              <div class="dim" style="margin-bottom:var(--s-sm)">No expenses yet</div>
+              <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Add first expense</button>
+            </td>
+          </tr>
+          <tr :if="expenses.length && !expFiltered.length && !loading">
+            <td colspan="5" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</td>
+          </tr>
+          <tr :if="loading">
+            <td colspan="5" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div :if="expTotalPages > 1" style="display:flex;justify-content:space-between;align-items:center;padding:var(--s-sm) var(--s-md);border-top:1px solid var(--c-border)">
+      <span class="dim" style="font-size:var(--f-sm)" :text="expFiltered.length + ' expenses'"></span>
+      <div style="display:flex;gap:var(--s-xs)">
+        <button class="btn btn-outline btn-sm" :onclick="expPage = Math.max(1, expPage - 1)" :class="{dim: expPage === 1}">←</button>
+        <span style="padding:var(--s-xs) var(--s-sm);font-size:var(--f-sm)" :text="expPage + ' / ' + expTotalPages"></span>
+        <button class="btn btn-outline btn-sm" :onclick="expPage = Math.min(expTotalPages, expPage + 1)" :class="{dim: expPage === expTotalPages}">→</button>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ===== DONATIONS TAB ===== -->
+<section :class="{'hidden': activeTab !== 'donations'}" :scope="{showFilter: false}">
+
+  <div class="filter-bar">
+    <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Donation</button>
+    <input class="filter-search" type="search" placeholder="Search donor or note…"
+      :value="donSearch" :oninput.debounce-150="e => { donSearch = e.target.value; donPage = 1 }">
+    <button class="btn btn-outline btn-sm" :onclick="showFilter = true"
+      :style="{color: donFilterCat || donDateFrom || donDateTo ? 'var(--c-accent)' : '', borderColor: donFilterCat || donDateFrom || donDateTo ? 'var(--c-accent)' : ''}">
+      <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>Filter</button>
+    <button class="btn btn-outline btn-sm" :onclick="exportCSV()">
+      <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+  </div>
+
+  <div :if="donFilterCat || donDateFrom || donDateTo" class="filter-chips">
+    <span :if="donFilterCat" class="chip" :onclick="e => { donFilterCat = ''; donPage = 1 }" :text="fmt(donFilterCat) + ' ×'"></span>
+    <span :if="donDateFrom" class="chip" :onclick="e => { donDateFrom = ''; donPage = 1 }" :text="'From ' + donDateFrom + ' ×'"></span>
+    <span :if="donDateTo" class="chip" :onclick="e => { donDateTo = ''; donPage = 1 }" :text="'To ' + donDateTo + ' ×'"></span>
+    <button class="btn-link" style="font-size:var(--f-sm);color:var(--c-text-dim)"
+      :onclick="e => { donFilterCat = ''; donDateFrom = ''; donDateTo = ''; donPage = 1 }">Clear all</button>
+  </div>
+
+  <div class="modal-overlay" :if="showFilter" :onkeydown.esc.document="showFilter = false" :onclick="e => { if (e.target === e.currentTarget) showFilter = false }">
+    <div class="modal" style="max-width:28rem">
+      <div class="modal-header">
+        <h2>Filters</h2>
+        <button class="modal-close" :onclick="showFilter = false">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:var(--s-md)">
+        <div class="field">
+          <label>Category</label>
+          <select :value="donFilterCat" :onchange="e => { donFilterCat = e.target.value; donPage = 1 }">
+            <option value="">All categories</option>
+            <option :each="c in donCats" :value="c" :text="fmt(c)"></option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date range</label>
+          <div style="display:flex;gap:var(--s-sm);align-items:center">
+            <input type="date" :value="donDateFrom" :onchange="e => { donDateFrom = e.target.value; donPage = 1 }" style="flex:1">
+            <span class="dim">—</span>
+            <input type="date" :value="donDateTo" :onchange="e => { donDateTo = e.target.value; donPage = 1 }" style="flex:1">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:var(--s-md)">
+          <button class="btn btn-outline btn-sm" :if="donFilterCat || donDateFrom || donDateTo"
+            :onclick="e => { donFilterCat = ''; donDateFrom = ''; donDateTo = ''; donPage = 1 }">Clear all</button>
+          <span :if="!donFilterCat && !donDateFrom && !donDateTo"></span>
+          <button class="btn btn-primary btn-sm" :onclick="showFilter = false"
+            :text="'Show ' + donFiltered.length + ' results'"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Donor</th><th>Method</th><th>Category</th><th>Note</th><th style="text-align:right">Amount</th></tr>
+        </thead>
+        <tbody>
+          <tr :each="d in donPaged" class="row-link" :onclick="editDonation(d)">
+            <td :text="d.date_received?.slice(0,10) || '—'"></td>
+            <td :text="d.client_id ? (memberNames[d.client_id] || '—') : 'Anonymous'"></td>
+            <td :text="fmt(d.method)"></td>
+            <td><span class="badge" :text="fmt(d.category)"></span></td>
+            <td class="dim" :text="d.note || '—'"></td>
+            <td style="text-align:right" class="stat-ok" :text="'+$' + fmtAmt(d.amount)"></td>
+          </tr>
+          <tr :if="!donations.length && !loading">
+            <td colspan="6" style="text-align:center;padding:var(--s-xl)">
+              <div class="dim" style="margin-bottom:var(--s-sm)">No donations yet</div>
+              <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Record first donation</button>
+            </td>
+          </tr>
+          <tr :if="donations.length && !donFiltered.length && !loading">
+            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">No donations match filters</td>
+          </tr>
+          <tr :if="loading">
+            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div :if="donTotalPages > 1" style="display:flex;justify-content:space-between;align-items:center;padding:var(--s-sm) var(--s-md);border-top:1px solid var(--c-border)">
+      <span class="dim" style="font-size:var(--f-sm)" :text="donFiltered.length + ' donations'"></span>
+      <div style="display:flex;gap:var(--s-xs)">
+        <button class="btn btn-outline btn-sm" :onclick="donPage = Math.max(1, donPage - 1)" :class="{dim: donPage === 1}">←</button>
+        <span style="padding:var(--s-xs) var(--s-sm);font-size:var(--f-sm)" :text="donPage + ' / ' + donTotalPages"></span>
+        <button class="btn btn-outline btn-sm" :onclick="donPage = Math.min(donTotalPages, donPage + 1)" :class="{dim: donPage === donTotalPages}">→</button>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ===== DONORS TAB ===== -->
+<section :class="{'hidden': activeTab !== 'donors'}">
+
+  <div class="filter-bar">
+    <input class="filter-search" type="search" placeholder="Search donor…"
+      :value="donorSearch" :oninput.debounce-150="e => { donorSearch = e.target.value; donorPage = 1 }">
+    <button class="btn btn-outline btn-sm" :onclick="exportCSV()">
+      <svg style="width:.875rem;height:.875rem;vertical-align:-2px;margin-right:var(--s-xs)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+  </div>
+
+  <div class="card">
+    <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Donor</th><th style="text-align:right">Donations</th><th style="text-align:right">Total</th><th>Last Donation</th></tr>
+        </thead>
+        <tbody>
+          <tr :each="d in donorPaged">
+            <td :text="d.name"></td>
+            <td style="text-align:right" :text="d.count"></td>
+            <td style="text-align:right" class="stat-ok" :text="'$' + fmtAmt(d.total)"></td>
+            <td class="dim" :text="d.lastDate"></td>
+          </tr>
+          <tr :if="!donorFiltered.length && !loading">
+            <td colspan="4" class="dim" style="text-align:center;padding:var(--s-lg)">
+              <span :text="donations.length ? 'No donors match search' : 'Donors appear once donations are recorded'"></span>
+            </td>
+          </tr>
+          <tr :if="loading">
+            <td colspan="4" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div :if="donorTotalPages > 1" style="display:flex;justify-content:space-between;align-items:center;padding:var(--s-sm) var(--s-md);border-top:1px solid var(--c-border)">
+      <span class="dim" style="font-size:var(--f-sm)" :text="donorFiltered.length + ' donors'"></span>
+      <div style="display:flex;gap:var(--s-xs)">
+        <button class="btn btn-outline btn-sm" :onclick="donorPage = Math.max(1, donorPage - 1)" :class="{dim: donorPage === 1}">←</button>
+        <span style="padding:var(--s-xs) var(--s-sm);font-size:var(--f-sm)" :text="donorPage + ' / ' + donorTotalPages"></span>
+        <button class="btn btn-outline btn-sm" :onclick="donorPage = Math.min(donorTotalPages, donorPage + 1)" :class="{dim: donorPage === donorTotalPages}">→</button>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- Form modals loaded once at init -->
 <div :html="expFormHTML"></div>
 <div :html="donFormHTML"></div>
 
-<!-- Tab content loaded via partials -->
-<div :html="tabHTML"></div>
-
 <script type="module">
-  import { init, DON_CATS, EXP_CATS, EXP_TYPES, EXP_STATUSES, DON_METHODS, fmtCat, fmtAmt, rawAmt, toCents, dlCSV, setErr, toast, auth } from '../../lib/app.js'
+  import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth } from '../../lib/app.js'
   import { api } from '../../lib/api.js'
+
+  const DON_CATS = ['general', 'sunday_feast', 'book_distribution', 'deity_worship', 'building_fund', 'annadana', 'festival', 'other']
+  const EXP_CATS = ['utilities', 'kitchen', 'deity', 'maintenance', 'office', 'rent', 'insurance', 'travel', 'salary', 'events', 'professional', 'other']
+  const DON_METHODS = ['cash', 'cheque', 'e-transfer', 'card', 'in-kind']
+  const EXP_STATUSES = { draft: 'var(--c-text-dim)', submitted: 'var(--c-accent)', returned: 'var(--c-warn)', rejected: 'var(--c-err)', approved: 'var(--c-ok)', paid: 'var(--c-accent)', closed: 'var(--c-text-dim)' }
+  const DON_FIELDS = { Amount: { id: 'amount', label: 'amount' }, Method: { id: 'method', label: 'method' }, Category: { id: 'cat', label: 'category' }, DateReceived: { id: 'date', label: 'date' }, Note: { id: 'note', label: 'note' } }
+  const EXP_FIELDS = { PaidTo: { id: 'vendor', label: 'paid to' }, Amount: { id: 'amount', label: 'amount' }, Category: { id: 'cat', label: 'category' }, ExpenseDate: { id: 'date', label: 'date' }, Description: { id: 'desc', label: 'description' } }
 
   if (!auth.can('donations:view') && !auth.can('expenses:view')) {
     location.replace('/app/')
@@ -58,31 +312,41 @@
   const curMonth = today.slice(0, 7)
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7)
   const years = Array.from({ length: 3 }, (_, i) => curYear - i)
-  const perPage = 20
   const monthLabel = now.toLocaleString('default', { month: 'short' })
-  const tabCache = {}
+  const perPage = 20
+
+  function dlCSV(rows, name) {
+    const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = name
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  function setErr(msg, prefix, fields) {
+    document.querySelectorAll('.field-err').forEach(el => el.classList.remove('field-err'))
+    const matches = [...msg.matchAll(/validation for '(\w+)'/g)]
+    if (!matches.length) return msg
+    const names = []
+    for (const [, f] of matches) {
+      const m = fields?.[f]
+      names.push(m?.label || f.toLowerCase())
+      if (m?.id) document.getElementById(`${prefix}-${m.id}`)?.classList.add('field-err')
+    }
+    return 'Required: ' + names.join(', ')
+  }
 
   const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '', client_id: null })
   const emptyExpForm = () => ({ type: 'direct', paid_to: '', amount: '', category: 'utilities', expense_date: today, description: '', client_id: null })
 
   function resetForm() {
-    s.editId = null
-    s.addErr = null
-    s.detailExp = null
-    s.receiptPreview = ''
-    s.receiptName = ''
-    s.receipts = []
-    s.extracting = false
-    s.memberQuery = ''
-    s.memberHits = []
-    s.vendorHits = []
-    s.donHistory = []
-    s.actionNote = ''
-    s.actionRef = ''
-    s.actionAmt = ''
-    s.delConfirm = false
-    s.donForm = emptyDonForm()
-    s.expForm = emptyExpForm()
+    s.editId = null; s.addErr = null; s.detailExp = null
+    s.receiptPreview = ''; s.receiptName = ''; s.receipts = []; s.extracting = false
+    s.memberQuery = ''; s.memberHits = []; s.vendorHits = []
+    s.donHistory = []; s.actionNote = ''; s.actionRef = ''; s.actionAmt = ''
+    s.delConfirm = false; s.donForm = emptyDonForm(); s.expForm = emptyExpForm()
   }
 
   function syncExpReceipts() {
@@ -101,68 +365,34 @@
     if (s.expForm.expense_date === today && first.date) s.expForm.expense_date = first.date
   }
 
-  const DON_FIELDS = {
-    Amount: { id: 'amount', label: 'amount' },
-    Method: { id: 'method', label: 'method' },
-    Category: { id: 'cat', label: 'category' },
-    DateReceived: { id: 'date', label: 'date' },
-    Note: { id: 'note', label: 'note' },
-  }
-  const EXP_FIELDS = {
-    PaidTo: { id: 'vendor', label: 'paid to' },
-    Amount: { id: 'amount', label: 'amount' },
-    Category: { id: 'cat', label: 'category' },
-    ExpenseDate: { id: 'date', label: 'date' },
-    Description: { id: 'desc', label: 'description' },
-  }
-
   const s = init({
-    year: curYear,
-    years,
+    year: curYear, years, monthLabel,
     activeTab: location.hash.slice(1) || 'expenses',
-    tabHTML: '',
-    expFormHTML: '',
-    donFormHTML: '',
-    editId: null,
-    showAdd: false,
-    showFilter: false,
-    loading: false,
-    adding: false,
-    extracting: false,
-    receiptPreview: '',
-    receipts: [],
-    lightboxSrc: '',
-    loadErr: null,
-    addErr: null,
-    truncated: false,
-    delConfirm: false,
+    expFormHTML: '', donFormHTML: '',
+    editId: null, showAdd: false,
+    loading: false, adding: false, extracting: false, actioning: false,
+    receiptPreview: '', receiptName: '', receipts: [], lightboxSrc: '',
+    loadErr: null, addErr: null, truncated: false, delConfirm: false,
 
-    donations: [],
-    expenses: [],
-    memberNames: {},
-    donForm: emptyDonForm(),
-    expForm: emptyExpForm(),
-    donCats: DON_CATS,
-    expCats: EXP_CATS,
-    expTypes: EXP_TYPES,
-    donMethods: DON_METHODS,
-    fmt: fmtCat,
-    fmtAmt,
-    memberHits: [],
-    memberQuery: '',
-    vendorHits: [],
+    donations: [], expenses: [], memberNames: {},
+    donForm: emptyDonForm(), expForm: emptyExpForm(),
+    donCats: DON_CATS, expCats: EXP_CATS, donMethods: DON_METHODS,
+    expStatuses: Object.keys(EXP_STATUSES),
+    fmt: fmtCat, fmtAmt,
 
-    get donTotal() { return this.donations.reduce((s, d) => s + (d.amount || 0), 0) },
-    get expTotal() { return this.expenses.reduce((s, x) => s + (x.amount || 0), 0) },
+    memberHits: [], memberQuery: '', vendorHits: [],
+    detailExp: null, expApprovals: [], expHistory: [], donHistory: [],
+    actionNote: '', actionRef: '', actionAmt: '',
+    get expEditable() { return !this.detailExp || this.detailExp.status === 'draft' || this.detailExp.status === 'returned' },
+
+    get expMonth()      { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === curMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get expPrevMonth()  { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === prevMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get donMonth()      { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donPrevMonth()  { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donorsMonth()   { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
+    get donorsPrevMonth(){ const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
     get net() { return this.donMonth - this.expMonth },
 
-    get expMonth() { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === curMonth).reduce((s, x) => s + (x.amount || 0), 0) },
-    get expPrevMonth() { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === prevMonth).reduce((s, x) => s + (x.amount || 0), 0) },
-    get donMonth() { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).reduce((s, d) => s + (d.amount || 0), 0) },
-    get donPrevMonth() { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).reduce((s, d) => s + (d.amount || 0), 0) },
-    get donorsMonth() { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
-    get donorsPrevMonth() { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
-    monthLabel,
     trend(cur, prev, invert) {
       if (!cur && !prev) return { cls: '', num: '', label: 'No data yet' }
       if (!prev) return { cls: '', num: '', label: 'New this month' }
@@ -178,6 +408,36 @@
       return { cls: d > 0 ? 'stat-ok' : 'stat-err', num: (d > 0 ? '+' : '') + d, label: ' from last month' }
     },
 
+    expSearch: '', expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1,
+    get expFiltered() {
+      const q = this.expSearch.toLowerCase()
+      return this.expenses.filter(r => {
+        const dt = r.expense_date?.slice(0, 10) || ''
+        if (this.expFilterStatus && r.status !== this.expFilterStatus) return false
+        if (this.expFilterCat && r.category !== this.expFilterCat) return false
+        if (this.expDateFrom && dt < this.expDateFrom) return false
+        if (this.expDateTo && dt > this.expDateTo) return false
+        return !q || [r.paid_to, r.description].filter(Boolean).join(' ').toLowerCase().includes(q)
+      })
+    },
+    get expTotalPages() { return Math.max(1, Math.ceil(this.expFiltered.length / perPage)) },
+    get expPaged() { return this.expFiltered.slice((this.expPage - 1) * perPage, this.expPage * perPage) },
+
+    donSearch: '', donFilterCat: '', donDateFrom: '', donDateTo: '', donPage: 1,
+    get donFiltered() {
+      const q = this.donSearch.toLowerCase()
+      return this.donations.filter(r => {
+        const dt = r.date_received?.slice(0, 10) || ''
+        if (this.donFilterCat && r.category !== this.donFilterCat) return false
+        if (this.donDateFrom && dt < this.donDateFrom) return false
+        if (this.donDateTo && dt > this.donDateTo) return false
+        return !q || [r.note, r.method, r.client_id ? this.memberNames[r.client_id] : ''].filter(Boolean).join(' ').toLowerCase().includes(q)
+      })
+    },
+    get donTotalPages() { return Math.max(1, Math.ceil(this.donFiltered.length / perPage)) },
+    get donPaged() { return this.donFiltered.slice((this.donPage - 1) * perPage, this.donPage * perPage) },
+
+    donorSearch: '', donorPage: 1,
     get donors() {
       const map = {}
       for (const d of this.donations) {
@@ -190,153 +450,53 @@
       }
       return Object.values(map).sort((a, b) => b.total - a.total)
     },
-
-    expStatuses: Object.keys(EXP_STATUSES),
-    expStatusColor: (st) => EXP_STATUSES[st]?.color || 'var(--c-text-dim)',
-
-    detailExp: null,
-    expApprovals: [],
-    expHistory: [],
-    donHistory: [],
-    actionNote: '',
-    actionRef: '',
-    actionAmt: '',
-    actioning: false,
-    get expEditable() { return !this.detailExp || this.detailExp.status === 'draft' || this.detailExp.status === 'returned' },
-
-    expSearch: '', expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1,
-    donSearch: '', donFilterCat: '', donDateFrom: '', donDateTo: '', donPage: 1,
-    donorSearch: '', donorPage: 1,
-
-    get expFiltered() {
-      const q = this.expSearch.toLowerCase()
-      return this.expenses.filter(r => {
-        const dt = r.expense_date?.slice(0, 10) || ''
-        if (this.expFilterStatus && r.status !== this.expFilterStatus) return false
-        if (this.expFilterCat && r.category !== this.expFilterCat) return false
-        if (this.expDateFrom && dt < this.expDateFrom) return false
-        if (this.expDateTo && dt > this.expDateTo) return false
-        if (!q) return true
-        return [r.paid_to, r.description].filter(Boolean).join(' ').toLowerCase().includes(q)
-      })
-    },
-    get expTotalPages() { return Math.max(1, Math.ceil(this.expFiltered.length / perPage)) },
-    get expPaged() { return this.expFiltered.slice((this.expPage - 1) * perPage, this.expPage * perPage) },
-
-    get donFiltered() {
-      const q = this.donSearch.toLowerCase()
-      return this.donations.filter(r => {
-        const dt = r.date_received?.slice(0, 10) || ''
-        if (this.donFilterCat && r.category !== this.donFilterCat) return false
-        if (this.donDateFrom && dt < this.donDateFrom) return false
-        if (this.donDateTo && dt > this.donDateTo) return false
-        if (!q) return true
-        return [r.note, r.method, r.client_id ? this.memberNames[r.client_id] : ''].filter(Boolean).join(' ').toLowerCase().includes(q)
-      })
-    },
-    get donTotalPages() { return Math.max(1, Math.ceil(this.donFiltered.length / perPage)) },
-    get donPaged() { return this.donFiltered.slice((this.donPage - 1) * perPage, this.donPage * perPage) },
-
-    get donorFiltered() {
-      const q = this.donorSearch.toLowerCase()
-      return q ? this.donors.filter(d => d.name.toLowerCase().includes(q)) : this.donors
-    },
+    get donorFiltered() { const q = this.donorSearch.toLowerCase(); return q ? this.donors.filter(d => d.name.toLowerCase().includes(q)) : this.donors },
     get donorTotalPages() { return Math.max(1, Math.ceil(this.donorFiltered.length / perPage)) },
     get donorPaged() { return this.donorFiltered.slice((this.donorPage - 1) * perPage, this.donorPage * perPage) },
 
-    switchTab,
-
-    openAdd() {
-      if (s.editId || s.detailExp) resetForm()
-      s.showAdd = true
+    switchTab(tab) {
+      s.activeTab = tab
+      s.showAdd = false
+      if (location.hash.slice(1) !== tab) history.pushState(null, '', '#' + tab)
     },
 
+    openAdd() { if (s.editId || s.detailExp) resetForm(); s.showAdd = true },
     cancelAdd() { resetForm(); s.showAdd = false },
 
     filterDonors(q) {
       s.memberQuery = q
       const topDonors = s.donors.filter(d => d.id).map(d => ({ id: d.id, name: d.name }))
       const allMembers = Object.entries(s.memberNames).map(([id, name]) => ({ id: +id, name }))
-      if (q) {
-        const lq = q.toLowerCase()
-        s.memberHits = allMembers.filter(m => m.name.toLowerCase().includes(lq)).slice(0, 5)
-      } else {
-        s.memberHits = (topDonors.length ? topDonors : allMembers).slice(0, 5)
-      }
+      s.memberHits = (q ? allMembers.filter(m => m.name.toLowerCase().includes(q.toLowerCase())) : (topDonors.length ? topDonors : allMembers)).slice(0, 5)
     },
-
     filterMembers(q) {
       s.memberQuery = q
-      const allMembers = Object.entries(s.memberNames).map(([id, name]) => ({ id: +id, name }))
-      if (q) {
-        const lq = q.toLowerCase()
-        s.memberHits = allMembers.filter(m => m.name.toLowerCase().includes(lq)).slice(0, 5)
-      } else {
-        s.memberHits = allMembers.slice(0, 5)
-      }
+      const all = Object.entries(s.memberNames).map(([id, name]) => ({ id: +id, name }))
+      s.memberHits = (q ? all.filter(m => m.name.toLowerCase().includes(q.toLowerCase())) : all).slice(0, 5)
     },
-
     filterVendors(q) {
       s.expForm.paid_to = q
       if (!q) { s.vendorHits = []; return }
-      const lq = q.toLowerCase()
       const seen = new Set()
-      s.vendorHits = s.expenses
-        .map(x => x.paid_to)
-        .filter(v => v && !seen.has(v) && (seen.add(v), v.toLowerCase().includes(lq)))
-        .slice(0, 5)
+      s.vendorHits = s.expenses.map(x => x.paid_to).filter(v => v && !seen.has(v) && (seen.add(v), v.toLowerCase().includes(q.toLowerCase()))).slice(0, 5)
     },
+    selectExpMember(m) { s.expForm.client_id = m.id; s.expForm.paid_to = m.name; s.memberQuery = m.name; s.memberHits = [] },
+    clearExpMember()   { s.expForm.client_id = null; s.expForm.paid_to = ''; s.memberQuery = ''; s.memberHits = [] },
+    selectDonor(m)     { s.donForm.client_id = m.id; s.memberQuery = m.name; s.memberHits = [] },
+    clearDonor()       { s.donForm.client_id = null; s.memberQuery = ''; s.memberHits = [] },
 
-    selectExpMember(m) {
-      s.expForm.client_id = m.id
-      s.expForm.paid_to = m.name
-      s.memberQuery = m.name
-      s.memberHits = []
-    },
-
-    clearExpMember() {
-      s.expForm.client_id = null
-      s.expForm.paid_to = ''
-      s.memberQuery = ''
-      s.memberHits = []
-    },
-
-    selectDonor(m) {
-      s.donForm.client_id = m.id
-      s.memberQuery = m.name
-      s.memberHits = []
-    },
-
-    clearDonor() {
-      s.donForm.client_id = null
-      s.memberQuery = ''
-      s.memberHits = []
-    },
-
-    receiptName: '',
     async scanFile(file) {
       if (!file) return
-      s.extracting = true
-      s.addErr = null
-      s.receiptName = file.name
+      s.extracting = true; s.addErr = null; s.receiptName = file.name
       if (file.type.startsWith('image/')) {
         const reader = new FileReader()
         reader.onload = () => { s.receiptPreview = reader.result }
         reader.readAsDataURL(file)
-      } else {
-        s.receiptPreview = ''
-      }
+      } else s.receiptPreview = ''
       try {
         const res = await api.extractDoc(file)
         const d = res.extracted_data || {}
-        s.donForm = {
-          ...s.donForm,
-          amount: d.amount || s.donForm.amount,
-          method: d.method || s.donForm.method,
-          category: d.category || s.donForm.category,
-          date_received: d.date || s.donForm.date_received,
-          note: d.description || s.donForm.note,
-        }
+        s.donForm = { ...s.donForm, amount: d.amount || s.donForm.amount, method: d.method || s.donForm.method, category: d.category || s.donForm.category, date_received: d.date || s.donForm.date_received, note: d.description || s.donForm.note }
       } catch (e) { s.addErr = e.message }
       finally { s.extracting = false }
     },
@@ -349,200 +509,74 @@
       s.receipts.push(...files.map(f => ({ name: f.name, preview: '', data: null, extracting: true, err: null })))
       await Promise.all(files.map(async (file, i) => {
         const r = s.receipts[startIdx + i]
-        if (file.type.startsWith('image/')) {
-          r.preview = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(file) })
-        }
-        try {
-          const res = await api.extractDoc(file)
-          r.data = res.extracted_data || {}
-        } catch (e) { r.err = e.message; s.addErr = e.message }
+        if (file.type.startsWith('image/')) r.preview = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(file) })
+        try { const res = await api.extractDoc(file); r.data = res.extracted_data || {} }
+        catch (e) { r.err = e.message; s.addErr = e.message }
         r.extracting = false
         syncExpReceipts()
       }))
     },
 
-    removeReceipt(r) {
-      const i = s.receipts.indexOf(r)
-      if (i >= 0) s.receipts.splice(i, 1)
-      syncExpReceipts()
-    },
+    removeReceipt(r) { const i = s.receipts.indexOf(r); if (i >= 0) s.receipts.splice(i, 1); syncExpReceipts() },
 
     editDonation(d) {
-      s.editId = d.id
-      s.addErr = null
-      s.detailExp = null
-      s.donHistory = []
+      s.editId = d.id; s.addErr = null; s.detailExp = null; s.donHistory = []
       s.donForm = { amount: rawAmt(d.amount), method: d.method || 'cash', category: d.category || 'general', date_received: (d.date_received || '').slice(0, 10), note: d.note || '', client_id: d.client_id || null }
       s.memberQuery = d.client_id ? (s.memberNames[d.client_id] || '') : ''
-      s.memberHits = []
-      s.showAdd = true
+      s.memberHits = []; s.showAdd = true
       api.getAuditLogs({ entity_type: 'donation', entity_id: d.id, limit: 20, sortBy: 'created_at', sortDesc: 'true' })
-        .then(r => { s.donHistory = r.items || [] })
-        .catch(() => {})
+        .then(r => { s.donHistory = r.items || [] }).catch(() => {})
     },
 
     editExpense(x) {
-      s.editId = x.id
-      s.addErr = null
-      s.actionNote = ''
-      s.actionRef = ''
-      s.actionAmt = ''
-      s.detailExp = x
+      s.editId = x.id; s.addErr = null; s.actionNote = ''; s.actionRef = ''; s.actionAmt = ''; s.detailExp = x
       if (x.status === 'draft' || x.status === 'returned') {
         s.expForm = { type: x.type || 'direct', client_id: x.client_id || null, paid_to: x.paid_to || '', amount: rawAmt(x.amount), category: x.category || 'utilities', expense_date: (x.expense_date || '').slice(0, 10), description: x.description || '' }
         s.memberQuery = x.client_id ? (s.memberNames[x.client_id] || x.paid_to || '') : ''
         s.memberHits = []
-      } else {
-        loadExpenseDetail(x.id)
-      }
+      } else loadExpenseDetail(x.id)
       s.showAdd = true
     },
 
-    async submitExp() {
-      s.actioning = true
-      try {
-        await api.submitExpense(s.editId)
-        s.showAdd = false
-        toast('Expense submitted', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async approveExp() {
-      s.actioning = true
-      try {
-        await api.approveExpense(s.editId, s.actionNote)
-        s.showAdd = false
-        toast('Expense approved', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async returnExp() {
-      if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }
-      s.actioning = true
-      try {
-        await api.returnExpense(s.editId, s.actionNote)
-        s.showAdd = false
-        toast('Expense returned', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async rejectExp() {
-      if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }
-      s.actioning = true
-      try {
-        await api.rejectExpense(s.editId, s.actionNote)
-        s.showAdd = false
-        toast('Expense rejected', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async payExp() {
-      s.actioning = true
-      try {
-        await api.payExpense(s.editId, s.actionRef)
-        s.showAdd = false
-        toast('Expense marked as paid', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async reconcileExp() {
-      if (!s.actionAmt) { s.addErr = 'Actual amount is required'; return }
-      s.actioning = true
-      try {
-        await api.reconcileExpense(s.editId, toCents(s.actionAmt))
-        s.showAdd = false
-        toast('Expense reconciled', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
-
-    async closeExp() {
-      s.actioning = true
-      try {
-        await api.closeExpense(s.editId, s.actionRef)
-        s.showAdd = false
-        toast('Expense closed', 'success')
-        loadAll()
-      } catch (e) { s.addErr = e.message }
-      finally { s.actioning = false }
-    },
+    async submitExp()    { await expAction(() => api.submitExpense(s.editId), 'Expense submitted') },
+    async approveExp()   { await expAction(() => api.approveExpense(s.editId, s.actionNote), 'Expense approved') },
+    async returnExp()    { if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }; await expAction(() => api.returnExpense(s.editId, s.actionNote), 'Expense returned') },
+    async rejectExp()    { if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }; await expAction(() => api.rejectExpense(s.editId, s.actionNote), 'Expense rejected') },
+    async payExp()       { await expAction(() => api.payExpense(s.editId, s.actionRef), 'Expense marked as paid') },
+    async reconcileExp() { if (!s.actionAmt) { s.addErr = 'Actual amount is required'; return }; await expAction(() => api.reconcileExpense(s.editId, toCents(s.actionAmt)), 'Expense reconciled') },
+    async closeExp()     { await expAction(() => api.closeExpense(s.editId, s.actionRef), 'Expense closed') },
 
     async saveDonation() {
-      s.addErr = null
-      s.adding = true
+      s.addErr = null; s.adding = true
       try {
-        const data = {
-          amount: toCents(s.donForm.amount),
-          method: s.donForm.method,
-          category: s.donForm.category,
-          date_received: s.donForm.date_received,
-          note: s.donForm.note,
-          client_id: s.donForm.client_id || undefined,
-        }
-        if (s.editId) await api.updateDonation(s.editId, data)
-        else await api.createDonation(data)
-        s.donForm = emptyDonForm()
-        s.editId = null
-        s.showAdd = false
-        loadAll()
+        const data = { amount: toCents(s.donForm.amount), method: s.donForm.method, category: s.donForm.category, date_received: s.donForm.date_received, note: s.donForm.note, client_id: s.donForm.client_id || undefined }
+        if (s.editId) await api.updateDonation(s.editId, data); else await api.createDonation(data)
+        s.donForm = emptyDonForm(); s.editId = null; s.showAdd = false; loadAll()
       } catch (e) { s.addErr = setErr(e.message, 'don', DON_FIELDS) }
       finally { s.adding = false }
     },
 
     async saveExpense() {
-      s.addErr = null
-      s.adding = true
+      s.addErr = null; s.adding = true
       try {
-        const data = {
-          amount: toCents(s.expForm.amount),
-          type: s.expForm.type,
-          paid_to: s.expForm.paid_to,
-          description: s.expForm.description,
-          category: s.expForm.category,
-          currency: 'CAD',
-          expense_date: s.expForm.expense_date,
-          client_id: s.expForm.type !== 'direct' ? s.expForm.client_id : undefined,
-        }
-        if (s.editId) await api.updateExpense(s.editId, data)
-        else await api.createExpense(data)
-        s.expForm = emptyExpForm()
-        s.editId = null
-        s.showAdd = false
-        loadAll()
+        const data = { amount: toCents(s.expForm.amount), type: s.expForm.type, paid_to: s.expForm.paid_to, description: s.expForm.description, category: s.expForm.category, currency: 'CAD', expense_date: s.expForm.expense_date, client_id: s.expForm.type !== 'direct' ? s.expForm.client_id : undefined }
+        if (s.editId) await api.updateExpense(s.editId, data); else await api.createExpense(data)
+        s.expForm = emptyExpForm(); s.editId = null; s.showAdd = false; loadAll()
       } catch (e) { s.addErr = setErr(e.message, 'exp', EXP_FIELDS) }
       finally { s.adding = false }
     },
 
     async delDonation() {
       s.adding = true
-      try {
-        await api.deleteDonation(s.editId)
-        resetForm()
-        s.showAdd = false
-        loadAll()
-      } catch (e) { s.addErr = e.message }
+      try { await api.deleteDonation(s.editId); resetForm(); s.showAdd = false; loadAll() }
+      catch (e) { s.addErr = e.message }
       finally { s.adding = false }
     },
 
     async delExpense() {
       s.adding = true
-      try {
-        await api.deleteExpense(s.editId)
-        resetForm()
-        s.showAdd = false
-        loadAll()
-      } catch (e) { s.addErr = e.message }
+      try { await api.deleteExpense(s.editId); resetForm(); s.showAdd = false; loadAll() }
+      catch (e) { s.addErr = e.message }
       finally { s.adding = false }
     },
 
@@ -565,26 +599,15 @@
     loadAll,
   })
 
-  async function switchTab(tab) {
-    s.activeTab = tab
-    s.showAdd = false
-    s.showFilter = false
-    if (location.hash.slice(1) !== tab) history.pushState(null, '', '#' + tab)
-    if (!tabCache[tab]) {
-      const res = await fetch(`partials/${tab}.html`)
-      tabCache[tab] = await res.text()
-    }
-    s.tabHTML = tabCache[tab]
+  async function expAction(fn, msg) {
+    s.actioning = true
+    try { await fn(); s.showAdd = false; toast(msg, 'success'); loadAll() }
+    catch (e) { s.addErr = e.message }
+    finally { s.actioning = false }
   }
 
-  window.addEventListener('hashchange', () => {
-    const tab = location.hash.slice(1)
-    if (tab && tab !== s.activeTab) switchTab(tab)
-  })
-
   async function loadExpenseDetail(id) {
-    s.expApprovals = []
-    s.expHistory = []
+    s.expApprovals = []; s.expHistory = []
     const [approvals, history] = await Promise.all([
       api.getExpenseApprovals(id).catch(() => ({ items: [] })),
       api.getAuditLogs({ entity_type: 'expense', entity_id: id, limit: 20, sortBy: 'created_at', sortDesc: 'true' }).catch(() => ({ items: [] })),
@@ -594,8 +617,7 @@
   }
 
   async function loadAll() {
-    s.loading = true
-    s.loadErr = null
+    s.loading = true; s.loadErr = null
     try {
       const [don, exp, mem] = await Promise.all([
         api.getDonations({ limit: 1000, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
@@ -613,21 +635,25 @@
       s.memberNames = names
     } catch (e) {
       s.loadErr = e.message || 'Failed to load finance data'
-    } finally {
-      s.loading = false
-    }
+    } finally { s.loading = false }
   }
 
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.slice(1)
+    if (tab && tab !== s.activeTab) s.switchTab(tab)
+  })
+
   async function loadFormModals() {
-    const [ef, df] = await Promise.all([
-      fetch('partials/expense-form.html').then(r => r.text()),
-      fetch('partials/donation-form.html').then(r => r.text()),
-    ])
-    s.expFormHTML = ef
-    s.donFormHTML = df
+    try {
+      const [ef, df] = await Promise.all([
+        fetch('partials/expense-form.html').then(r => r.text()),
+        fetch('partials/donation-form.html').then(r => r.text()),
+      ])
+      s.expFormHTML = ef
+      s.donFormHTML = df
+    } catch { toast('Failed to load form templates') }
   }
 
   loadAll()
   loadFormModals()
-  switchTab(s.activeTab)
 </script>

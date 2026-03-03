@@ -28,7 +28,27 @@ Swagger: `https://api.iskconmontreal.ca/swagger/index.html`
 
 ## Stack
 
-- **Sprae v12.4.7** — DOM microhydration (`lib/sprae.js`). Directives: `:scope`, `:text`, `:if`, `:each`, `:class`, `:onclick`, `:onsubmit`. Loaded with `data-start` attribute for auto-init.
+- **Sprae v12** — DOM microhydration (`lib/sprae.js`). Directives: `:scope`, `:text`, `:if`, `:each`, `:class`, `:onclick`, `:onsubmit`. Loaded with `data-start` attribute for auto-init.
 - **Jekyll 4.3** — GitHub Pages hosting. `jekyll-optional-front-matter` plugin so HTML files don't need front matter.
 - **CSS custom properties** — Hand-written design tokens in `tokens.css`. Temple-inspired palette: devotional purple `#6b5ce7`, warm neutrals.
 - **ES modules** — Vanilla JS, no transpilation.
+
+## UI / Business Logic Separation
+
+JS `<script>` blocks contain **business logic only**: API calls, data transforms, auth guards, localStorage side effects. UI concerns live in **sprae markup**.
+
+| Concern | Where | How |
+|---------|-------|-----|
+| Display strings, labels, greeting text | Markup | `:text` expression |
+| Random picks, quote rotation | Markup | `:scope` IIFE |
+| Time-of-day messages, conditional copy | Markup | `:scope` IIFE with branching |
+| Label maps (scope→display name) | Markup | Inline object lookup in `:text` |
+| Name composition (first+last fallback) | Markup | `:text` with `[].filter(Boolean).join()` |
+| API calls, data fetching | JS | `api.*` calls |
+| Data transforms (totals, grouping) | JS | Computed getters or functions |
+| Auth guards, permission checks | JS | `auth.can()`, redirect guards |
+| Side effects (localStorage, navigation) | JS | Expose computed values to markup via init state |
+
+**Pattern**: JS exposes raw data + minimal bridge values (e.g., `_vis` for hours since last visit). Markup formats, picks, labels, and composes display text via `:scope` IIFEs and `:text` expressions.
+
+**Reference**: `login.html` `:scope="brand"` for quote rotation. `_layouts/app.html` footer for random quote pick IIFE. `app/index.html` page-header for time-of-day subtitle `:scope`.

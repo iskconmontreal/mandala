@@ -2,7 +2,6 @@
 
 What users do. Not UI specs, not infrastructure.
 
-
 ### 1. Expenses
 
 **1.a Reimbursement** — member already paid, wants money back

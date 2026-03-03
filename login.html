@@ -36,16 +36,15 @@
           <h1 :text="{email: 'Sign in', password: 'Password', otp: 'Verify'}[step]"></h1>
           <p :text="{email: 'Access temple management dashboard.', password: email, otp: 'Enter the 6-digit code sent to ' + email}[step]"></p>
 
+          <div class="login-warn" :if="offline" :text="offline"></div>
           <div class="login-error" :if="err" :text="err"></div>
 
-          <form class="login-form" :if="step === 'email'" :onsubmit.prevent="submit">
+          <form class="login-form" :if="step === 'email' && !offline" :onsubmit.prevent="submit">
             <div class="field">
               <label for="email">Email</label>
               <input id="email" type="email" placeholder="name@example.com" :value="email" required autofocus autocomplete="email">
             </div>
-            <button type="submit" class="btn btn-primary btn-block" :class="{dim: loading}">
-              <span :text="loading ? 'Checking…' : 'Continue'"></span>
-            </button>
+            <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Continue</button>
           </form>
 
           <form class="login-form" :if="step === 'password'" :onsubmit.prevent="submitPassword">
@@ -54,9 +53,7 @@
               <input id="password" :type="showPw ? 'text' : 'password'" placeholder="" :value="password" required autofocus autocomplete="current-password">
               <button type="button" class="toggle-pw" :onclick="showPw = !showPw" :text="showPw ? '🙈' : '👁'" aria-label="Toggle password visibility"></button>
             </div>
-            <button type="submit" class="btn btn-primary btn-block" :class="{dim: loading}">
-              <span :text="loading ? 'Signing in…' : 'Sign In'"></span>
-            </button>
+            <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Sign In</button>
             <button type="button" class="btn-link" :onclick="step = 'email'; password = ''; err = null" style="margin-top: var(--s-sm); align-self: center;">Back</button>
           </form>
 
@@ -65,9 +62,7 @@
               <label for="otp">Verification code</label>
               <input id="otp" class="otp-input" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" :value="otp" required autofocus autocomplete="one-time-code">
             </div>
-            <button type="submit" class="btn btn-primary btn-block" :class="{dim: loading}">
-              <span :text="loading ? 'Verifying…' : 'Verify'"></span>
-            </button>
+            <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Verify</button>
             <button type="button" class="btn-link" :onclick="step = 'email'; otp = ''; err = null" style="margin-top: var(--s-sm); align-self: center;">Back</button>
           </form>
 
@@ -95,7 +90,7 @@
     <script type="module">
       import sprae from './lib/sprae.js'
       import { auth } from './lib/auth.js'
-      import { api } from './lib/api.js'
+      import { api, BASE } from './lib/api.js'
 
 
       // If already logged in, go to dashboard
@@ -171,6 +166,7 @@
         otp: '',
         loading: false,
         err: null,
+        offline: null,
 
         async submit() {
           state.err = null
@@ -232,6 +228,12 @@
             state.err = 'Could not connect to server'
           }
         }
+      })
+
+      fetch(`${BASE}/api/health`).then(r => r.json()).then(d => {
+        if (d.status !== 'ok') state.offline = 'Server is experiencing issues. Please try again later.'
+      }).catch(() => {
+        state.offline = 'Cannot reach server. Please check your connection.'
       })
     </script>
   </body>

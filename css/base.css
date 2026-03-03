@@ -40,13 +40,33 @@ input[type="number"],
 input[type="search"],
 input[type="date"],
 input[type="tel"],
-select, textarea {
+select {
+  width: 100%;
+  height: 2.625rem;
+  padding: var(--s-sm) var(--s-md);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  transition: border-color .15s;
+}
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .625rem center;
+  cursor: pointer;
+}
+textarea {
   width: 100%;
   padding: var(--s-sm) var(--s-md);
   border: 1px solid var(--c-border);
   border-radius: var(--r-sm);
   background: var(--c-surface);
   transition: border-color .15s;
+  field-sizing: content;
+  min-height: 2.625rem;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--c-accent);
@@ -96,6 +116,29 @@ label {
 }
 
 .btn-block { width: 100%; }
+
+.btn-loading {
+  position: relative;
+  pointer-events: none;
+  color: transparent !important;
+}
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 1.1em;
+  height: 1.1em;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: btn-spin .5s linear infinite;
+}
+.btn-outline.btn-loading::after,
+.btn-danger.btn-loading::after,
+.btn-link.btn-loading::after {
+  border-color: rgba(0,0,0,.1);
+  border-top-color: var(--c-accent);
+}
+@keyframes btn-spin { to { transform: rotate(360deg) } }
 
 /* Utility */
 .dim { color: var(--c-text-dim); }

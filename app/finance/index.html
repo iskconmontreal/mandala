@@ -3,6 +3,7 @@
 <div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
   <div>
     <h1>Finance</h1>
+    <div style="font-size:var(--f-sm)" class="dim"><span :class="net > 0 ? 'stat-ok' : net < 0 ? 'stat-err' : ''" :text="(net >= 0 ? '+' : '−') + '$' + fmtAmt(Math.abs(net))"></span> this month</div>
   </div>
   <div style="display:flex; align-items:center; gap:var(--s-md)">
     <select class="year-select" :onchange="e => { year = +e.target.value; loadAll() }">
@@ -15,40 +16,68 @@
 <div class="card-tab-group">
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'expenses'}"
     :onclick="e => { switchTab('expenses'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
-    <div class="stat-label stat-err">Expenses</div>
-    <div class="stat-value" :text="'$' + fmtAmt(expTotal)"></div>
-    <div class="stat-sub dim" :text="expenses.length + ' entries'"></div>
+    <div class="stat-label">Expenses</div>
+    <div class="stat-value"><span :text="'$' + fmtAmt(expMonth)"></span></div>
+    <div class="stat-sub dim"><span :text="trend(expMonth, expPrevMonth, true).num"></span><span :text="trend(expMonth, expPrevMonth, true).label"></span></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donations'}"
     :onclick="e => { switchTab('donations'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
-    <div class="stat-label stat-ok">Donations</div>
-    <div class="stat-value" :text="'$' + fmtAmt(donTotal)"></div>
-    <div class="stat-sub dim" :text="donations.length + ' entries'"></div>
+    <div class="stat-label">Donations</div>
+    <div class="stat-value"><span :text="'$' + fmtAmt(donMonth)"></span></div>
+    <div class="stat-sub dim"><span :text="trend(donMonth, donPrevMonth).num"></span><span :text="trend(donMonth, donPrevMonth).label"></span></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donors'}"
     :onclick="e => { switchTab('donors'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Donors</div>
-    <div class="stat-value" :text="donors.length"></div>
-    <div class="stat-sub dim" :text="donors.filter(d => d.count > 1).length + ' recurring'"></div>
+    <div class="stat-value"><span :text="donorsMonth"></span></div>
+    <div class="stat-sub dim"><span :text="trendDiff(donorsMonth, donorsPrevMonth).num"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).label"></span></div>
   </div>
 </div>
+
+<!-- Form modals (loaded once, not switched with tabs) -->
+<div :html="expFormHTML"></div>
+<div :html="donFormHTML"></div>
 
 <!-- Tab content loaded via partials -->
 <div :html="tabHTML"></div>
 
 <script type="module">
-  import { init, DON_CATS, EXP_CATS, DON_METHODS, fmtCat, fmtAmt, rawAmt, toCents, dlCSV, setErr } from '../../lib/app.js'
+  import { init, DON_CATS, EXP_CATS, EXP_TYPES, EXP_STATUSES, DON_METHODS, fmtCat, fmtAmt, rawAmt, toCents, dlCSV, setErr, toast, auth } from '../../lib/app.js'
   import { api } from '../../lib/api.js'
+
+  if (!auth.can('donations:view') && !auth.can('expenses:view')) {
+    location.replace('/app/')
+    throw new Error('redirecting')
+  }
 
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
   const curYear = now.getFullYear()
+  const curMonth = today.slice(0, 7)
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7)
   const years = Array.from({ length: 3 }, (_, i) => curYear - i)
   const perPage = 20
+  const monthLabel = now.toLocaleString('default', { month: 'short' })
   const tabCache = {}
 
-  const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '' })
-  const emptyExpForm = () => ({ paid_to: '', amount: '', category: 'utilities', expense_date: today, description: '' })
+  const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '', client_id: null })
+  const emptyExpForm = () => ({ type: 'direct', paid_to: '', amount: '', category: 'utilities', expense_date: today, description: '', client_id: null })
+
+  function syncExpReceipts() {
+    let total = 0, descs = []
+    for (const r of s.receipts) {
+      if (!r.data) continue
+      if (r.data.amount) total += parseFloat(r.data.amount)
+      if (r.data.description) descs.push(r.data.description)
+    }
+    if (total) s.expForm.amount = total.toFixed(2)
+    if (descs.length) s.expForm.description = descs.join(';\n')
+    const first = s.receipts.find(r => r.data)?.data
+    if (!first) return
+    if (!s.expForm.paid_to && first.vendor) s.expForm.paid_to = first.vendor
+    if (s.expForm.category === 'utilities' && first.category) s.expForm.category = first.category
+    if (s.expForm.expense_date === today && first.date) s.expForm.expense_date = first.date
+  }
 
   const DON_FIELDS = {
     Amount: { id: 'amount', label: 'amount' },
@@ -68,8 +97,10 @@
   const s = init({
     year: curYear,
     years,
-    activeTab: 'expenses',
+    activeTab: location.hash.slice(1) || 'expenses',
     tabHTML: '',
+    expFormHTML: '',
+    donFormHTML: '',
     editId: null,
     showAdd: false,
     showFilter: false,
@@ -77,6 +108,8 @@
     adding: false,
     extracting: false,
     receiptPreview: '',
+    receipts: [],
+    lightboxSrc: '',
     loadErr: null,
     addErr: null,
 
@@ -87,12 +120,39 @@
     expForm: emptyExpForm(),
     donCats: DON_CATS,
     expCats: EXP_CATS,
+    expTypes: EXP_TYPES,
     donMethods: DON_METHODS,
     fmt: fmtCat,
     fmtAmt,
+    memberHits: [],
+    memberQuery: '',
+    vendorHits: [],
 
     get donTotal() { return this.donations.reduce((s, d) => s + (d.amount || 0), 0) },
     get expTotal() { return this.expenses.reduce((s, x) => s + (x.amount || 0), 0) },
+    get net() { return this.donMonth - this.expMonth },
+
+    get expMonth() { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === curMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get expPrevMonth() { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === prevMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get donMonth() { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donPrevMonth() { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donorsMonth() { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
+    get donorsPrevMonth() { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
+    monthLabel,
+    trend(cur, prev, invert) {
+      if (!cur && !prev) return { cls: '', num: '', label: 'No data yet' }
+      if (!prev) return { cls: '', num: '', label: 'New this month' }
+      const pct = Math.round((cur - prev) / prev * 100)
+      if (pct === 0) return { cls: '', num: '', label: 'Same as last month' }
+      const cls = (pct > 0) !== !!invert ? 'stat-ok' : 'stat-err'
+      return { cls, num: (pct > 0 ? '+' : '') + pct + '%', label: ' from last month' }
+    },
+    trendDiff(cur, prev) {
+      if (!cur && !prev) return { cls: '', num: '', label: 'No data yet' }
+      const d = cur - prev
+      if (d === 0) return { cls: '', num: '', label: 'Same as last month' }
+      return { cls: d > 0 ? 'stat-ok' : 'stat-err', num: (d > 0 ? '+' : '') + d, label: ' from last month' }
+    },
 
     get donors() {
       const map = {}
@@ -107,7 +167,20 @@
       return Object.values(map).sort((a, b) => b.total - a.total)
     },
 
-    expSearch: '', expFilterCat: '', expDateFrom: '', expDateTo: '', expPage: 1,
+    expStatuses: Object.keys(EXP_STATUSES),
+    expStatusColor: (st) => EXP_STATUSES[st]?.color || 'var(--c-text-dim)',
+
+    detailExp: null,
+    expApprovals: [],
+    expHistory: [],
+    donHistory: [],
+    actionNote: '',
+    actionRef: '',
+    actionAmt: '',
+    actioning: false,
+    get expEditable() { return !this.detailExp || this.detailExp.status === 'draft' || this.detailExp.status === 'returned' },
+
+    expSearch: '', expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1,
     donSearch: '', donFilterCat: '', donDateFrom: '', donDateTo: '', donPage: 1,
     donorSearch: '', donorPage: 1,
 
@@ -115,6 +188,7 @@
       const q = this.expSearch.toLowerCase()
       return this.expenses.filter(r => {
         const dt = r.expense_date?.slice(0, 10) || ''
+        if (this.expFilterStatus && r.status !== this.expFilterStatus) return false
         if (this.expFilterCat && r.category !== this.expFilterCat) return false
         if (this.expDateFrom && dt < this.expDateFrom) return false
         if (this.expDateTo && dt > this.expDateTo) return false
@@ -133,7 +207,7 @@
         if (this.donDateFrom && dt < this.donDateFrom) return false
         if (this.donDateTo && dt > this.donDateTo) return false
         if (!q) return true
-        return [r.note, r.method].filter(Boolean).join(' ').toLowerCase().includes(q)
+        return [r.note, r.method, r.client_id ? this.memberNames[r.client_id] : ''].filter(Boolean).join(' ').toLowerCase().includes(q)
       })
     },
     get donTotalPages() { return Math.max(1, Math.ceil(this.donFiltered.length / perPage)) },
@@ -149,50 +223,262 @@
     switchTab,
 
     openAdd() {
-      s.editId = null
-      s.addErr = null
-      s.receiptPreview = ''
-      s.extracting = false
-      s.donForm = emptyDonForm()
-      s.expForm = emptyExpForm()
+      if (s.editId || s.detailExp) {
+        s.editId = null
+        s.addErr = null
+        s.detailExp = null
+        s.receiptPreview = ''
+        s.receiptName = ''
+        s.receipts = []
+        s.extracting = false
+        s.memberQuery = ''
+        s.memberHits = []
+        s.vendorHits = []
+        s.donForm = emptyDonForm()
+        s.expForm = emptyExpForm()
+      }
       s.showAdd = true
     },
 
+    cancelAdd() {
+      s.showAdd = false
+      s.editId = null
+      s.addErr = null
+      s.detailExp = null
+      s.receiptPreview = ''
+      s.receiptName = ''
+      s.receipts = []
+      s.extracting = false
+      s.memberQuery = ''
+      s.memberHits = []
+      s.vendorHits = []
+      s.donForm = emptyDonForm()
+      s.expForm = emptyExpForm()
+    },
+
+    filterDonors(q) {
+      s.memberQuery = q
+      const topDonors = s.donors.filter(d => d.id).map(d => ({ id: d.id, name: d.name }))
+      const allMembers = Object.entries(s.memberNames).map(([id, name]) => ({ id: +id, name }))
+      if (q) {
+        const lq = q.toLowerCase()
+        s.memberHits = allMembers.filter(m => m.name.toLowerCase().includes(lq)).slice(0, 5)
+      } else {
+        s.memberHits = (topDonors.length ? topDonors : allMembers).slice(0, 5)
+      }
+    },
+
+    filterMembers(q) {
+      s.memberQuery = q
+      const allMembers = Object.entries(s.memberNames).map(([id, name]) => ({ id: +id, name }))
+      if (q) {
+        const lq = q.toLowerCase()
+        s.memberHits = allMembers.filter(m => m.name.toLowerCase().includes(lq)).slice(0, 5)
+      } else {
+        s.memberHits = allMembers.slice(0, 5)
+      }
+    },
+
+    filterVendors(q) {
+      s.expForm.paid_to = q
+      if (!q) { s.vendorHits = []; return }
+      const lq = q.toLowerCase()
+      const seen = new Set()
+      s.vendorHits = s.expenses
+        .map(x => x.paid_to)
+        .filter(v => v && !seen.has(v) && (seen.add(v), v.toLowerCase().includes(lq)))
+        .slice(0, 5)
+    },
+
+    selectExpMember(m) {
+      s.expForm.client_id = m.id
+      s.expForm.paid_to = m.name
+      s.memberQuery = m.name
+      s.memberHits = []
+    },
+
+    clearExpMember() {
+      s.expForm.client_id = null
+      s.expForm.paid_to = ''
+      s.memberQuery = ''
+      s.memberHits = []
+    },
+
+    selectDonor(m) {
+      s.donForm.client_id = m.id
+      s.memberQuery = m.name
+      s.memberHits = []
+    },
+
+    clearDonor() {
+      s.donForm.client_id = null
+      s.memberQuery = ''
+      s.memberHits = []
+    },
+
+    receiptName: '',
     async scanFile(file) {
       if (!file) return
       s.extracting = true
       s.addErr = null
+      s.receiptName = file.name
       if (file.type.startsWith('image/')) {
         const reader = new FileReader()
         reader.onload = () => { s.receiptPreview = reader.result }
         reader.readAsDataURL(file)
+      } else {
+        s.receiptPreview = ''
       }
       try {
         const res = await api.extractDoc(file)
         const d = res.extracted_data || {}
-        s.expForm = {
-          paid_to: d.vendor || s.expForm.paid_to,
-          amount: d.amount || s.expForm.amount,
-          category: d.category || s.expForm.category,
-          expense_date: d.date || s.expForm.expense_date,
-          description: d.description || s.expForm.description,
+        s.donForm = {
+          ...s.donForm,
+          amount: d.amount || s.donForm.amount,
+          method: d.method || s.donForm.method,
+          category: d.category || s.donForm.category,
+          date_received: d.date || s.donForm.date_received,
+          note: d.description || s.donForm.note,
         }
       } catch (e) { s.addErr = e.message }
       finally { s.extracting = false }
     },
 
+    async addReceipts(fileList) {
+      if (!fileList?.length) return
+      s.addErr = null
+      const files = [...fileList]
+      const startIdx = s.receipts.length
+      s.receipts.push(...files.map(f => ({ name: f.name, preview: '', data: null, extracting: true, err: null })))
+      await Promise.all(files.map(async (file, i) => {
+        const r = s.receipts[startIdx + i]
+        if (file.type.startsWith('image/')) {
+          r.preview = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(file) })
+        }
+        try {
+          const res = await api.extractDoc(file)
+          r.data = res.extracted_data || {}
+        } catch (e) { r.err = e.message; s.addErr = e.message }
+        r.extracting = false
+        syncExpReceipts()
+      }))
+    },
+
+    removeReceipt(r) {
+      const i = s.receipts.indexOf(r)
+      if (i >= 0) s.receipts.splice(i, 1)
+      syncExpReceipts()
+    },
+
     editDonation(d) {
       s.editId = d.id
       s.addErr = null
-      s.donForm = { amount: rawAmt(d.amount), method: d.method || 'cash', category: d.category || 'general', date_received: (d.date_received || '').slice(0, 10), note: d.note || '' }
+      s.detailExp = null
+      s.donHistory = []
+      s.donForm = { amount: rawAmt(d.amount), method: d.method || 'cash', category: d.category || 'general', date_received: (d.date_received || '').slice(0, 10), note: d.note || '', client_id: d.client_id || null }
+      s.memberQuery = d.client_id ? (s.memberNames[d.client_id] || '') : ''
+      s.memberHits = []
       s.showAdd = true
+      api.getAuditLogs({ entity_type: 'donation', entity_id: d.id, limit: 20, sortBy: 'created_at', sortDesc: 'true' })
+        .then(r => { s.donHistory = r.items || [] })
+        .catch(() => {})
     },
 
     editExpense(x) {
       s.editId = x.id
       s.addErr = null
-      s.expForm = { paid_to: x.paid_to || '', amount: rawAmt(x.amount), category: x.category || 'utilities', expense_date: (x.expense_date || '').slice(0, 10), description: x.description || '' }
+      s.actionNote = ''
+      s.actionRef = ''
+      s.actionAmt = ''
+      s.detailExp = x
+      if (x.status === 'draft' || x.status === 'returned') {
+        s.expForm = { type: x.type || 'direct', client_id: x.client_id || null, paid_to: x.paid_to || '', amount: rawAmt(x.amount), category: x.category || 'utilities', expense_date: (x.expense_date || '').slice(0, 10), description: x.description || '' }
+        s.memberQuery = x.client_id ? (s.memberNames[x.client_id] || x.paid_to || '') : ''
+        s.memberHits = []
+      } else {
+        loadExpenseDetail(x.id)
+      }
       s.showAdd = true
+    },
+
+    async submitExp() {
+      s.actioning = true
+      try {
+        await api.submitExpense(s.editId)
+        s.showAdd = false
+        toast('Expense submitted', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async approveExp() {
+      s.actioning = true
+      try {
+        await api.approveExpense(s.editId, s.actionNote)
+        s.showAdd = false
+        toast('Expense approved', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async returnExp() {
+      if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }
+      s.actioning = true
+      try {
+        await api.returnExpense(s.editId, s.actionNote)
+        s.showAdd = false
+        toast('Expense returned', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async rejectExp() {
+      if (!s.actionNote.trim()) { s.addErr = 'Note is required'; return }
+      s.actioning = true
+      try {
+        await api.rejectExpense(s.editId, s.actionNote)
+        s.showAdd = false
+        toast('Expense rejected', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async payExp() {
+      s.actioning = true
+      try {
+        await api.payExpense(s.editId, s.actionRef)
+        s.showAdd = false
+        toast('Expense marked as paid', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async reconcileExp() {
+      if (!s.actionAmt) { s.addErr = 'Actual amount is required'; return }
+      s.actioning = true
+      try {
+        await api.reconcileExpense(s.editId, toCents(s.actionAmt))
+        s.showAdd = false
+        toast('Expense reconciled', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
+    },
+
+    async closeExp() {
+      s.actioning = true
+      try {
+        await api.closeExpense(s.editId, s.actionRef)
+        s.showAdd = false
+        toast('Expense closed', 'success')
+        loadAll()
+      } catch (e) { s.addErr = e.message }
+      finally { s.actioning = false }
     },
 
     async saveDonation() {
@@ -205,6 +491,7 @@
           category: s.donForm.category,
           date_received: s.donForm.date_received,
           note: s.donForm.note,
+          client_id: s.donForm.client_id || undefined,
         }
         if (s.editId) await api.updateDonation(s.editId, data)
         else await api.createDonation(data)
@@ -222,12 +509,13 @@
       try {
         const data = {
           amount: toCents(s.expForm.amount),
-          type: 'direct',
+          type: s.expForm.type,
           paid_to: s.expForm.paid_to,
           description: s.expForm.description,
           category: s.expForm.category,
           currency: 'CAD',
           expense_date: s.expForm.expense_date,
+          client_id: s.expForm.type !== 'direct' ? s.expForm.client_id : undefined,
         }
         if (s.editId) await api.updateExpense(s.editId, data)
         else await api.createExpense(data)
@@ -269,12 +557,12 @@
         for (const d of this.donorFiltered) rows.push([d.name, d.count, rawAmt(d.total), d.lastDate])
         dlCSV(rows, 'donors.csv')
       } else if (this.activeTab === 'donations') {
-        const rows = [['Date', 'Method', 'Category', 'Amount', 'Note']]
-        for (const d of this.donFiltered) rows.push([d.date_received?.slice(0, 10), d.method, d.category, rawAmt(d.amount), d.note || ''])
+        const rows = [['Date', 'Donor', 'Method', 'Category', 'Amount', 'Note']]
+        for (const d of this.donFiltered) rows.push([d.date_received?.slice(0, 10), d.client_id ? (this.memberNames[d.client_id] || '') : 'Anonymous', d.method, d.category, rawAmt(d.amount), d.note || ''])
         dlCSV(rows, 'donations.csv')
       } else {
-        const rows = [['Date', 'Paid To', 'Category', 'Amount', 'Description']]
-        for (const x of this.expFiltered) rows.push([x.expense_date?.slice(0, 10), x.paid_to, x.category, rawAmt(x.amount), x.description || ''])
+        const rows = [['Date', 'Status', 'Type', 'Paid To', 'Category', 'Amount', 'Description']]
+        for (const x of this.expFiltered) rows.push([x.expense_date?.slice(0, 10), x.status || 'draft', x.type || 'direct', x.paid_to, x.category, rawAmt(x.amount), x.description || ''])
         dlCSV(rows, 'expenses.csv')
       }
     },
@@ -286,11 +574,28 @@
     s.activeTab = tab
     s.showAdd = false
     s.showFilter = false
+    if (location.hash.slice(1) !== tab) history.pushState(null, '', '#' + tab)
     if (!tabCache[tab]) {
       const res = await fetch(`partials/${tab}.html`)
       tabCache[tab] = await res.text()
     }
     s.tabHTML = tabCache[tab]
+  }
+
+  window.addEventListener('hashchange', () => {
+    const tab = location.hash.slice(1)
+    if (tab && tab !== s.activeTab) switchTab(tab)
+  })
+
+  async function loadExpenseDetail(id) {
+    s.expApprovals = []
+    s.expHistory = []
+    const [approvals, history] = await Promise.all([
+      api.getExpenseApprovals(id).catch(() => ({ items: [] })),
+      api.getAuditLogs({ entity_type: 'expense', entity_id: id, limit: 20, sortBy: 'created_at', sortDesc: 'true' }).catch(() => ({ items: [] })),
+    ])
+    s.expApprovals = approvals.items || approvals || []
+    s.expHistory = history.items || []
   }
 
   async function loadAll() {
@@ -317,6 +622,16 @@
     }
   }
 
+  async function loadFormModals() {
+    const [ef, df] = await Promise.all([
+      fetch('partials/expense-form.html').then(r => r.text()),
+      fetch('partials/donation-form.html').then(r => r.text()),
+    ])
+    s.expFormHTML = ef
+    s.donFormHTML = df
+  }
+
   loadAll()
-  switchTab('expenses')
+  loadFormModals()
+  switchTab(s.activeTab)
 </script>

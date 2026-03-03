@@ -24,7 +24,7 @@
       rgba(167, 139, 250, .6) 70%,
       rgba(196, 181, 253, .5) 90%
     ),
-    url('../assets/login-bg.jpg') center / cover no-repeat;
+    url('../assets/login-bg.webp') center / cover no-repeat;
 }
 .login-brand::before {
   content: '';
@@ -151,6 +151,15 @@
 .login-error {
   background: rgba(226, 92, 92, .08);
   color: var(--c-err);
+  padding: var(--s-sm) var(--s-md);
+  border-radius: var(--r-sm);
+  font-size: var(--f-sm);
+  margin-bottom: var(--s-md);
+}
+.login-warn {
+  background: rgba(245, 158, 11, .08);
+  color: rgb(180, 115, 0);
+  border: 1px solid rgba(245, 158, 11, .3);
   padding: var(--s-sm) var(--s-md);
   border-radius: var(--r-sm);
   font-size: var(--f-sm);

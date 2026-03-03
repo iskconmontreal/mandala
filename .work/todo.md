@@ -47,10 +47,11 @@
 * [x] Donations
   * [ ] "+" → "Donation" → selects/creates donor → amount, category, date, note → Save or save and add one more
 
-## Today
+## March 5
 
 * [ ] Complete expense flow: adding expenses should work well
-* [ ]
+* [ ] Deploy to prod
+* [ ] Import all interacs names from files
 
 
 ## Onboard
@@ -65,7 +66,9 @@
 
 ## Backlog
 
-* [ ] Enhance frontend looks
+* [ ] Mobile version
+
+* [ ] Enhance frontend looks: not SLOP
 
 * [ ] Limit user/pass login only to temple internal network
 

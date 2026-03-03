@@ -1,0 +1,292 @@
+---
+---
+<div class="page-header">
+  <h1>Members</h1>
+</div>
+
+<!-- Modals loaded via partials -->
+<div :html="editHTML"></div>
+<div :html="detailHTML"></div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Member</button>
+  <input class="filter-search" type="search" placeholder="Search name, email or phone…"
+    :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1; load() }">
+  <select :onchange="e => { filterRole = e.target.value; load() }" style="width:auto">
+    <option value="">All roles</option>
+    <option :each="r in roles" :value="r" :text="r"></option>
+  </select>
+  <button class="btn btn-outline btn-sm" :if="search || filterRole" :onclick="e => { search = ''; filterRole = ''; load() }">Clear</button>
+</div>
+
+<!-- Members list -->
+<div class="card">
+  <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Role</th>
+          <th>Joined</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="m in members" :class="{'dim': m.status}" style="cursor:pointer" :onclick="openDetail(m)">
+          <td>
+            <span :text="m.first_name + ' ' + m.last_name"></span>
+            <span :if="m.status" class="badge" style="margin-left:var(--s-xs); font-size:var(--f-xs)" :text="m.status"></span>
+            <span :if="m._user_id" class="badge" style="margin-left:var(--s-xs); font-size:var(--f-xs); background:rgba(107,92,231,.1); color:var(--c-accent)">User</span>
+          </td>
+          <td :text="m.email || '—'"></td>
+          <td :text="m.phone || '—'"></td>
+          <td><span class="badge" :text="m.role || '—'"></span></td>
+          <td class="dim" :text="m.joined || '—'"></td>
+        </tr>
+        <tr :if="!members.length && !loadErr">
+          <td colspan="5" class="dim" style="text-align:center; padding:var(--s-lg)" :text="loading ? 'Loading…' : 'No members found'"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div :if="totalPages > 1" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s-sm) var(--s-md); border-top:1px solid var(--c-border)">
+    <span class="dim" style="font-size:var(--f-sm)" :text="total + ' members'"></span>
+    <div style="display:flex; gap:var(--s-xs)">
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1); load()" :class="{dim: page === 1}">←</button>
+      <span style="padding:var(--s-xs) var(--s-sm); font-size:var(--f-sm)" :text="page + ' / ' + totalPages"></span>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1); load()" :class="{dim: page === totalPages}">→</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { init, ROLES, auth, fmtCat } from '../../lib/app.js'
+  import { api } from '../../lib/api.js'
+
+  if (!auth.can('clients:view')) {
+    location.replace('/app/')
+    throw new Error('redirecting')
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const perPage = 20
+  const modalCache = {}
+
+  const emptyForm = () => ({
+    first_name: '', last_name: '', email: '', phone: '', role: 'Devotee', joined: today,
+    address: '', notes: '', status: '',
+    initiated_name: '', diksa_guru: '', guiding_devotee: '', services: '',
+    rounds: '', rounds_years: '', four_regs_years: '',
+    kc_years: '', temple: '', dob: '', gender: '', nationality: '', occupation: '',
+    marriage_status: '', spouse: '', children: '',
+    lives_in_temple: false, namahatta: false
+  })
+
+  function toMember(c) {
+    const d = typeof c.client === 'string' ? JSON.parse(c.client) : c.client
+    return { _id: c.id, _public: c.public_id, _user_id: c.user_id, ...d }
+  }
+
+  async function loadModal(name) {
+    if (!modalCache[name]) {
+      const res = await fetch(`partials/${name}.html`)
+      modalCache[name] = await res.text()
+    }
+    return modalCache[name]
+  }
+
+  const s = init({
+    editHTML: '',
+    detailHTML: '',
+    showEdit: false,
+    showDetail: false,
+    editing: null,
+    form: emptyForm(),
+    detail: {},
+    userDetail: {},
+    sysRoles: [],
+    members: [],
+    total: 0,
+    roles: ROLES,
+    loading: false,
+    saving: false,
+    inviting: false,
+    revoking: false,
+    pendingRoleId: null,
+    rolePassword: '',
+    rolePasswordErr: null,
+    loadErr: null,
+    formErr: null,
+    search: '',
+    filterRole: '',
+    page: 1,
+
+    get totalPages() { return Math.max(1, Math.ceil(this.total / perPage)) },
+
+    get userRolePerms() {
+      const role = this.sysRoles.find(r => r.id === this.userDetail.role_id)
+      return role?.permissions || []
+    },
+
+    fmtPerm(key) {
+      const [scope, action] = key.split(':')
+      return fmtCat(scope) + ' — ' + action
+    },
+
+    openAdd() {
+      s.editing = null
+      s.form = emptyForm()
+      s.formErr = null
+      s.showEdit = true
+    },
+
+    async openDetail(m) {
+      s.detail = m
+      s.userDetail = {}
+      s.showDetail = true
+      if (m._user_id && auth.can('users:view')) {
+        try { s.userDetail = await api.getUser(m._user_id) }
+        catch {}
+        if (auth.can('roles:update') && !s.sysRoles.length) {
+          try {
+            const res = await api.getRoles()
+            s.sysRoles = res.roles || []
+          } catch {}
+        }
+      }
+    },
+
+    closeDetail() {
+      s.showDetail = false
+      s.detail = {}
+      s.userDetail = {}
+      s.pendingRoleId = null
+      s.rolePassword = ''
+      s.rolePasswordErr = null
+    },
+
+    editFromDetail() {
+      const m = s.detail
+      s.showDetail = false
+      s.editing = m
+      s.form = { ...m }
+      s.formErr = null
+      s.showEdit = true
+    },
+
+    closeEdit() {
+      s.showEdit = false
+      s.editing = null
+      s.form = emptyForm()
+      s.formErr = null
+    },
+
+    async saveMember() {
+      s.formErr = null
+      s.saving = true
+      const data = { ...s.form }
+      delete data._id
+      delete data._public
+      delete data._user_id
+      try {
+        if (s.editing) {
+          await api.updateMember(s.editing._id, data)
+          const updated = { ...s.editing, ...data }
+          s.closeEdit()
+          s.openDetail(updated)
+        } else {
+          await api.createMember(data)
+          s.closeEdit()
+        }
+        load()
+      } catch (e) {
+        s.formErr = e.message || 'Failed to save member'
+      } finally {
+        s.saving = false
+      }
+    },
+
+    async inviteMember() {
+      if (!confirm(`Send invite to ${s.detail.email}?`)) return
+      s.inviting = true
+      try {
+        await api.inviteMember(s.detail._id)
+        alert(`Invite sent to ${s.detail.email}`)
+      } catch (e) {
+        alert(e.message || 'Failed to send invite')
+      } finally { s.inviting = false }
+    },
+
+    async changeRole(roleId) {
+      s.rolePassword = ''
+      s.rolePasswordErr = null
+      s.pendingRoleId = null
+      try {
+        await api.updateUser(s.userDetail.id, { role_id: roleId })
+        s.userDetail = { ...s.userDetail, role_id: roleId }
+      } catch (e) {
+        if (e.message === 'Password required for this role') {
+          s.pendingRoleId = roleId
+          return
+        }
+        alert(e.message || 'Failed to change role')
+      }
+    },
+
+    async confirmRolePassword() {
+      if (!s.rolePassword) return
+      s.rolePasswordErr = null
+      try {
+        await api.updateUser(s.userDetail.id, { role_id: s.pendingRoleId, password: s.rolePassword })
+        s.userDetail = { ...s.userDetail, role_id: s.pendingRoleId }
+        s.pendingRoleId = null
+        s.rolePassword = ''
+      } catch (e) {
+        s.rolePasswordErr = e.message || 'Failed to change role'
+      }
+    },
+
+    async revokeDevice() {
+      s.revoking = true
+      try {
+        await api.revokeDevice(s.userDetail.id)
+        s.userDetail = { ...s.userDetail, devices: [] }
+      } catch (e) { alert(e.message || 'Failed to revoke') }
+      finally { s.revoking = false }
+    },
+
+    userRoleName(u) {
+      if (!u.role?.role) return ''
+      const r = typeof u.role.role === 'string' ? JSON.parse(u.role.role) : u.role.role
+      return r.name || ''
+    },
+
+    load,
+  })
+
+  async function load() {
+    s.loading = true
+    s.loadErr = null
+    try {
+      const params = { page: s.page, itemsPerPage: perPage }
+      if (s.search) params.search = s.search
+      if (s.filterRole) params['client.role'] = s.filterRole
+      const res = await api.getMembers(params)
+      s.members = (res.items || []).map(toMember)
+      s.total = res.total || 0
+    } catch (e) {
+      s.loadErr = e.message || 'Failed to load members'
+    } finally {
+      s.loading = false
+    }
+  }
+
+  Promise.all([loadModal('edit'), loadModal('detail')]).then(([e, d]) => {
+    s.editHTML = e
+    s.detailHTML = d
+  })
+  load()
+</script>

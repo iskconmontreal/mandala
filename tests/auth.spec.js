@@ -13,23 +13,18 @@ test.describe('auth guard', () => {
     await expect(page).toHaveURL(/login\.html/)
   })
 
-  test('unauthenticated user cannot access donations', async ({ page }) => {
-    await page.goto('/app/donations.html')
-    await expect(page).toHaveURL(/login\.html/)
-  })
-
-  test('unauthenticated user cannot access expenses', async ({ page }) => {
-    await page.goto('/app/expenses.html')
+  test('unauthenticated user cannot access finance', async ({ page }) => {
+    await page.goto('/app/finance/')
     await expect(page).toHaveURL(/login\.html/)
   })
 
   test('unauthenticated user cannot access members', async ({ page }) => {
-    await page.goto('/app/members.html')
+    await page.goto('/app/members/')
     await expect(page).toHaveURL(/login\.html/)
   })
 
-  test('unauthenticated user cannot access settings', async ({ page }) => {
-    await page.goto('/app/settings.html')
+  test('unauthenticated user cannot access profile', async ({ page }) => {
+    await page.goto('/app/profile.html')
     await expect(page).toHaveURL(/login\.html/)
   })
 })

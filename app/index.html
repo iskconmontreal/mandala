@@ -1,29 +1,40 @@
 ---
 ---
 <div class="page-header">
-  <h1>ISKCON Montreal</h1>
-  <p>Organization overview</p>
+  <h1 :text="'Hare Krishna, ' + ([user?.meta?.first_name, user?.meta?.last_name].filter(Boolean).join(' ') || user?.email?.split('@')[0] || 'Prabhu') + '!'"></h1>
+  <p :scope="((h, d, vis) => {
+    const pk = a => a[Math.floor(Math.random() * a.length)]
+    const sub = h >= 4 && h < 7 ? ['Up for mangala-arati?', 'Early morning hours are most auspicious']
+      : h < 12 ? [`Ready for today's seva`, 'A fresh day of service']
+      : h < 17 ? ['Steady afternoon seva'] : h < 21 ? ['Evening service']
+      : ['Burning the midnight lamp', 'Late night dedication']
+    if (d === 0) sub.push('Happy Sunday feast!')
+    if (vis > 168) sub.push('Welcome back!')
+    else if (vis > 0 && vis < 2) sub.push('Back at it')
+    sub.push('Your service matters', 'Krishna sees every effort')
+    return { _t: pk(sub) }
+  })(new Date().getHours(), new Date().getDay(), _vis)" :text="_t"></p>
 </div>
 
-<!-- Financial pulse -->
-<div class="card" style="margin-bottom:var(--s-xl)">
+<!-- Financial pulse (admin only) -->
+<div :if="can('donations:view') || can('expenses:view')" class="card" style="margin-bottom:var(--s-xl)">
   <div class="card-header">
-    <h3>Financial Pulse</h3>
+    <h3>Finance</h3>
     <a href="finance/" class="btn-link" style="color:var(--c-accent)">View details →</a>
   </div>
   <div style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
     <div>
       <div class="stat-label stat-ok">Donations this month</div>
-      <div class="stat-value" :text="'$' + fin.donations.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+      <div class="stat-value" :text="'$' + fmtAmt(fin.donations)"></div>
     </div>
     <div>
       <div class="stat-label stat-err">Expenses this month</div>
-      <div class="stat-value" :text="'$' + fin.expenses.toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+      <div class="stat-value" :text="'$' + fmtAmt(fin.expenses)"></div>
     </div>
     <div>
       <div class="stat-label" :text="fin.net >= 0 ? 'Surplus' : 'Deficit'"></div>
       <div class="stat-value" :class="fin.net >= 0 ? 'stat-ok' : 'stat-err'"
-        :text="'$' + Math.abs(fin.net).toLocaleString(undefined, {minimumFractionDigits: 2})"></div>
+        :text="'$' + fmtAmt(Math.abs(fin.net))"></div>
     </div>
   </div>
   <div class="ratio-bar" style="margin-top:var(--s-lg)">
@@ -36,11 +47,39 @@
   </div>
 </div>
 
-<!-- Members pulse -->
+<!-- Recent Activity -->
 <div class="card" style="margin-bottom:var(--s-xl)">
   <div class="card-header">
+    <h3>Recent Activity</h3>
+  </div>
+  <div :if="activity.length" class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th style="text-align:right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :each="a in activity">
+          <td :text="a.date"></td>
+          <td><span class="badge" :text="fmtCat(a.type)"></span></td>
+          <td :text="a.desc"></td>
+          <td style="text-align:right" :text="a.amount ? '$' + fmtAmt(a.amount) : '—'"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div :if="!activity.length" class="dim" style="font-size:var(--f-sm); padding:var(--s-sm) 0">No recent activity</div>
+</div>
+
+<!-- Members pulse (admin only) -->
+<div :if="can('clients:view')" class="card" style="margin-bottom:var(--s-xl)">
+  <div class="card-header">
     <h3>Members</h3>
-    <a href="members.html" class="btn-link" style="color:var(--c-accent)">View all →</a>
+    <a href="members/" class="btn-link" style="color:var(--c-accent)">View all →</a>
   </div>
   <div style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
     <div>
@@ -58,26 +97,54 @@
   </div>
 </div>
 
-<!-- Quick links -->
-<div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr))">
-  <a href="finance/" class="card" style="text-decoration:none; color:inherit; transition: box-shadow .15s">
-    <div style="display:flex; align-items:center; gap:var(--s-sm); margin-bottom:var(--s-sm)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--c-accent)" stroke-width="2" stroke-linecap="round"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <b>Finance</b>
+<!-- My Giving -->
+<div :if="!can('clients:view')" class="card" style="margin-bottom:var(--s-xl)">
+  <div class="card-header">
+    <h3>My Giving</h3>
+  </div>
+  <div :if="giving.total" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
+    <div>
+      <div class="stat-label stat-ok">Donated this year</div>
+      <div class="stat-value stat-ok" :text="'$' + fmtAmt(giving.total)"></div>
+      <div class="stat-sub dim" :text="giving.count + ' donations'"></div>
     </div>
-    <div class="dim" style="font-size:var(--f-sm)">Donations, expenses, reports</div>
-  </a>
-  <a href="members.html" class="card" style="text-decoration:none; color:inherit; transition: box-shadow .15s">
-    <div style="display:flex; align-items:center; gap:var(--s-sm); margin-bottom:var(--s-sm)">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--c-accent)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-      <b>Members</b>
+  </div>
+  <div :if="!giving.total && !giving.receipts.length" class="dim" style="font-size:var(--f-sm); padding:var(--s-sm) 0">No donations yet this year</div>
+  <div :if="Object.keys(giving.byCategory).length" style="margin-top:var(--s-md)">
+    <div class="stat-label" style="margin-bottom:var(--s-xs)">By category</div>
+    <div :each="[cat, amt] in Object.entries(giving.byCategory)" style="display:flex;justify-content:space-between;font-size:var(--f-sm);padding:var(--s-xs) 0">
+      <span :text="fmtCat(cat)"></span>
+      <span class="dim" :text="'$' + fmtAmt(amt)"></span>
     </div>
-    <div class="dim" style="font-size:var(--f-sm)">Devotees, contacts, spiritual info</div>
-  </a>
+  </div>
+  <div :if="giving.receipts.length" style="margin-top:var(--s-md)">
+    <div class="stat-label" style="margin-bottom:var(--s-xs)">Tax Receipts</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Receipt #</th>
+            <th>Year</th>
+            <th style="text-align:right">Eligible</th>
+            <th>Issued</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :each="r in giving.receipts">
+            <td :text="r.receipt_no"></td>
+            <td :text="r.fiscal_year"></td>
+            <td style="text-align:right" class="stat-ok" :text="'$' + fmtAmt(r.eligible_amount)"></td>
+            <td :text="r.date_issued?.slice(0,10) || '—'"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
+
 <script type="module">
-  import { init } from '../lib/app.js'
+  import { init, fmtAmt, fmtCat, auth } from '../lib/app.js'
   import { api } from '../lib/api.js'
 
   const now = new Date()
@@ -86,26 +153,79 @@
   const monthStart = `${y}-${m}-01`
   const monthEnd = `${y}-${m}-31`
 
+  const prev = +localStorage.getItem('mandala_last_visit') || 0
+  localStorage.setItem('mandala_last_visit', Date.now())
+
   const s = init({
+    _vis: prev ? (Date.now() - prev) / 3600000 : Infinity,
     fin: { donations: 0, expenses: 0, net: 0, donPct: 0, expPct: 0 },
     members: { total: 0, active: 0, recent: 0 },
+    giving: { total: 0, count: 0, byCategory: {}, receipts: [] },
+    activity: [],
+    fmtAmt,
+    fmtCat,
   })
 
+  const hasFin = s.can('donations:view') || s.can('expenses:view')
+  const hasMem = s.can('clients:view')
+
+  if (hasFin || hasMem) {
+    const calls = [
+      hasFin ? api.getDonations({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }) : null,
+      hasFin ? api.getExpenses({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }) : null,
+      hasMem ? api.getMembers({ limit: 1 }) : null,
+    ]
+    Promise.all(calls).then(([don, exp, mem]) => {
+      if (don && exp) {
+        const donAmt = (don.items || []).reduce((s, d) => s + (d.amount || 0), 0)
+        const expAmt = (exp.items || []).reduce((s, x) => s + (x.amount || 0), 0)
+        const gross = donAmt + expAmt || 1
+        s.fin = {
+          donations: donAmt, expenses: expAmt, net: donAmt - expAmt,
+          donPct: Math.round(donAmt / gross * 100),
+          expPct: Math.round(expAmt / gross * 100),
+        }
+      }
+      if (mem) s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
+    }).catch(() => {})
+  }
+
   Promise.all([
-    api.getDonations({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }),
-    api.getExpenses({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }),
-    api.getMembers({ limit: 1 }),
-  ]).then(([don, exp, mem]) => {
-    const donAmt = (don.items || []).reduce((s, d) => s + (d.amount || 0), 0)
-    const expAmt = (exp.items || []).reduce((s, x) => s + (x.amount || 0), 0)
-    const gross = donAmt + expAmt || 1
-    s.fin = {
-      donations: donAmt,
-      expenses: expAmt,
-      net: donAmt - expAmt,
-      donPct: Math.round(donAmt / gross * 100),
-      expPct: Math.round(expAmt / gross * 100),
+    api.getMyDonationSummary(y).catch(() => null),
+    api.getMyTaxReceipts().catch(() => null),
+  ]).then(([summary, receipts]) => {
+    if (!summary && !receipts) return
+    const byCat = {}
+    if (summary?.by_category) {
+      for (const [k, v] of Object.entries(summary.by_category)) byCat[k] = v
     }
-    s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
+    s.giving = {
+      total: summary?.total || 0,
+      count: summary?.count || 0,
+      byCategory: byCat,
+      receipts: receipts?.items || receipts || [],
+    }
   }).catch(() => {})
+
+  if (hasFin) {
+    api.getAuditLogs({ limit: 15, sortBy: 'created_at', sortDesc: 'true' })
+      .then(res => {
+        s.activity = (res.items || []).map(a => ({
+          date: a.created_at?.slice(0, 10) || '—',
+          type: a.action || a.entity_type || '—',
+          desc: [a.entity_type, '#' + a.entity_id, a.action].filter(Boolean).join(' '),
+          amount: a.diff?.amount,
+        }))
+      }).catch(() => {})
+  } else {
+    api.getMyDonations({ limit: 10, sortBy: 'created_at', sortDesc: 'true' })
+      .then(res => {
+        s.activity = (res.items || []).map(d => ({
+          date: d.donation_date?.slice(0, 10) || d.created_at?.slice(0, 10) || '—',
+          type: 'donation',
+          desc: fmtCat(d.category),
+          amount: d.amount,
+        }))
+      }).catch(() => {})
+  }
 </script>

@@ -288,7 +288,7 @@ List view:
 Tapping a donor drills into detail (same screen, not a new one):
 ```
 ┌─────────────────────────────────┐
-│  ← Donors      Arjuna Das      │
+│  ← Donors      Arjuna Das       │
 ├─────────────────────────────────┤
 │                                 │
 │  arjuna@example.com             │
@@ -300,12 +300,12 @@ Tapping a donor drills into detail (same screen, not a new one):
 │  └─────────────────────────┘    │
 │  [+ Add Pledge]                 │
 │                                 │
-│  Donations           2026: $1,296│
+│  Donations          2026: $1,296│
 │  ┌─────────────────────────┐    │
-│  │ Feb 26  $108  e-xfer ✓ │    │
-│  │ Jan 28  $108  e-xfer ✓ │    │
-│  │ Dec 25  $108  e-xfer ✓ │    │
-│  │         ···              │    │
+│  │ Feb 26  $108  e-xfer ✓  │    │
+│  │ Jan 28  $108  e-xfer ✓  │    │
+│  │ Dec 25  $108  e-xfer ✓  │    │
+│  │         ···             │    │
 │  └─────────────────────────┘    │
 │  [+ Add Donation]               │
 │                                 │
@@ -329,7 +329,7 @@ Donor pre-filled when coming from detail.
 │                                 │
 │  Donor *                        │
 │  ┌─────────────────────────┐    │
-│  │ 🔍 Search or create..  │    │
+│  │ 🔍 Search or create...  │    │
 │  └─────────────────────────┘    │
 │  Amount *                       │
 │  ┌─────────────────────────┐    │
@@ -375,34 +375,6 @@ Donor pre-filled when coming from detail.
 │  │ ⤒ Upload Appraisal     │    │
 │  └─────────────────────────┘    │
 ```
-
-**Event collection** — named envelopes create individual
-donation records per donor. Anonymous remainder = one
-donation with null donor_id. Not a separate UI concept —
-the form adds a repeater for "named portions":
-
-```
-│  Event                          │
-│  ┌─────────────────────────┐    │  ← string autocomplete,
-│  │ Sunday Feast 2026-02-23 │    │    not entity-backed
-│  └─────────────────────────┘    │
-│  Total Collected *              │
-│  ┌─────────────────────────┐    │
-│  │ $ 347.00                │    │
-│  └─────────────────────────┘    │
-│                                 │
-│  Named Portions                 │
-│  ┌─────────────────────────┐    │
-│  │ Nani Gopal       $50    │ ✕  │
-│  │ Arjuna Das       $108   │ ✕  │
-│  │ + Add                   │    │
-│  └─────────────────────────┘    │
-│  Anonymous: $189                │
-```
-
-**Pledge** — not a donation type toggle. A pledge is a separate
-concept (creates expected future donations). Accessible from
-donor detail: "Add Pledge" button on donor's page.
 
 
 ---
@@ -488,48 +460,6 @@ donor detail: "Add Pledge" button on donor's page.
 ```
 
 
-### 9. Bank Reconcile
-
-Genuinely unique workflow. Stays.
-
-```
-┌─────────────────────────────────┐
-│  ← Reports     Bank Reconcile   │
-├─────────────────────────────────┤
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │ ⤒ Upload CSV            │    │
-│  └─────────────────────────┘    │
-│                                 │
-│  Desjardins · Feb 2026          │
-│  42 transactions                │
-│                                 │
-│  ┌──────────┬───────┬────────┐  │
-│  │▌Match 35▐│Exp 4 │Bank 3  │  │
-│  └──────────┴───────┴────────┘  │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │ ✓ $47   Costco ↔ E-0042│    │
-│  │ ✓ $180  Hydro  ↔ E-0039│    │
-│  │         ···              │    │
-│  └─────────────────────────┘    │
-│                                 │
-│  ── Unmatched Bank (3) ──       │
-│  ┌─────────────────────────┐    │
-│  │ ? $15.99  "NETFLIX"     │    │
-│  │   [Create Expense]      │    │
-│  │ ? $200    "E-TFR J DOE" │    │
-│  │   [Create Donation]     │    │
-│  └─────────────────────────┘    │
-│                                 │
-│  ┌─────────────────────────┐    │
-│  │      Confirm            │    │
-│  └─────────────────────────┘    │
-│                                 │
-└─────────────────────────────────┘
-```
-
-
 ### 10. People
 
 ```
@@ -558,7 +488,7 @@ Genuinely unique workflow. Stays.
 │  │                         │    │
 │  └─────────────────────────┘    │
 │  Roles                          │
-│  ☑ Member  ☐ Approver  ☐ Treas │
+│  ☑ Member  ☐ Approver  ☐ Treas  │
 │                                 │
 │  ┌─────────────────────────┐    │
 │  │      Send Invite        │    │

@@ -16,8 +16,8 @@ Core principle: **editable until finalized**. No separate "returned" or
 │         (content area)          │
 │                                 │
 ├─────────────────────────────────┤
-│  ◉ Home  ▤ Expenses  ♡ Donors  │
-│          ▦ Reports   ⚙ People  │
+│  ◉ Home  ▤ Expenses  ♡ Donors   │
+│          ▦ Reports   ⚙ People   │
 └─────────────────────────────────┘
 ```
 

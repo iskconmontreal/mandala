@@ -215,10 +215,13 @@
           <div class="login-error" :if="addErr" :text="addErr"></div>
 
           <div style="display:flex; justify-content:flex-end; gap:var(--s-sm)">
-            <button :if="editId && (!detailExp || detailExp?.status === 'draft')" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :class="{'btn-loading': adding}" :onclick="delExpense()">Delete</button>
-            <button :if="editId && detailExp && (detailExp?.status === 'draft' || detailExp?.status === 'returned')" type="button" class="btn btn-outline btn-sm" :class="{'btn-loading': actioning}" :onclick="submitExp()">Submit for Approval</button>
-            <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
-            <button type="submit" class="btn btn-primary" :class="{'btn-loading': adding}" :text="editId ? 'Update' : 'Save Expense'"></button>
+            <button :if="editId && (!detailExp || detailExp?.status === 'draft') && !delConfirm" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
+            <span :if="delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
+            <button :if="delConfirm" type="button" class="btn btn-danger btn-sm" :class="{'btn-loading': adding}" :onclick="delExpense()">Yes</button>
+            <button :if="delConfirm" type="button" class="btn btn-outline btn-sm" :onclick="delConfirm = false">No</button>
+            <button :if="editId && detailExp && (detailExp?.status === 'draft' || detailExp?.status === 'returned') && !delConfirm" type="button" class="btn btn-outline btn-sm" :class="{'btn-loading': actioning}" :onclick="submitExp()">Submit for Approval</button>
+            <button :if="!delConfirm" type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
+            <button :if="!delConfirm" type="submit" class="btn btn-primary" :class="{'btn-loading': adding}" :text="editId ? 'Update' : 'Save Expense'"></button>
           </div>
         </form>
       </div>

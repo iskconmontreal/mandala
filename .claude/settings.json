@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm install -D @playwright/test)",
+      "Bash(npx playwright *)",
+      "Bash(lsof *)",
+      "Bash(curl -sk https://localhost*)",
+      "Bash(curl -s http://localhost*)",
+      "Bash(ls *)",
+      "Bash(curl -sk -o /dev/null -w '%{http_code}' https://localhost:4000/login.html)",
+      "WebFetch(domain:*)",
+      "Bash(ollama *)"
+    ]
+  }
+}

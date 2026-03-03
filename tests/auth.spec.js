@@ -1,11 +1,7 @@
 import { test, expect } from '@playwright/test'
+import { loginAs } from './fixtures.js'
 
-async function login(page) {
-  await page.addInitScript(() => {
-    localStorage.setItem('mandala_token', 'test-jwt')
-    localStorage.setItem('mandala_user', JSON.stringify({ name: 'Test User', email: 'test@example.com' }))
-  })
-}
+const login = page => loginAs(page, 'viewer')
 
 test.describe('auth guard', () => {
   test('unauthenticated user is redirected to login', async ({ page }) => {
@@ -215,11 +211,8 @@ test.describe('otp flow', () => {
 
 test.describe('logout', () => {
   test('sign out clears auth and redirects to login', async ({ page }) => {
-    await page.goto('/app/', { waitUntil: 'commit' })
-    await page.evaluate(() => {
-      localStorage.setItem('mandala_token', 'test-jwt')
-      localStorage.setItem('mandala_user', JSON.stringify({ name: 'Test User', email: 'test@example.com' }))
-    })
+    await loginAs(page, 'viewer')
+    await page.route('https://api.iskconmontreal.ca/**', route => route.fulfill({ json: { items: [], total: 0 } }))
     await page.goto('/app/')
     await page.locator('.user-trigger').click()
     await page.locator('.user-menu-danger').click()

@@ -63,7 +63,7 @@
 </div>
 
 <script type="module">
-  import { init, ROLES, auth, fmtCat } from '../../lib/app.js'
+  import { init, ROLES, auth, fmtCat, toast } from '../../lib/app.js'
   import { api } from '../../lib/api.js'
 
   if (!auth.can('clients:view')) {
@@ -209,14 +209,16 @@
       }
     },
 
+    inviteConfirm: false,
+
     async inviteMember() {
-      if (!confirm(`Send invite to ${s.detail.email}?`)) return
+      s.inviteConfirm = false
       s.inviting = true
       try {
         await api.inviteMember(s.detail._id)
-        alert(`Invite sent to ${s.detail.email}`)
+        toast(`Invite sent to ${s.detail.email}`, 'success')
       } catch (e) {
-        alert(e.message || 'Failed to send invite')
+        toast(e.message || 'Failed to send invite')
       } finally { s.inviting = false }
     },
 
@@ -232,7 +234,7 @@
           s.pendingRoleId = roleId
           return
         }
-        alert(e.message || 'Failed to change role')
+        toast(e.message || 'Failed to change role')
       }
     },
 
@@ -254,7 +256,7 @@
       try {
         await api.revokeDevice(s.userDetail.id)
         s.userDetail = { ...s.userDetail, devices: [] }
-      } catch (e) { alert(e.message || 'Failed to revoke') }
+      } catch (e) { toast(e.message || 'Failed to revoke') }
       finally { s.revoking = false }
     },
 

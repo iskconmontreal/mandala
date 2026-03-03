@@ -141,6 +141,13 @@ label {
 @keyframes btn-spin { to { transform: rotate(360deg) } }
 
 /* Utility */
+.section-loader { display:flex; justify-content:center; padding:var(--s-xl) }
+.section-loader img { width:2rem; filter:invert(1); opacity:.4 }
+.truncation-warn {
+  background:var(--c-warn-bg, #fff7e6); color:var(--c-warn, #b45309);
+  border:1px solid var(--c-warn-border, #fcd34d); border-radius:var(--r-sm);
+  padding:var(--s-xs) var(--s-md); font-size:var(--f-sm); margin-bottom:var(--s-md);
+}
 .dim { color: var(--c-text-dim); }
 .mono { font-family: var(--f-mono); }
 .sr-only {

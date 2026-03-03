@@ -2,15 +2,15 @@
 
 What users do. Not UI specs, not infrastructure.
 
+
 ### 1. Expenses
 
-**1.a Reimbursement** — member already paid, wants money back
-1. Member creates expense → type: reimbursement
-2. Attaches receipt photo, fills amount/vendor/category/date
-3. Submits
-4. Approval flow based on amount (< $100 auto-approved, >= $100 needs 2 approvals)
-5. Treasurer pays, attaches payment proof (e-transfer screenshot), marks paid
-6. Confirmed in bank reconciliation → closed
+**1.a Direct Payment** — pay vendor/bill directly
+1. Member or treasurer creates expense → type: direct
+2. Attaches invoice, fills vendor/amount/due date/category
+3. Submits → approval flow based on amount
+4. Treasurer pays vendor, attaches payment proof, marks paid
+5. Confirmed in bank reconciliation → closed
 
 **1.b Advance** — money needed before purchase, reconcile after
 1. Member creates expense → type: advance
@@ -21,47 +21,20 @@ What users do. Not UI specs, not infrastructure.
 6. Difference settled (member returns overage or receives shortfall)
 7. Closed
 
-**1.c Direct Payment** — pay vendor/bill directly
-1. Member or treasurer creates expense → type: direct payment
-2. Attaches invoice, fills vendor/amount/due date/category
-3. Submits → approval flow based on amount
-4. Treasurer pays vendor, attaches payment proof, marks paid
-5. Confirmed in bank reconciliation → closed
-
-**1.d Bank Reconciliation** — match bank records to expenses/donations
-1. Treasurer uploads CSV from bank
-2. System auto-matches transactions to existing expenses/donations (amount + date)
-3. Three buckets:
-   - **Matched** — auto-confirmed
-   - **Unmatched expenses** — paid but no bank record (investigate)
-   - **Unmatched bank txns** — no expense exists (create from txn)
-4. Treasurer reviews, confirms. Matched expenses → closed.
-
 
 ### 2. Donations
 
 **2.a Donation** — cash/cheque/e-transfer/card, one-time
 1. Treasurer creates donation
 2. Selects or creates donor, fills amount/method/category/date/note
+2.1 If donor doesn't exist - it is created in place.
 3. Save. Running totals update.
 
-**2.b Recurring Pledge** — monthly commitment, auto-tracked
-1. Treasurer creates pledge on donor: amount, frequency, start date
-2. Each period: system creates expected donation marked "pending"
-3. When payment arrives, treasurer confirms → received
-4. Missed period: shows as overdue (visibility only, no nagging)
-
-**2.c In-Kind Donation** — goods not cash
+**2.b In-Kind Donation** — goods not cash
 1. Treasurer creates donation → method: in-kind
 2. Fills donor, description, fair market value, category
 3. If FMV > $1,000: uploads independent appraisal (CRA requirement)
 4. Receipt issued for FMV amount
-
-**2.d Event Collection** — plate collection, many small donations
-1. Treasurer creates donations for an event (e.g. "Sunday Feast 2026-02-23")
-2. Named envelopes → individual donation per donor
-3. Remainder → one anonymous donation
-4. Named portions link to donor records for receipting
 
 
 ### 3. Compliance

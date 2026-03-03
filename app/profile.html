@@ -36,8 +36,11 @@
 
 <div class="card">
   <h3 style="margin-bottom:var(--s-md)">Trusted Devices</h3>
-  <div :if="!devices.length" class="dim" style="font-size:var(--f-sm)">No trusted devices</div>
-  <div :each="d in devices" style="display:flex; align-items:center; justify-content:space-between; gap:var(--s-md); padding:var(--s-sm) 0; border-bottom:1px solid var(--c-border)">
+  <div :if="devicesLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
+  <div :if="!devicesLoading && !devices.length" class="dim" style="font-size:var(--f-sm)">No trusted devices</div>
+  <div :if="!devicesLoading" :each="d in devices"
+    :scope="{confirm:false, loading:false}"
+    style="display:flex; align-items:center; justify-content:space-between; gap:var(--s-md); padding:var(--s-sm) 0; border-bottom:1px solid var(--c-border)">
     <div>
       <div style="font-size:var(--f-sm)">
         <span :text="d.label || 'Unknown'"></span>
@@ -45,12 +48,21 @@
       </div>
       <div class="dim" style="font-size:var(--f-sm)" :text="'ID: ' + d.device_id.slice(0, 8) + '…'"></div>
     </div>
-    <button class="btn-link" style="color:var(--c-err); font-size:var(--f-sm); white-space:nowrap" :onclick="revokeDevice(d.id)">Revoke</button>
+    <div :if="!confirm">
+      <button class="btn-link" style="color:var(--c-err); font-size:var(--f-sm); white-space:nowrap"
+        :onclick="confirm = true">Revoke</button>
+    </div>
+    <div :if="confirm" style="display:flex; align-items:center; gap:var(--s-sm)">
+      <span class="dim" style="font-size:var(--f-sm)">Revoke?</span>
+      <button class="btn btn-danger btn-sm" :class="{'btn-loading': loading}"
+        :onclick="async () => { loading=true; await revokeDevice(d.id); confirm=false; loading=false }">Yes</button>
+      <button class="btn-link" style="font-size:var(--f-sm)" :onclick="confirm = false">No</button>
+    </div>
   </div>
 </div>
 
 <script type="module">
-  import { init, auth, fmtCat } from '../lib/app.js'
+  import { init, auth, fmtCat, toast } from '../lib/app.js'
   import { api } from '../lib/api.js'
 
   const u = auth.user
@@ -75,15 +87,15 @@
       return groups
     },
     devices: [],
+    devicesLoading: true,
     currentDeviceId: auth.deviceId,
     async revokeDevice(id) {
-      if (!confirm('Revoke this device? It will require OTP on next login.')) return
       try {
         await api.revokeMyDevice(id)
         s.devices = s.devices.filter(d => d.id !== id)
-      } catch (e) { alert(e.message || 'Failed to revoke') }
+      } catch (e) { toast(e.message || 'Failed to revoke') }
     },
   })
 
-  api.getMyDevices().then(d => s.devices = d).catch(() => {})
+  api.getMyDevices().then(d => { s.devices = d; s.devicesLoading = false }).catch(() => { s.devicesLoading = false })
 </script>

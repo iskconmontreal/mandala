@@ -12,6 +12,8 @@
   </div>
 </div>
 
+<div :if="truncated" class="truncation-warn">Only showing the first 1,000 records — contact admin to export full data.</div>
+
 <!-- Stat cards as tabs -->
 <div class="card-tab-group">
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'expenses'}"
@@ -63,6 +65,26 @@
   const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '', client_id: null })
   const emptyExpForm = () => ({ type: 'direct', paid_to: '', amount: '', category: 'utilities', expense_date: today, description: '', client_id: null })
 
+  function resetForm() {
+    s.editId = null
+    s.addErr = null
+    s.detailExp = null
+    s.receiptPreview = ''
+    s.receiptName = ''
+    s.receipts = []
+    s.extracting = false
+    s.memberQuery = ''
+    s.memberHits = []
+    s.vendorHits = []
+    s.donHistory = []
+    s.actionNote = ''
+    s.actionRef = ''
+    s.actionAmt = ''
+    s.delConfirm = false
+    s.donForm = emptyDonForm()
+    s.expForm = emptyExpForm()
+  }
+
   function syncExpReceipts() {
     let total = 0, descs = []
     for (const r of s.receipts) {
@@ -112,6 +134,8 @@
     lightboxSrc: '',
     loadErr: null,
     addErr: null,
+    truncated: false,
+    delConfirm: false,
 
     donations: [],
     expenses: [],
@@ -223,38 +247,11 @@
     switchTab,
 
     openAdd() {
-      if (s.editId || s.detailExp) {
-        s.editId = null
-        s.addErr = null
-        s.detailExp = null
-        s.receiptPreview = ''
-        s.receiptName = ''
-        s.receipts = []
-        s.extracting = false
-        s.memberQuery = ''
-        s.memberHits = []
-        s.vendorHits = []
-        s.donForm = emptyDonForm()
-        s.expForm = emptyExpForm()
-      }
+      if (s.editId || s.detailExp) resetForm()
       s.showAdd = true
     },
 
-    cancelAdd() {
-      s.showAdd = false
-      s.editId = null
-      s.addErr = null
-      s.detailExp = null
-      s.receiptPreview = ''
-      s.receiptName = ''
-      s.receipts = []
-      s.extracting = false
-      s.memberQuery = ''
-      s.memberHits = []
-      s.vendorHits = []
-      s.donForm = emptyDonForm()
-      s.expForm = emptyExpForm()
-    },
+    cancelAdd() { resetForm(); s.showAdd = false },
 
     filterDonors(q) {
       s.memberQuery = q
@@ -528,11 +525,10 @@
     },
 
     async delDonation() {
-      if (!confirm('Delete this donation?')) return
       s.adding = true
       try {
         await api.deleteDonation(s.editId)
-        s.editId = null
+        resetForm()
         s.showAdd = false
         loadAll()
       } catch (e) { s.addErr = e.message }
@@ -540,11 +536,10 @@
     },
 
     async delExpense() {
-      if (!confirm('Delete this expense?')) return
       s.adding = true
       try {
         await api.deleteExpense(s.editId)
-        s.editId = null
+        resetForm()
         s.showAdd = false
         loadAll()
       } catch (e) { s.addErr = e.message }
@@ -603,12 +598,13 @@
     s.loadErr = null
     try {
       const [don, exp, mem] = await Promise.all([
-        api.getDonations({ limit: 200, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
-        api.getExpenses({ limit: 200, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
-        api.getMembers({ limit: 200 }),
+        api.getDonations({ limit: 1000, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
+        api.getExpenses({ limit: 1000, dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }),
+        api.getMembers({ limit: 500 }),
       ])
       s.donations = don.items || []
       s.expenses = exp.items || []
+      s.truncated = (don.total > s.donations.length) || (exp.total > s.expenses.length)
       const names = {}
       for (const c of mem.items || []) {
         const d = typeof c.client === 'string' ? JSON.parse(c.client) : c.client

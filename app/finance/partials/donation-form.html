@@ -95,7 +95,10 @@
         <div class="login-error" :if="addErr" :text="addErr"></div>
 
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm)">
-          <button :if="editId" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :class="{'btn-loading': adding}" :onclick="delDonation()">Delete</button>
+          <button :if="editId && !delConfirm" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
+          <span :if="editId && delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
+          <button :if="editId && delConfirm" type="button" class="btn btn-danger btn-sm" :class="{'btn-loading': adding}" :onclick="delDonation()">Yes</button>
+          <button :if="editId && delConfirm" type="button" class="btn btn-outline btn-sm" :onclick="delConfirm = false">No</button>
           <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
           <button type="submit" class="btn btn-primary" :class="{'btn-loading': adding}" :text="editId ? 'Update' : 'Save Donation'"></button>
         </div>

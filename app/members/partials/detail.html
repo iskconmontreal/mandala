@@ -88,7 +88,12 @@
       <!-- Invite section (no account yet) -->
       <div :if="!detail._user_id && detail.email" style="border-top:1px solid var(--c-border); padding-top:var(--s-md)">
         <div class="dim" style="font-size:var(--f-sm); margin-bottom:var(--s-sm)">No system account</div>
-        <button class="btn btn-outline btn-sm" :onclick="inviteMember()" :class="{'btn-loading': inviting}">Send Invite</button>
+        <div style="display:flex; align-items:center; gap:var(--s-sm)">
+          <button :if="!inviteConfirm" class="btn btn-outline btn-sm" :onclick="inviteConfirm = true">Send Invite</button>
+          <span :if="inviteConfirm" class="dim" style="font-size:var(--f-sm)">Send invite to <span :text="detail.email"></span>?</span>
+          <button :if="inviteConfirm" class="btn btn-primary btn-sm" :class="{'btn-loading': inviting}" :onclick="inviteMember()">Yes, send</button>
+          <button :if="inviteConfirm" class="btn btn-outline btn-sm" :onclick="inviteConfirm = false">Cancel</button>
+        </div>
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); border-top:1px solid var(--c-border); padding-top:var(--s-md)">

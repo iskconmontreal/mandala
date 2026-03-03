@@ -15,18 +15,11 @@ bundle install
 npm install
 ```
 
-Generate self-signed SSL cert for local HTTPS (required for tests):
-
-```sh
-mkdir -p .ssl
-openssl req -x509 -newkey rsa:2048 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj '/CN=localhost'
-```
-
 ## Dev server
 
 ```sh
-npm start          # https://localhost:4000 (HTTPS, required for tests)
-npm run start:http # http://localhost:4000  (HTTP, live reload)
+npm start          # http://localhost:4000  (HTTP, live reload)
+npm run start:https # https://localhost:4000 (HTTPS, optional)
 ```
 
 ## Local backend
@@ -45,11 +38,21 @@ localStorage.removeItem('mandala_api')
 
 ## Tests
 
-Playwright, Chromium. Requires HTTPS dev server running.
+Playwright, Chromium. Requires dev server running (`npm start`).
 
 ```sh
-npm test       # headless
+npm test        # headless
 npm run test:ui # interactive UI
+```
+
+## HTTPS mode (optional)
+
+Production is served over HTTPS natively (GitHub Pages). For local HTTPS testing:
+
+```sh
+mkdir -p .ssl
+openssl req -x509 -newkey rsa:2048 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj '/CN=localhost'
+npm run start:https
 ```
 
 <p align=center><a href="https://github.com/krishnized/license/">ॐ</a></p>

@@ -1,25 +1,10 @@
 import { test, expect } from '@playwright/test'
-
-const ADMIN_TOKEN = 'header.' + btoa(JSON.stringify({
-  permissions: ['users:view', 'users:create', 'clients:view', 'clients:create', 'donations:view', 'expenses:view']
-})) + '.sig'
-
-const VIEWER_TOKEN = 'header.' + btoa(JSON.stringify({ permissions: [] })) + '.sig'
-
-async function login(page, token = ADMIN_TOKEN) {
-  await page.addInitScript((t) => {
-    localStorage.setItem('mandala_token', t)
-    localStorage.setItem('mandala_user', JSON.stringify({
-      name: 'Test User',
-      email: 'test@example.com',
-      meta: { first_name: 'Test', last_name: 'User' }
-    }))
-  }, token)
-}
+import { loginAs, API } from './fixtures.js'
 
 test.describe('navigation (admin)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page)
+    await loginAs(page, 'admin')
+    await page.route(`${API}/**`, route => route.fulfill({ json: { items: [], total: 0 } }))
   })
 
   test('finance nav item visible and active on overview', async ({ page }) => {
@@ -38,13 +23,14 @@ test.describe('navigation (admin)', () => {
 
   test('user name displays in topbar', async ({ page }) => {
     await page.goto('/app/')
-    await expect(page.locator('.user-trigger')).toContainText('Test User')
+    await expect(page.locator('.user-trigger')).toContainText('Bhakti Devi')
   })
 })
 
 test.describe('navigation (viewer)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page, VIEWER_TOKEN)
+    await loginAs(page, 'viewer')
+    await page.route(`${API}/**`, route => route.fulfill({ json: { items: [], total: 0 } }))
   })
 
   test('finance and members nav items hidden for viewer', async ({ page }) => {

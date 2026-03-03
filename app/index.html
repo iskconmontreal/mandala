@@ -22,7 +22,8 @@
     <h3>Finance</h3>
     <a href="finance/" class="btn-link" style="color:var(--c-accent)">View details →</a>
   </div>
-  <div style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
+  <div :if="finLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
+  <div :if="!finLoading" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
     <div>
       <div class="stat-label stat-ok">Donations this month</div>
       <div class="stat-value" :text="'$' + fmtAmt(fin.donations)"></div>
@@ -37,11 +38,11 @@
         :text="'$' + fmtAmt(Math.abs(fin.net))"></div>
     </div>
   </div>
-  <div class="ratio-bar" style="margin-top:var(--s-lg)">
+  <div :if="!finLoading" class="ratio-bar" style="margin-top:var(--s-lg)">
     <span :style="{width: fin.donPct + '%', background: 'var(--c-ok)'}"></span>
     <span :style="{width: fin.expPct + '%', background: 'var(--c-err)'}"></span>
   </div>
-  <div style="display:flex; justify-content:space-between; font-size:var(--f-sm); color:var(--c-text-dim)">
+  <div :if="!finLoading" style="display:flex; justify-content:space-between; font-size:var(--f-sm); color:var(--c-text-dim)">
     <span :text="'Donations ' + fin.donPct + '%'"></span>
     <span :text="'Expenses ' + fin.expPct + '%'"></span>
   </div>
@@ -81,7 +82,8 @@
     <h3>Members</h3>
     <a href="members/" class="btn-link" style="color:var(--c-accent)">View all →</a>
   </div>
-  <div style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
+  <div :if="memLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
+  <div :if="!memLoading" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
     <div>
       <div class="stat-label">Total members</div>
       <div class="stat-value" :text="members.total"></div>
@@ -159,7 +161,9 @@
   const s = init({
     _vis: prev ? (Date.now() - prev) / 3600000 : Infinity,
     fin: { donations: 0, expenses: 0, net: 0, donPct: 0, expPct: 0 },
+    finLoading: true,
     members: { total: 0, active: 0, recent: 0 },
+    memLoading: true,
     giving: { total: 0, count: 0, byCategory: {}, receipts: [] },
     activity: [],
     fmtAmt,
@@ -171,8 +175,8 @@
 
   if (hasFin || hasMem) {
     const calls = [
-      hasFin ? api.getDonations({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }) : null,
-      hasFin ? api.getExpenses({ limit: 200, dateFrom: monthStart, dateTo: monthEnd }) : null,
+      hasFin ? api.getDonations({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
+      hasFin ? api.getExpenses({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
       hasMem ? api.getMembers({ limit: 1 }) : null,
     ]
     Promise.all(calls).then(([don, exp, mem]) => {
@@ -185,9 +189,16 @@
           donPct: Math.round(donAmt / gross * 100),
           expPct: Math.round(expAmt / gross * 100),
         }
+        s.finLoading = false
       }
-      if (mem) s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
-    }).catch(() => {})
+      if (mem) {
+        s.members = { total: mem.total || 0, active: mem.total || 0, recent: 0 }
+        s.memLoading = false
+      }
+    }).catch(() => { s.finLoading = false; s.memLoading = false })
+  } else {
+    s.finLoading = false
+    s.memLoading = false
   }
 
   Promise.all([

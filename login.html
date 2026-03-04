@@ -34,7 +34,7 @@
         <div class="login-form-wrap" :scope="state">
 
           <button :if="step !== 'email'" type="button" class="btn-link login-back"
-            :onclick="step = 'email'; password = ''; otp = ''; err = null">
+            :onclick="step = 'email'; password = ''; otp = ''; err = null; offline = null">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             Back
           </button>
@@ -102,6 +102,8 @@
 
       // Capture token from OAuth redirect
       auth.capture()
+
+      let loginStarted = false
 
       const state = sprae(document.body, {
         quotes: [
@@ -173,6 +175,7 @@
         offline: null,
 
         async submit() {
+          loginStarted = true
           state.err = null
           state.loading = true
           try {
@@ -235,9 +238,9 @@
       })
 
       fetch(`${BASE}/api/health`).then(r => r.json()).then(d => {
-        if (d.status !== 'ok') state.offline = 'Server is experiencing issues. Please try again later.'
+        if (d.status !== 'ok' && !loginStarted) state.offline = 'Server is experiencing issues. Please try again later.'
       }).catch(() => {
-        state.offline = 'Cannot reach server. Please check your connection.'
+        if (!loginStarted) state.offline = 'Cannot reach server. Please check your connection.'
       })
     </script>
   </body>

@@ -53,15 +53,7 @@
 * [ ] Deploy to prod
 * [ ] Import all interacs names from files
 
-
-## Onboard
-
-* Sandeep
-* Imon
-* Remy
-* Rama Keshava
-* TC members
-* Ash
+* [ ] page transitions @​view-transition { navigation: auto }
 
 
 ## Backlog

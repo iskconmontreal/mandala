@@ -37,7 +37,24 @@
   Day: "Steady in service"
   Evening: "Another day of service well spent"
 
+
+## Onboard
+
+* Sandeep
+* Imon
+* Remy
+* Rama Keshava
+* TC members
+* Ash
+* Emon
+* Fern
+* Mannat
+* Samir
+
 ## Ideas
+
+* Report / Feedback system
+* LLM: Agent/chatbot
 
 * Finances
 * Members/CRM
@@ -51,6 +68,8 @@
 * Store/boutique
 * Grants from govmt
 * Books tracking
+
+* Inventory tracking
 
 * School
 * Courses

@@ -24,11 +24,13 @@
   /* Typography */
   --f-sans: system-ui, -apple-system, sans-serif;
   --f-mono: ui-monospace, 'SF Mono', monospace;
+  --f-xs:  0.75rem;   /* 12 */
   --f-sm:   0.875rem;  /* 14 */
   --f-md:   1rem;      /* 16 */
   --f-lg:   1.25rem;   /* 20 */
   --f-xl:   1.5rem;    /* 24 */
   --f-2xl:  1.75rem;      /* 32 */
+  --f-3xl: 2.5rem;    /* 40 */
   --f-wt:   400;
   --f-wt-b: 600;
 
@@ -42,7 +44,32 @@
   --sh-sm: 0 1px 2px rgba(0,0,0,.06);
   --sh-md: 0 4px 12px rgba(0,0,0,.08);
   --sh-lg: 0 8px 24px rgba(0,0,0,.12);
+  --focus-ring: 0 0 0 3px rgba(107, 92, 231, .12);
 
   /* Layout */
-  --w-max: 72rem;      /* 1152px */
+  --w-max:   72rem;    /* 1152px */
+  --w-modal: 40rem;    /* modal dialog */
+  --w-form:  24rem;    /* narrow form / toast */
+  --h-input: 2.625rem;
+
+  /* Semantic tints — hover = momentary, active = persistent (badge/chip) */
+  --c-white:          #fff;
+  --c-neutral-hover:  rgba(0, 0, 0, .04);      /* hover on non-accent surfaces */
+  --c-neutral-active: rgba(0, 0, 0, .06);      /* neutral badge bg (draft, closed) */
+  --c-accent-hover:   rgba(107, 92, 231, .06); /* hover on accent items */
+  --c-accent-active:  rgba(107, 92, 231, .10); /* badge, chip selected bg */
+  --c-err-hover:      rgba(226, 92, 92, .08);  /* error state bg, danger hover */
+  --c-err-active:     rgba(226, 92, 92, .10);  /* badge-rejected bg */
+  --c-ok-active:      rgba(58, 158, 110, .10); /* badge-approved bg */
+  --c-warn-active:    rgba(230, 162, 60, .12); /* badge-returned bg */
+
+  /* Warning family */
+  --c-warn-text:   rgb(180, 115, 0);
+  --c-warn-amber:  #96700a;
+  --c-warn-bg:     rgba(245, 158, 11, .08);
+  --c-warn-border: rgba(245, 158, 11, .3);
+
+  /* Overlays */
+  --c-overlay:      rgba(0, 0, 0, .4);
+  --c-overlay-dark: rgba(0, 0, 0, .85);
 }

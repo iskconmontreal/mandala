@@ -17,8 +17,8 @@ test.describe('overview page (admin)', () => {
   })
 
   test('renders quick links for finance and members', async ({ page }) => {
-    await expect(page.locator('.card-grid a').filter({ hasText: 'Finance' })).toBeVisible()
-    await expect(page.locator('.card-grid a').filter({ hasText: 'Members' })).toBeVisible()
+    await expect(page.locator('a[href="finance/"]')).toBeVisible()
+    await expect(page.locator('a[href="members/"]')).toBeVisible()
   })
 })
 

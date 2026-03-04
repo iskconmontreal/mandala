@@ -309,8 +309,6 @@
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
   const curYear = now.getFullYear()
-  const curMonth = today.slice(0, 7)
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7)
   const years = Array.from({ length: 3 }, (_, i) => curYear - i)
   const monthLabel = now.toLocaleString('default', { month: 'short' })
   const perPage = 20
@@ -341,9 +339,11 @@
   const emptyDonForm = () => ({ amount: '', method: 'cash', category: 'general', date_received: today, note: '', client_id: null })
   const emptyExpForm = () => ({ type: 'direct', paid_to: '', amount: '', category: 'utilities', expense_date: today, description: '', client_id: null })
 
+  let donReceiptFile = null
+
   function resetForm() {
     s.editId = null; s.addErr = null; s.detailExp = null
-    s.receiptPreview = ''; s.receiptName = ''; s.receipts = []; s.extracting = false
+    s.receiptPreview = ''; s.receiptName = ''; s.receipts = []; s.extracting = false; donReceiptFile = null
     s.memberQuery = ''; s.memberHits = []; s.vendorHits = []
     s.donHistory = []; s.actionNote = ''; s.actionRef = ''; s.actionAmt = ''
     s.delConfirm = false; s.donForm = emptyDonForm(); s.expForm = emptyExpForm()
@@ -385,12 +385,14 @@
     actionNote: '', actionRef: '', actionAmt: '',
     get expEditable() { return !this.detailExp || this.detailExp.status === 'draft' || this.detailExp.status === 'returned' },
 
-    get expMonth()      { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === curMonth).reduce((s, x) => s + (x.amount || 0), 0) },
-    get expPrevMonth()  { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === prevMonth).reduce((s, x) => s + (x.amount || 0), 0) },
-    get donMonth()      { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).reduce((s, d) => s + (d.amount || 0), 0) },
-    get donPrevMonth()  { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).reduce((s, d) => s + (d.amount || 0), 0) },
-    get donorsMonth()   { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === curMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
-    get donorsPrevMonth(){ const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === prevMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
+    get curMonth() { return String(this.year) + '-' + String(now.getMonth() + 1).padStart(2, '0') },
+    get prevMonth() { const d = new Date(this.year, now.getMonth() - 1, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') },
+    get expMonth()      { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === this.curMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get expPrevMonth()  { return this.expenses.filter(x => (x.expense_date || '').slice(0, 7) === this.prevMonth).reduce((s, x) => s + (x.amount || 0), 0) },
+    get donMonth()      { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === this.curMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donPrevMonth()  { return this.donations.filter(d => (d.date_received || '').slice(0, 7) === this.prevMonth).reduce((s, d) => s + (d.amount || 0), 0) },
+    get donorsMonth()   { const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === this.curMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
+    get donorsPrevMonth(){ const ids = new Set(); this.donations.filter(d => (d.date_received || '').slice(0, 7) === this.prevMonth).forEach(d => ids.add(d.client_id || 0)); return ids.size },
     get net() { return this.donMonth - this.expMonth },
 
     trend(cur, prev, invert) {
@@ -496,6 +498,7 @@
       try {
         const res = await api.extractDoc(file)
         const d = res.extracted_data || {}
+        donReceiptFile = res.file_info || null
         s.donForm = { ...s.donForm, amount: d.amount || s.donForm.amount, method: d.method || s.donForm.method, category: d.category || s.donForm.category, date_received: d.date || s.donForm.date_received, note: d.description || s.donForm.note }
       } catch (e) { s.addErr = e.message }
       finally { s.extracting = false }
@@ -510,7 +513,7 @@
       await Promise.all(files.map(async (file, i) => {
         const r = s.receipts[startIdx + i]
         if (file.type.startsWith('image/')) r.preview = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(file) })
-        try { const res = await api.extractDoc(file); r.data = res.extracted_data || {} }
+        try { const res = await api.extractDoc(file); r.data = res.extracted_data || {}; r.fileInfo = res.file_info || null }
         catch (e) { r.err = e.message; s.addErr = e.message }
         r.extracting = false
         syncExpReceipts()
@@ -547,20 +550,26 @@
     async closeExp()     { await expAction(() => api.closeExpense(s.editId, s.actionRef), 'Expense closed') },
 
     async saveDonation() {
+      if (s.extracting) { s.addErr = 'Please wait for receipt processing to complete.'; return }
       s.addErr = null; s.adding = true
       try {
-        const data = { amount: toCents(s.donForm.amount), method: s.donForm.method, category: s.donForm.category, date_received: s.donForm.date_received, note: s.donForm.note, client_id: s.donForm.client_id || undefined }
+        const donFiles = donReceiptFile && !s.editId ? [{ tmp_name: donReceiptFile.file_name, original_name: donReceiptFile.original_name, mime_type: donReceiptFile.mime_type, file_size: donReceiptFile.file_size }] : undefined
+        const data = { amount: toCents(s.donForm.amount), method: s.donForm.method, category: s.donForm.category, date_received: s.donForm.date_received, note: s.donForm.note, client_id: s.donForm.client_id || undefined, files: donFiles }
         if (s.editId) await api.updateDonation(s.editId, data); else await api.createDonation(data)
+        toast(s.editId ? 'Donation updated' : 'Donation saved', 'success')
         s.donForm = emptyDonForm(); s.editId = null; s.showAdd = false; loadAll()
       } catch (e) { s.addErr = setErr(e.message, 'don', DON_FIELDS) }
       finally { s.adding = false }
     },
 
     async saveExpense() {
+      if (s.receipts.some(r => r.extracting)) { s.addErr = 'Please wait for receipt processing to complete.'; return }
       s.addErr = null; s.adding = true
       try {
-        const data = { amount: toCents(s.expForm.amount), type: s.expForm.type, paid_to: s.expForm.paid_to, description: s.expForm.description, category: s.expForm.category, currency: 'CAD', expense_date: s.expForm.expense_date, client_id: s.expForm.type !== 'direct' ? s.expForm.client_id : undefined }
+        const files = s.receipts.filter(r => r.fileInfo).map(r => ({ tmp_name: r.fileInfo.file_name, original_name: r.fileInfo.original_name, mime_type: r.fileInfo.mime_type, file_size: r.fileInfo.file_size }))
+        const data = { amount: toCents(s.expForm.amount), type: s.expForm.type, paid_to: s.expForm.paid_to, description: s.expForm.description, category: s.expForm.category, currency: 'CAD', expense_date: s.expForm.expense_date, client_id: s.expForm.type !== 'direct' ? s.expForm.client_id : undefined, files: !s.editId && files.length ? files : undefined }
         if (s.editId) await api.updateExpense(s.editId, data); else await api.createExpense(data)
+        toast(s.editId ? 'Expense updated' : 'Expense saved', 'success')
         s.expForm = emptyExpForm(); s.editId = null; s.showAdd = false; loadAll()
       } catch (e) { s.addErr = setErr(e.message, 'exp', EXP_FIELDS) }
       finally { s.adding = false }

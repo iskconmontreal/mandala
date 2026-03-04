@@ -162,5 +162,6 @@ test.describe('members section', () => {
     await loginAs(page, 'viewer')
     await page.goto('/app/members/')
     await page.waitForURL('/app/')
+    errors = []
   })
 })

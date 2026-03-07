@@ -1,28 +1,62 @@
 <!-- Expense existing modal -->
 <template id="exp-existing-modal-template">
 <div class="modal-overlay" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
-  <div class="modal" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
-    <div class="modal-header">
-      <h2 style="display:flex;align-items:center;gap:var(--s-sm)">
-        <span>Edit Expense</span>
-        <span :if="detailExp?.expense_no" class="dim modal-title-sub" :text="'#' + detailExp?.expense_no"></span>
-        <span :if="detailExp?.status" class="badge" :class="'badge-' + detailExp?.status" :text="fmtStatus(detailExp?.status)"></span>
-      </h2>
-      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="display:flex;flex-direction:column;gap:var(--s-md)">
-        <div :if="editId && expAttachments.length">
-          <div class="stat-label" style="margin-bottom:var(--s-sm)">Receipts</div>
-          <div class="receipt-strip" style="flex-wrap:wrap;cursor:default">
-            <div :each="a in expAttachments" class="receipt-thumb"
-              :onclick="a.mime_type?.startsWith('image/') ? (lightboxSrc = apiBase + '/' + a.file_path) : window.open(apiBase + '/' + a.file_path, '_blank')">
-              <img :if="a.mime_type?.startsWith('image/')" :src="apiBase + '/' + a.file_path" :alt="a.original_name">
-              <div :if="!a.mime_type?.startsWith('image/')" class="receipt-placeholder" :text="a.original_name?.split('.').pop()?.toUpperCase() || 'FILE'"></div>
-            </div>
+  <div class="modal modal-expense" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
+    <div class="expense-media-pane"
+      :ondragover="e => e.preventDefault()"
+      :ondrop="e => { e.preventDefault(); addReceipts(e.dataTransfer.files) }">
+      
+      <div :if="!expAttachments.length && !receipts.length" class="expense-media-empty"
+        :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input-existing').click() }">
+        <div class="scan-icon">
+          <span :html="icon('scan_receipts')"></span>
+        </div>
+        <div class="expense-media-empty-title">Scan image</div>
+      </div>
+
+      <div :if="expAttachments.length || receipts.length" class="receipt-carousel">
+        <div id="exp-receipt-track-existing" class="receipt-carousel-track" :onscroll="e => syncExpenseReceiptSlide(e)">
+          <div :each="(item, i) in expenseReceiptItems(expAttachments)" class="receipt-thumb receipt-thumb-gallery"
+            :class="{ 'receipt-extracting': item.kind === 'queued' && item.value.extracting, 'receipt-error': item.kind === 'queued' && item.value.err, 'receipt-duplicate': item.kind === 'queued' && item.value.duplicate }"
+            :onclick="e => {
+              if (item.kind === 'saved') {
+                return item.value.mime_type?.startsWith('image/')
+                  ? (lightboxSrc = apiBase + '/' + item.value.file_path)
+                  : window.open(apiBase + '/' + item.value.file_path, '_blank')
+              }
+              if (!e.target.closest('.receipt-remove') && item.value.preview) lightboxSrc = item.value.preview
+            }">
+            <img :if="item.kind === 'saved' && item.value.mime_type?.startsWith('image/')" :src="apiBase + '/' + item.value.file_path" :alt="item.value.original_name">
+            <img :if="item.kind === 'queued' && item.value.preview" :src="item.value.preview">
+            <div :if="item.kind === 'saved' && !item.value.mime_type?.startsWith('image/')" class="receipt-placeholder" :text="item.value.original_name?.split('.').pop()?.toUpperCase() || 'FILE'"></div>
+            <div :if="item.kind === 'queued' && !item.value.preview" class="receipt-placeholder" :text="item.value.name?.split('.').pop()?.toUpperCase() || 'FILE'"></div>
+            <div class="receipt-amount" :if="item.kind === 'queued' && item.value.extracting" :text="'Scanning…'"></div>
+            <div :if="item.kind === 'queued' && item.value.extracting" class="receipt-spinner"></div>
+            <button :if="item.kind === 'queued'" type="button" class="receipt-remove" :onclick="removeReceipt(item.value)">&times;</button>
           </div>
         </div>
+        <div class="receipt-dots" :if="expenseReceiptItems(expAttachments).length > 1">
+          <button type="button" class="receipt-dot" :each="(_, i) in expenseReceiptItems(expAttachments)" :class="expenseReceiptDotClass(i)" :onclick="jumpExpenseReceiptSlide('exp-receipt-track-existing', i)"></button>
+        </div>
+      </div>
+      <button :if="expAttachments.length || receipts.length" type="button" class="receipt-add receipt-add-gallery"
+        :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input-existing').click() }">
+        + Add more
+      </button>
+      <input id="receipt-input-existing" type="file" accept="image/*,.pdf" multiple style="display:none"
+        :onchange="e => { addReceipts(e.target.files); e.target.value = '' }">
+    </div>
 
+    <div class="expense-content-pane">
+      <div class="modal-header">
+        <h2 style="display:flex;align-items:center;gap:var(--s-sm)">
+          <span>Edit Expense</span>
+          <span :if="detailExp?.expense_no" class="dim modal-title-sub" :text="'#' + detailExp?.expense_no"></span>
+          <span :if="detailExp?.status" class="badge" :class="'badge-' + detailExp?.status" :text="fmtStatus(detailExp?.status)"></span>
+        </h2>
+        <button class="modal-close" :onclick="cancelAdd()">&times;</button>
+      </div>
+      <div class="modal-body">
         <form id="exp-existing-form" :onsubmit.prevent="saveExpense" style="display:flex;flex-direction:column;gap:var(--s-md)">
           <div :if="expEditPolicy.message" class="dim" style="font-size:var(--f-sm)" :text="expEditPolicy.message"></div>
           <div :if="can('expenses:approve')" class="form-row">
@@ -31,7 +65,7 @@
               <div style="position:relative">
                 <input :id="location.pathname.includes('/app/finance') ? 'exp-vendor' : 'home-exp-vendor'" type="text" :value="expForm.payee"
                 :onfocus="e => filterExpensePayees(expForm.payee)"
-                :oninput="e => { expDirty = true; expForm.member_id = null; filterExpensePayees(e.target.value) }"
+                :oninput="e => { expForm.member_id = null; filterExpensePayees(e.target.value) }"
                 :onblur="e => { vendorHits = []; memberHits = [] }"
                 placeholder="Vendor, store, person…" :required="!editId" :disabled="expEditPolicy.payeeLocked">
                 <button :if="expForm.member_id && !expEditPolicy.payeeLocked" type="button" class="btn-link"
@@ -47,7 +81,7 @@
             </div>
             <div class="field">
               <label>Category</label>
-              <select :id="location.pathname.includes('/app/finance') ? 'exp-cat' : 'home-exp-cat'" :value="expForm.category" :onchange="e => { expDirty = true; expForm.category = e.target.value }" :disabled="expEditPolicy.lockedAll">
+              <select :id="location.pathname.includes('/app/finance') ? 'exp-cat' : 'home-exp-cat'" :value="expForm.category" :onchange="e => expForm.category = e.target.value" :disabled="expEditPolicy.lockedAll">
                 <option value="" disabled hidden :selected="!(expForm.category || '')">Select…</option>
                 {% include partials/expense-category-options.html %}
               </select>
@@ -74,7 +108,7 @@
             </div>
             <div class="field">
               <label>Category</label>
-              <select :id="location.pathname.includes('/app/finance') ? 'exp-cat' : 'home-exp-cat'" :value="expForm.category" :onchange="e => { expDirty = true; expForm.category = e.target.value }" :disabled="expEditPolicy.lockedAll">
+              <select :id="location.pathname.includes('/app/finance') ? 'exp-cat' : 'home-exp-cat'" :value="expForm.category" :onchange="e => expForm.category = e.target.value" :disabled="expEditPolicy.lockedAll">
                 <option value="" disabled hidden :selected="!(expForm.category || '')">Select…</option>
                 {% include partials/expense-category-options.html %}
               </select>
@@ -148,25 +182,22 @@
 <!-- Expense create modal -->
 <template id="exp-create-modal-template">
 <div class="modal-overlay" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
-  <div class="modal" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
-    <div class="modal-header">
-      <h2>Add Expense</h2>
-      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="display:flex;flex-direction:column;gap:var(--s-md)">
-        <div class="receipt-strip"
-          :ondragover="e => e.preventDefault()"
-          :ondrop="e => { e.preventDefault(); addReceipts(e.dataTransfer.files) }">
-          <div :if="!receipts.length" style="flex:1;text-align:center;cursor:pointer"
-            :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input').click() }">
-            <div class="scan-icon">
-              <span :html="icon('scan_receipts')"></span>
-            </div>
-            <div style="font-weight:var(--f-wt-b)">Scan receipts</div>
-            <div class="scan-hint">Drop images or PDFs, or click to browse</div>
-          </div>
-          <div :each="r in receipts" class="receipt-thumb" :class="{ 'receipt-extracting': r.extracting, 'receipt-error': r.err, 'receipt-duplicate': r.duplicate }"
+  <div class="modal modal-expense" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; cancelAdd() }">
+    <div class="expense-media-pane"
+      :ondragover="e => e.preventDefault()"
+      :ondrop="e => { e.preventDefault(); addReceipts(e.dataTransfer.files) }">
+      
+      <div :if="!receipts.length" class="expense-media-empty"
+        :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input').click() }">
+        <div class="scan-icon">
+          <span :html="icon('scan_receipts')"></span>
+        </div>
+        <div class="expense-media-empty-title">Scan image</div>
+      </div>
+
+      <div :if="receipts.length" class="receipt-carousel">
+        <div id="exp-receipt-track-create" class="receipt-carousel-track" :onscroll="e => syncExpenseReceiptSlide(e)">
+          <div :each="(r, i) in receipts" class="receipt-thumb receipt-thumb-gallery" :class="{ 'receipt-extracting': r.extracting, 'receipt-error': r.err, 'receipt-duplicate': r.duplicate }"
             :onclick="e => { if (!e.target.closest('.receipt-remove') && r.preview) lightboxSrc = r.preview }">
             <img :if="r.preview" :src="r.preview">
             <div :if="!r.preview" class="receipt-placeholder" :text="r.name?.split('.').pop()?.toUpperCase() || 'FILE'"></div>
@@ -174,14 +205,28 @@
             <div :if="r.extracting" class="receipt-spinner"></div>
             <button type="button" class="receipt-remove" :onclick="removeReceipt(r)">&times;</button>
           </div>
-          <div :if="receipts.length" class="receipt-add"
-            :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input').click() }">+</div>
         </div>
-        <input id="receipt-input" type="file" accept="image/*,.pdf" multiple style="display:none"
-          :oncancel="() => filePickerOpen = false"
-          :onchange="e => { filePickerOpen = false; addReceipts(e.target.files); e.target.value = '' }">
+        <div class="receipt-dots" :if="receipts.length > 1">
+          <button type="button" class="receipt-dot" :each="(_, i) in receipts" :class="expenseReceiptDotClass(i)" :onclick="jumpExpenseReceiptSlide('exp-receipt-track-create', i)"></button>
+        </div>
+      </div>
+      <button :if="receipts.length" type="button" class="receipt-add receipt-add-gallery"
+        :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input').click() }">
+        + Add more
+      </button>
 
-        <form :onsubmit.prevent="saveExpense" style="display:flex;flex-direction:column;gap:var(--s-md)">
+      <input id="receipt-input" type="file" accept="image/*,.pdf" multiple style="display:none"
+        :oncancel="() => filePickerOpen = false"
+        :onchange="e => { filePickerOpen = false; addReceipts(e.target.files); e.target.value = '' }">
+    </div>
+
+    <div class="expense-content-pane">
+      <div class="modal-header">
+        <h2>Add Expense</h2>
+        <button class="modal-close" :onclick="cancelAdd()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="exp-create-form" :onsubmit.prevent="saveExpense" style="display:flex;flex-direction:column;gap:var(--s-md)">
           <div :if="can('expenses:approve')" class="form-row">
             <div class="field autocomplete">
               <label>Payee</label>
@@ -244,12 +289,12 @@
 
           <div :if="receipts.some(r => r.duplicate)" class="form-warn">Possible duplicate — a receipt was previously uploaded for another expense</div>
           <div class="form-warn" :if="addErr" :text="addErr"></div>
-
-          <div style="display:flex; justify-content:flex-end; gap:var(--s-sm)">
-            <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
-            <button type="submit" class="btn btn-primary" :disabled="expEditPolicy.lockedAll || expSaving">Submit</button>
-          </div>
         </form>
+
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm)">
+          <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
+          <button type="submit" form="exp-create-form" class="btn btn-primary" :disabled="expEditPolicy.lockedAll || expSaving">Submit</button>
+        </div>
       </div>
     </div>
   </div>

@@ -31,7 +31,21 @@
 * Hanging loading button on expense details
 * Pujari new role breaks list
 * Pending approval status doesn't approve
-* Search doesn't highlight
+* [x] Search doesn't highlight
+
+## [ ] UIs
+
+* [ ] Search through unloaded data
+* [ ] Better pills alignment
+* [ ] Income same style as expenses
+* [ ] Display attachments shortcuts in the lines
+* [ ] Unify icons across the app
+* [ ] Make preloading better, while JS/data loads
+* [ ] Quick actions can be better in desktops since there's enough space
+* [ ] Make scan image area for existing items less big maybe? Or humbler
+* [ ] Better multiple categories filter
+* [ ] History label in modal info is inconsistent
+* [ ] Highlight added item in content
 
 ## [ ] Notifications
   * [ ] Invitations for all oboardees

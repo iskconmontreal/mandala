@@ -15,22 +15,22 @@ function mockFinance(page, { donations = [], expenses = [], members = [], auditL
       if (exp && transitions[action]) { exp.status = transitions[action]; return route.fulfill({ json: exp }) }
     }
 
-    if (path === '/api/donations' && method === 'POST') {
+    if (path === '/api/income' && method === 'POST') {
       const body = route.request().postDataJSON()
       const d = { id: donations.length + 1, ...body, status: 'submitted' }
       donations.push(d)
       return route.fulfill({ json: d })
     }
-    if (path === '/api/donations' && method === 'GET') {
+    if (path === '/api/income' && method === 'GET') {
       return route.fulfill({ json: { items: [...donations], total: donations.length } })
     }
-    if (path.startsWith('/api/donations/') && method === 'DELETE') {
+    if (path.startsWith('/api/income/') && method === 'DELETE') {
       const id = +path.split('/').at(-1)
       const i = donations.findIndex(d => d.id === id)
       if (i >= 0) donations.splice(i, 1)
       return route.fulfill({ status: 204 })
     }
-    if (path.startsWith('/api/donations/') && method === 'PUT') {
+    if (path.startsWith('/api/income/') && method === 'PUT') {
       const id = +path.split('/').at(-1)
       const body = route.request().postDataJSON()
       const i = donations.findIndex(d => d.id === id)
@@ -81,6 +81,7 @@ function mockFinance(page, { donations = [], expenses = [], members = [], auditL
 }
 
 async function openFinance(page, tab = 'expenses') {
+  if (tab === 'donations') tab = 'income'
   await page.goto(`/app/finance/#${tab}`)
   await page.locator('.card-tab-group').waitFor()
   if (tab === 'expenses') await page.evaluate(() => document.querySelector('.seg[title="Table view"]')?.click())
@@ -101,13 +102,13 @@ test.describe('finance section', () => {
 
   test.afterEach(() => { expect(errors).toEqual([]) })
 
-  test('shows three tabs: Expenses, Donations, Donors', async ({ page }) => {
+  test('shows three tabs: Expenses, Income, Donors', async ({ page }) => {
     await mockFinance(page)
     await openFinance(page)
     const tabs = page.locator('.card-tab')
     await expect(tabs).toHaveCount(3)
     await expect(tabs.nth(0).locator('.stat-label')).toHaveText('Expenses')
-    await expect(tabs.nth(1).locator('.stat-label')).toHaveText('Donations')
+    await expect(tabs.nth(1).locator('.stat-label')).toHaveText('Income')
     await expect(tabs.nth(2).locator('.stat-label')).toHaveText('Donors')
   })
 
@@ -117,7 +118,6 @@ test.describe('finance section', () => {
     await openFinance(page)
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.locator('#exp-vendor').focus()
     await page.evaluate(() => document.dispatchEvent(new Event('keydown')))
     await page.locator('#exp-vendor').fill('Test')
@@ -130,7 +130,6 @@ test.describe('finance section', () => {
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Hydro Quebec')
     await page.selectOption('#exp-cat', 'kitchen')
     await page.fill('#exp-amount', '142.50')
@@ -155,15 +154,14 @@ test.describe('finance section', () => {
     await mockFinance(page, { donations })
     await openFinance(page, 'donations')
 
-    await page.click('button:has-text("+ Donation")')
-    await expect(page.getByRole('heading', { name: 'Add Donation' })).toBeVisible()
+    await page.click('button:has-text("+ Income")')
+    await expect(page.getByRole('heading', { name: 'Add donation' })).toBeVisible()
 
     await page.locator('#don-amount').waitFor({ timeout: 5000 })
     await page.fill('#don-amount', '50.00')
-    await page.click('a:has-text("More fields")')
     await page.selectOption('#don-method', 'cash')
     await page.selectOption('#don-cat', 'general')
-    await page.click('button:has-text("Save Donation")')
+    await page.click('button:has-text("Save")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     const donSection = page.locator('section').nth(1)
@@ -180,10 +178,10 @@ test.describe('finance section', () => {
     await mockFinance(page, { donations })
     await openFinance(page, 'donations')
 
-    await page.click('button:has-text("+ Donation")')
+    await page.click('button:has-text("+ Income")')
     await page.locator('#don-amount').waitFor({ timeout: 5000 })
     await page.fill('#don-amount', '25.00')
-    await page.click('button:has-text("Save Donation")')
+    await page.click('button:has-text("Save")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     expect(donations[0].member_id).toBeFalsy()
@@ -195,7 +193,7 @@ test.describe('finance section', () => {
     await openFinance(page, 'donations')
 
     await page.locator('section').nth(1).locator('tr.row-link').first().click()
-    await expect(page.getByRole('heading', { name: 'Edit Donation' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Edit donation' })).toBeVisible()
 
     await page.click('button:has-text("Delete")')
     await expect(page.locator('button:has-text("Yes")')).toBeVisible()
@@ -229,16 +227,16 @@ test.describe('finance section', () => {
     await expect(page.locator('button:has-text("Approve")')).toHaveCount(0)
   })
 
-  test('paid-to field visible for treasurers in expense form', async ({ page }) => {
+  test('payee field visible for treasurers in expense form', async ({ page }) => {
     await mockFinance(page)
     await openFinance(page)
     await page.click('button:has-text("+ Expense")')
     await expect(page.getByRole('heading', { name: 'Add Expense' })).toBeVisible()
-    await page.click('a:has-text("More fields")')
     await expect(page.locator('#exp-vendor')).toBeVisible()
   })
 
-  test('payee hidden by default in expense form', async ({ page }) => {
+  test('payee hidden by default for non-approvers in expense form', async ({ page }) => {
+    await loginAs(page, 'member')
     await mockFinance(page)
     await openFinance(page)
     await page.click('button:has-text("+ Expense")')
@@ -332,6 +330,28 @@ test.describe('finance section', () => {
     await expect(section.locator('tr.row-link')).toHaveCount(1)
   })
 
+  test('income type filter from URL restores donation-only view and clears back to all income', async ({ page }) => {
+    const donations = [
+      { id: 1, type: 'donation', amount: 5000, method: 'cash', category: 'general', date_received: '2025-01-01', note: 'gift' },
+      { id: 2, type: 'rental', amount: 7000, method: 'card', category: 'other', date_received: '2025-01-02', note: 'hall rental' },
+    ]
+    await mockFinance(page, { donations })
+    await page.goto('/app/finance/?tab=income&inc_type=donation#income')
+
+    const section = page.locator('section').nth(1)
+    await section.locator('tr.row-link').first().waitFor()
+    await expect(section.locator('tr.row-link')).toHaveCount(1)
+    await expect(section.locator('tr.row-link').first()).toContainText('General')
+    await expect(page).toHaveURL(/tab=income/)
+    await expect(page).toHaveURL(/inc_type=donation/)
+
+    await expect(section.locator('.chip')).toContainText(['Donations ×'])
+    await section.locator('.chip').filter({ hasText: 'Donations ×' }).click()
+
+    await expect(section.locator('tr.row-link')).toHaveCount(2)
+    await expect(page).not.toHaveURL(/inc_type=donation/)
+  })
+
   test('donation search filter reduces results', async ({ page }) => {
     const donations = [
       { id: 1, amount: 5000, method: 'cash', category: 'general', date_received: '2025-01-01', note: 'sunday feast' },
@@ -341,11 +361,44 @@ test.describe('finance section', () => {
     await openFinance(page, 'donations')
     await page.locator('section').nth(1).locator('tr.row-link').first().waitFor()
 
-    await page.fill('input[placeholder="Search donor or note…"]', 'sunday')
+    await page.fill('input[placeholder="Search source or note…"]', 'sunday')
 
     const donSection = page.locator('section').nth(1)
     await expect(donSection.locator('tr.row-link')).toHaveCount(1, { timeout: 5000 })
     await expect(donSection.locator('tr.row-link').first()).toContainText('sunday feast')
+  })
+
+  test('expense filters serialize to URL and restore after reload', async ({ page }) => {
+    const expenses = [
+      { id: 1, amount: 1000, payee: 'A', category: 'kitchen', expense_date: '2025-01-01', status: 'submitted' },
+      { id: 2, amount: 2000, payee: 'B', category: 'utilities', expense_date: '2025-01-02', status: 'approved' },
+      { id: 3, amount: 3000, payee: 'C', category: 'rent', expense_date: '2025-01-03', status: 'approved' },
+    ]
+    await mockFinance(page, { expenses })
+    await openFinance(page)
+    await page.locator('tr.row-link').first().waitFor()
+
+    const section = page.locator('section').first()
+    await section.locator('.btn-filter').click()
+    await section.locator('.filter-dropdown select').first().selectOption('approved')
+    await section.locator('.filter-dropdown input[type="date"]').first().fill('2025-01-03')
+    await section.locator('.filter-dropdown .btn-primary').click()
+
+    await expect(page).toHaveURL(/tab=expenses/)
+    await expect(page).toHaveURL(/exp_status=approved/)
+    await expect(page).toHaveURL(/exp_from=2025-01-03/)
+    await expect(section.locator('tr.row-link')).toHaveCount(1)
+    await expect(section.locator('tr.row-link').first()).toContainText('C')
+
+    await page.reload()
+    await page.evaluate(() => document.querySelector('.seg[title="Table view"]')?.click())
+    await page.locator('tr.row-link').first().waitFor()
+    await expect(section.locator('tr.row-link')).toHaveCount(1)
+    await expect(section.locator('tr.row-link').first()).toContainText('C')
+
+    await section.locator('.btn-filter').click()
+    await expect(section.locator('.filter-dropdown select').first()).toHaveValue('approved')
+    await expect(section.locator('.filter-dropdown input[type="date"]').first()).toHaveValue('2025-01-03')
   })
 
 
@@ -370,7 +423,7 @@ test.describe('finance section', () => {
     expect(download.suggestedFilename()).toBe('expenses.csv')
   })
 
-  test('CSV export downloads from donations tab', async ({ page }) => {
+  test('CSV export downloads from income tab', async ({ page }) => {
     await mockFinance(page, { donations: [{ id: 1, amount: 5000, method: 'cash', category: 'general', date_received: '2025-01-01', note: '' }] })
     await openFinance(page, 'donations')
     await page.locator('section').nth(1).locator('tr.row-link').first().waitFor()
@@ -380,7 +433,7 @@ test.describe('finance section', () => {
       page.waitForEvent('download'),
       page.locator('section').nth(1).locator('a:has-text("CSV")').click()
     ])
-    expect(download.suggestedFilename()).toBe('donations.csv')
+    expect(download.suggestedFilename()).toBe('income.csv')
   })
 
   test('receipt scan: auto-fills form and attachment_ids sent to backend on save', async ({ page }) => {
@@ -452,7 +505,6 @@ test.describe('finance section', () => {
     await openFinance(page)
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Test Vendor')
     await page.fill('#exp-amount', '50.00')
     await page.click('button:has-text("Submit")')
@@ -460,15 +512,15 @@ test.describe('finance section', () => {
     await expect(page.locator('.toast-success')).toContainText('Expense saved')
   })
 
-  test('save donation shows success toast', async ({ page }) => {
+  test('save income shows success toast', async ({ page }) => {
     await mockFinance(page, { donations: [] })
     await openFinance(page, 'donations')
-    await page.click('button:has-text("+ Donation")')
+    await page.click('button:has-text("+ Income")')
     await page.locator('#don-amount').waitFor({ timeout: 5000 })
     await page.fill('#don-amount', '25.00')
-    await page.click('button:has-text("Save Donation")')
+    await page.click('button:has-text("Save")')
     await expect(page.locator('.toast-success')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('.toast-success')).toContainText('Donation saved')
+    await expect(page.locator('.toast-success')).toContainText('Income saved')
   })
 
   test('save expense blocked while receipt is still extracting', async ({ page }) => {
@@ -489,7 +541,6 @@ test.describe('finance section', () => {
     await page.setInputFiles('#receipt-input', { name: 'r.jpg', mimeType: 'image/jpeg', buffer: minJpeg })
     await expect(page.locator('.receipt-thumb')).toHaveCount(1, { timeout: 5000 })
 
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Test')
     await page.fill('#exp-amount', '10.00')
     await page.click('button:has-text("Submit")')
@@ -532,6 +583,7 @@ test.describe('finance section', () => {
     ])
 
     await expect(page.locator('.receipt-thumb')).toHaveCount(2, { timeout: 5000 })
+    await page.fill('#exp-vendor', 'Receipt Bundle')
     await page.fill('#exp-amount', '100.00')
     await page.click('button:has-text("Submit")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
@@ -564,7 +616,6 @@ test.describe('finance section', () => {
     await page.setInputFiles('#receipt-input', { name: 'bad.jpg', mimeType: 'image/jpeg', buffer: minJpeg })
     await expect(page.locator('.receipt-thumb.receipt-error')).toHaveCount(1, { timeout: 5000 })
 
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Fallback Vendor')
     await page.fill('#exp-amount', '99.00')
     await page.click('button:has-text("Submit")')
@@ -626,7 +677,7 @@ test.describe('finance section', () => {
           attachment: { id: 55, file_path: 'uploads/finance/2026/2026-03-05-1.webp', original_name: 'don-receipt.jpg', mime_type: 'image/webp', file_size: 2048, intent: '' },
         } })
       }
-      if (path === '/api/donations' && method === 'POST') {
+      if (path === '/api/income' && method === 'POST') {
         savedBody = route.request().postDataJSON()
         const d = { id: 1, ...savedBody, status: 'submitted' }
         donations.push(d)
@@ -637,14 +688,14 @@ test.describe('finance section', () => {
 
     const minJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9])
     await openFinance(page, 'donations')
-    await page.click('button:has-text("+ Donation")')
-    await expect(page.getByRole('heading', { name: 'Add Donation' })).toBeVisible()
+    await page.click('button:has-text("+ Income")')
+    await expect(page.getByRole('heading', { name: 'Add donation' })).toBeVisible()
     await page.locator('#don-receipt-input').waitFor({ state: 'attached', timeout: 5000 })
 
     await page.setInputFiles('#don-receipt-input', { name: 'don-receipt.jpg', mimeType: 'image/jpeg', buffer: minJpeg })
     await expect(page.locator('#don-amount')).toHaveValue('100.00', { timeout: 5000 })
 
-    await page.click('button:has-text("Save Donation")')
+    await page.click('button:has-text("Save")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     expect(savedBody.attachment_ids).toHaveLength(1)
@@ -657,7 +708,6 @@ test.describe('finance section', () => {
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Leftover Vendor')
     await page.fill('#exp-amount', '99.00')
     await page.keyboard.press('Escape')
@@ -665,7 +715,6 @@ test.describe('finance section', () => {
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await expect(page.locator('#exp-vendor')).toHaveValue('')
     await expect(page.locator('#exp-amount')).toHaveValue('')
     await expect(page.locator('.receipt-thumb')).toHaveCount(0)
@@ -773,30 +822,37 @@ test.describe('finance section', () => {
     await openFinance(page)
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Test')
     await page.click('button:has-text("Cancel")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible()
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await expect(page.locator('#exp-vendor')).toHaveValue('')
   })
 
   test('update submitted expense: edit fields and save', async ({ page }) => {
     await loginAs(page, 'member')
+    let updatedBody = null
     const expenses = [{ id: 1, amount: 5000, payee: 'Old Vendor', category: 'kitchen', expense_date: '2025-01-10', status: 'submitted' }]
     await mockFinance(page, { expenses })
+    await page.route(`${API}/api/expenses/1`, async route => {
+      if (route.request().method() !== 'PUT') return route.fallback()
+      updatedBody = route.request().postDataJSON()
+      expenses[0] = { ...expenses[0], ...updatedBody }
+      return route.fulfill({ json: expenses[0] })
+    })
     await openFinance(page)
     await page.locator('tr.row-link').first().waitFor()
 
     await page.locator('tr.row-link').first().click()
+    await page.click('button:has-text("Edit")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
     await page.fill('#exp-amount', '75.00')
     await page.click('button:has-text("Update")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
+    expect(updatedBody?.amount).toBe(7500)
     expect(expenses[0].amount).toBe(7500)
   })
 
@@ -879,8 +935,8 @@ test.describe('finance section', () => {
     await btn.click()
 
     await expect(page.locator('.toast-success')).toContainText('Approval recorded', { timeout: 5000 })
-    await expect(btn).toBeVisible()
-    await expect(btn).not.toHaveClass(/btn-loading/)
+    await expect(page.locator('.btn-quick-approve')).toHaveCount(0)
+    await expect(page.locator('.quick-actions .dim')).toContainText('✓')
   })
 
 
@@ -923,7 +979,6 @@ test.describe('finance section', () => {
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.click('a:has-text("More fields")')
     await page.fill('#exp-vendor', 'Date Test')
     await page.fill('#exp-amount', '10.00')
     await page.fill('#exp-date', '2025-06-15')
@@ -936,7 +991,7 @@ test.describe('finance section', () => {
     expect(expenses[0].expense_date).toBe('2025-06-15')
   })
 
-  test('home quick-add: expense and donation appear on finance page', async ({ page }) => {
+  test('home quick-add: expense and income appear on finance page', async ({ page }) => {
     const expenses = []
     const donations = []
     await mockFinance(page, { expenses, donations })
@@ -957,11 +1012,10 @@ test.describe('finance section', () => {
     await page.click('button:has-text("+ Donation")')
     await page.locator('#don-amount').waitFor({ timeout: 5000 })
     await page.fill('#don-amount', '200.00')
-    await page.click('a:has-text("More fields")')
     await page.selectOption('#don-method', 'cash')
     await page.selectOption('#don-cat', 'sunday_feast')
     await page.fill('#don-date', '2025-03-01')
-    await page.click('button:has-text("Save Donation")')
+    await page.click('button:has-text("Save")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     expect(expenses).toHaveLength(1)
@@ -976,7 +1030,7 @@ test.describe('finance section', () => {
     await expect(expRow).toContainText('Bell Canada')
     await expect(expRow).toContainText('89.50')
 
-    await page.locator('.card-tab').filter({ hasText: 'Donations' }).click()
+    await page.locator('.card-tab').filter({ hasText: 'Income' }).click()
     const donSection = page.locator('section').nth(1)
     await donSection.locator('tr.row-link').first().waitFor()
     await expect(donSection.locator('tr.row-link').first()).toContainText('200.00')
@@ -993,6 +1047,7 @@ test.describe('finance section', () => {
     await page.locator('tr.row-link').first().waitFor()
 
     await page.locator('tr.row-link').first().click()
+    await page.click('button:has-text("Edit")')
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
 
     const catSelect = page.locator('#exp-cat')
@@ -1018,6 +1073,7 @@ test.describe('finance section', () => {
     await page.locator('tr.row-link').first().waitFor()
 
     await page.locator('tr.row-link').first().click()
+    await page.click('button:has-text("Edit")')
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
 
     const catSelect = page.locator('#exp-cat')

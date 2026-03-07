@@ -1,9 +1,81 @@
-<!-- Donation modal (add/edit) -->
-<div class="modal-overlay" :if="showAdd && activeTab === 'donations'" :onkeydown.esc.document="showAdd = false">
-  <div class="modal" :onclick.outside="showAdd = false">
+<!-- Donation detail modal -->
+<div class="modal-overlay" :if="showAdd && activeTab === 'income' && donMode === 'detail'" :onkeydown.esc.document="cancelAdd()">
+  <div class="modal" :onclick.outside="cancelAdd()">
     <div class="modal-header">
-      <h2 :text="editId ? 'Edit Donation' : 'Add Donation'"></h2>
-      <button class="modal-close" :onclick="showAdd = false">&times;</button>
+      <h2>Donation</h2>
+      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:var(--s-md)">
+        <div class="form-row">
+          <div class="detail-field">
+            <div class="stat-label">Amount</div>
+            <div class="stat-ok" :text="'+$' + fmtAmt(detailDon?.amount || 0)"></div>
+          </div>
+          <div class="detail-field">
+            <div class="stat-label">Date</div>
+            <div :text="detailDon?.date_received?.slice(0,10) || '—'"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="detail-field">
+            <div class="stat-label">Source</div>
+            <div :text="detailDon?.member_id ? (memberNames[detailDon?.member_id] || detailDon?.source_name || 'Anonymous') : (detailDon?.source_name || 'Anonymous')"></div>
+          </div>
+          <div class="detail-field">
+            <div class="stat-label">Method</div>
+            <div :text="fmt(detailDon?.method || '—')"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="detail-field">
+            <div class="stat-label">Type</div>
+            <div :text="fmt(detailDon?.type === 'donation' ? (detailDon?.category || 'donation') : (detailDon?.type || 'income'))"></div>
+          </div>
+          <div class="detail-field" :if="detailDon?.created_at">
+            <div class="stat-label">Created</div>
+            <div :text="(detailDon?.created_at || '').replace('T', ' ').slice(0,16) + (detailDon?.created_by ? (' · ' + (detailDon?.created_by === myUid ? 'you' : (userNames[detailDon?.created_by] || ('User #' + detailDon?.created_by)))) : '')"></div>
+          </div>
+        </div>
+        <div class="detail-field" :if="detailDon?.updated_at && detailDon?.updated_at !== detailDon?.created_at">
+          <div class="stat-label">Updated</div>
+          <div :text="(detailDon?.updated_at || '').replace('T', ' ').slice(0,16) + (detailDon?.updated_by ? (' · ' + (detailDon?.updated_by === myUid ? 'you' : (userNames[detailDon?.updated_by] || ('User #' + detailDon?.updated_by)))) : '')"></div>
+        </div>
+        <div :if="detailDon?.note">
+          <div class="stat-label">Note</div>
+          <div :text="detailDon?.note"></div>
+        </div>
+
+        <div :if="donHistory.length">
+          <div class="stat-label" style="margin-bottom:var(--s-sm)">History</div>
+          <div class="history-list">
+            <div class="history-item" :each="h in donHistory">
+              <span class="badge" :class="'badge-' + h.badge" :text="h.label"></span>
+              <span :if="h.actor" class="activity-actor" :text="h.actor"></span>
+              <span class="dim" :if="h.detail" :text="'· ' + h.detail"></span>
+              <span class="history-date" :text="h.date?.slice(0,16).replace('T', ' ') || ''"></span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--s-sm); flex-wrap:wrap">
+          <button type="button" class="btn btn-secondary" :onclick="printDonation(detailDon)">Print</button>
+          <div style="display:flex; gap:var(--s-sm); margin-left:auto; flex-wrap:wrap; justify-content:flex-end">
+            <button :if="can('income:create')" type="button" class="btn btn-outline" :onclick="editDonation(detailDon)">Edit</button>
+            <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Donation add/edit modal -->
+<div class="modal-overlay" :if="showAdd && activeTab === 'income' && donMode !== 'detail'" :onkeydown.esc.document="cancelAdd()">
+  <div class="modal" :onclick.outside="cancelAdd()">
+    <div class="modal-header">
+      <h2 :text="editId ? 'Edit donation' : 'Add donation'"></h2>
+      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
     </div>
     <div class="modal-body">
       <form :onsubmit.prevent="saveDonation" style="display:flex;flex-direction:column;gap:var(--s-md)">
@@ -13,9 +85,10 @@
           <div class="stat-label" style="margin-bottom:var(--s-sm)">History</div>
           <div class="history-list">
             <div class="history-item" :each="h in donHistory">
-              <span class="badge" :class="'badge-' + eventBadge(h)" :text="eventLabel(h)"></span>
-              <span class="dim" :if="eventDetail(h)" :text="eventDetail(h)"></span>
-              <span class="history-date" :text="h.created_at?.slice(0,10) || ''"></span>
+              <span class="badge" :class="'badge-' + h.badge" :text="h.label"></span>
+              <span :if="h.actor" class="activity-actor" :text="h.actor"></span>
+              <span class="dim" :if="h.detail" :text="'· ' + h.detail"></span>
+              <span class="history-date" :text="h.date?.slice(0,16).replace('T', ' ') || ''"></span>
             </div>
           </div>
         </div>
@@ -27,8 +100,9 @@
           <span :if="editId && delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
           <button :if="editId && delConfirm" type="button" class="btn btn-danger btn-sm" :class="{'btn-loading': deleting}" :onclick="delDonation()">Yes</button>
           <button :if="editId && delConfirm" type="button" class="btn btn-outline btn-sm" :onclick="delConfirm = false">No</button>
+          <button :if="editId && donMode === 'edit'" type="button" class="btn btn-outline" :onclick="cancelDonationEdit()">Cancel</button>
           <button :if="!editId" type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
-          <button type="submit" class="btn btn-primary" :class="{'btn-loading': adding}" :text="editId ? 'Update' : 'Save Donation'"></button>
+          <button type="submit" class="btn btn-primary" :class="{'btn-loading': adding}" :text="editId ? 'Update' : 'Save'"></button>
         </div>
       </form>
     </div>

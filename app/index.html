@@ -5,118 +5,130 @@
   <p :text="_greeting"></p>
 </div>
 
-<!-- Quick actions -->
-<div style="display:flex; gap:var(--s-sm); margin-bottom:var(--s-xl)">
-  <button :if="can('expenses:create')" class="btn btn-primary" :onclick="openAdd()">+ Expense</button>
-  <button :if="can('donations:create')" class="btn btn-primary" :onclick="openDonForm()">+ Donation</button>
-</div>
-
-<!-- Financial pulse (admin only) -->
-<div style="display:flex; flex-direction:row; gap:var(--s-md)">
-  <div :if="can('donations:view') || can('expenses:view')" class="card" style="flex:3 1 0; margin-bottom:var(--s-xl)">
+<!-- Financial pulse -->
+<div :if="can('income:view') || can('expenses:view')" class="card finance-pulse-section" style="margin-bottom:var(--s-xl)">
     <div class="card-header">
-      <h3>Finance</h3>
-      <a href="finance/" class="btn-link" style="color:var(--c-accent)">View details →</a>
+      <a href="finance/" class="section-head-link">
+        <h3 class="finance-title section-title-row">Finance</h3>
+      </a>
     </div>
     <div :if="finLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
-    <div :if="!finLoading" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
-      <div>
-        <div class="stat-label stat-ok">Donations this month</div>
-        <div class="stat-value" :text="'$' + fmtAmt(fin.donations)"></div>
-      </div>
-      <div>
-        <div class="stat-label stat-err">Expenses this month</div>
-        <div class="stat-value" :text="'$' + fmtAmt(fin.expenses)"></div>
-      </div>
-      <div>
+    <div :if="!finLoading" class="finance-pulse-grid">
+      <a href="finance/?tab=expenses#expenses" class="finance-pulse-link finance-pulse-stat finance-pulse-stat-err">
+        <div class="stat-label">Expenses</div>
+        <div class="stat-value" :text="'-$' + fmtAmt(fin.expenses)"></div>
+        <div class="stat-sub stat-err" :text="fin.expPct + '% this month'"></div>
+      </a>
+      <a href="finance/?tab=income#income" class="finance-pulse-link finance-pulse-stat finance-pulse-stat-ok">
+        <div class="stat-label">Income</div>
+        <div class="stat-value" :text="'+$' + fmtAmt(fin.income)"></div>
+        <div class="stat-sub stat-ok" :text="'+' + fin.incPct + '% this month'"></div>
+      </a>
+      <div class="finance-pulse-stat">
         <div class="stat-label" :text="fin.net >= 0 ? 'Surplus' : 'Deficit'"></div>
         <div class="stat-value" :class="fin.net >= 0 ? 'stat-ok' : 'stat-err'" :text="'$' + fmtAmt(Math.abs(fin.net))"></div>
+        <div class="stat-sub" :text="fin.net >= 0 ? 'After income and expenses' : 'Needs attention this month'"></div>
       </div>
     </div>
-    <div :if="!finLoading" class="ratio-bar" style="margin-top:var(--s-lg)">
-      <span :style="{width: fin.donPct + '%', background: 'var(--c-ok)'}"></span>
-      <span :style="{width: fin.expPct + '%', background: 'var(--c-err)'}"></span>
+</div>
+
+<!-- Recent finance tables -->
+<div :if="can('income:view') || can('expenses:view')" class="recent-grid">
+  <div :if="can('expenses:view')" class="card">
+    <div class="card-header recent-list-header">
+      <a href="finance/?tab=expenses#expenses" class="section-head-link">
+        <h3 class="section-title-row">Recent Expenses</h3>
+        <div class="recent-list-subtitle" :text="financeIntro"></div>
+      </a>
+      <button :if="can('expenses:create')" class="btn btn-primary" :onclick="openAdd()">+ Expense</button>
     </div>
-    <div :if="!finLoading" style="display:flex; justify-content:space-between; font-size:var(--f-sm); color:var(--c-text-dim)">
-      <span :text="'Donations ' + fin.donPct + '%'"></span>
-      <span :text="'Expenses ' + fin.expPct + '%'"></span>
+    <div :if="recentExpenses.length" class="recent-exp-list">
+      <div :each="x in recentExpenses" class="recent-exp-item row-link" :onclick="viewExpense(x)">
+        <span class="recent-exp-icon-col">
+          <span class="status-icon" :class="'status-' + (x.status || 'submitted')" :html="statusIcon(x.status || 'submitted')"></span>
+        </span>
+        <div class="recent-exp-main">
+          <div class="recent-exp-title-row">
+            <div class="recent-exp-title" :text="x.payee || '—'"></div>
+          </div>
+          <div class="recent-exp-meta-row">
+            <span class="recent-exp-status-text" :class="'status-' + (x.status || 'submitted')" :text="recentExpStatus(x)"></span>
+            <span :if="recentExpReporter(x)" class="recent-exp-meta" :text="recentExpReporter(x)"></span>
+            <span class="recent-exp-time" :text="fmtDate(changedAt(x) || x.created_at || x.expense_date)"></span>
+          </div>
+        </div>
+        <div class="recent-exp-cat">
+          <span class="badge" :class="catCls(x.category || 'other')" :text="fmtCat(x.category || 'other')"></span>
+        </div>
+        <div class="recent-exp-amount">
+          <div class="recent-exp-value stat-err" :text="'-$' + fmtAmt(x.amount || 0)"></div>
+          <div class="recent-row-actions" :onclick.stop="">
+            <button type="button" class="recent-row-action recent-row-action-edit" title="Quick revise expense" aria-label="Quick revise expense" :onclick="editExpense(x)" :html="editIcon"></button>
+            <button :if="can('expenses:approve') && (x.status || 'submitted') === 'submitted' && !quickExpenseAction[x.id]" type="button" class="recent-row-action recent-row-action-accent" title="Quick approve expense" aria-label="Quick approve expense" :onclick="approveRecentExpense(x)" :html="approveIcon"></button>
+            <button :if="can('expenses:approve') && (x.status || 'submitted') === 'approved' && !quickExpenseAction[x.id]" type="button" class="recent-row-action recent-row-action-ok" title="Quick pay expense" aria-label="Quick pay expense" :onclick="payRecentExpense(x)" :html="payIcon"></button>
+            <span :if="can('expenses:approve') && quickExpenseAction[x.id]" class="recent-row-action recent-row-action-static" aria-label="Working">…</span>
+          </div>
+        </div>
+      </div>
     </div>
+    <div :if="!recentExpenses.length" class="dim" style="font-size:var(--f-sm); padding:var(--s-sm) 0">No recent expenses</div>
   </div>
 
-  <!-- Community pulse (admin only) -->
-  <div :if="can('members:view')" class="card" style="flex:1 1 0; margin-bottom:var(--s-xl)">
-    <div class="card-header">
-      <h3>Community</h3>
-      <a href="members/" class="btn-link" style="color:var(--c-accent)">View all →</a>
+  <div :if="can('income:view')" class="card">
+    <div class="card-header recent-list-header">
+      <a href="finance/?tab=income&inc_type=donation#income" class="section-head-link">
+        <h3 class="section-title-row">Recent Donations</h3>
+        <div class="recent-list-subtitle" :text="donationIntro"></div>
+      </a>
+      <button :if="can('income:create')" class="btn btn-primary" :onclick="openDonForm()">+ Donation</button>
     </div>
-    <div :if="memLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
-    <div :if="!memLoading" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
-      <div>
-        <div class="stat-label">Total members</div>
-        <div class="stat-value" :text="members.total"></div>
+    <div :if="recentIncome.length" class="recent-inc-list">
+      <div :each="d in recentIncome" class="recent-inc-item row-link" :onclick="viewDonation(d)">
+        <span class="recent-inc-icon-col" :class="'recent-inc-icon-' + recentIncMethod(d)">
+          <span class="recent-inc-icon" :html="methodIcon(recentIncMethod(d))"></span>
+        </span>
+        <div class="recent-inc-main">
+          <div class="recent-inc-title-row">
+            <div class="recent-inc-title" :text="recentIncSource(d)"></div>
+          </div>
+          <div class="recent-inc-meta-row">
+            <span :if="recentIncReporter(d)" class="recent-inc-meta" :text="recentIncReporter(d)"></span>
+            <span class="recent-inc-time" :text="fmtDate(changedAt(d) || d.created_at || d.date_received)"></span>
+          </div>
+        </div>
+        <div class="recent-inc-type">
+          <span class="badge" :class="catCls(recentIncKind(d))" :text="fmtCat(recentIncKind(d))"></span>
+        </div>
+        <div class="recent-inc-amount">
+          <div class="recent-inc-value stat-ok" :text="'+$' + fmtAmt(d.amount || 0)"></div>
+          <div class="recent-row-actions" :onclick.stop="">
+            <button type="button" class="recent-row-action recent-row-action-edit" title="Quick revise donation" aria-label="Quick revise donation" :onclick="editDonation(d)" :html="editIcon"></button>
+            <button type="button" class="recent-row-action" title="Quick receipt" aria-label="Quick receipt" :onclick="printDonation(d)" :html="printIcon"></button>
+          </div>
+        </div>
       </div>
     </div>
+    <div :if="!recentIncome.length" class="dim" style="font-size:var(--f-sm); padding:var(--s-sm) 0">No recent donations</div>
   </div>
 </div>
 
-<!-- Recent Activity (finance roles only) -->
-<div :if="can('donations:view') || can('expenses:view')" class="card" style="margin-bottom:var(--s-xl)">
+<!-- Community -->
+<div :if="can('members:view')" class="card" style="margin-bottom:var(--s-xl)">
   <div class="card-header">
-    <h3>Recent Activity</h3>
+    <h3>Community</h3>
+    <a href="members/" class="btn-link" style="color:var(--c-accent)">View all →</a>
   </div>
-  <div :if="activity.length" class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th style="text-align:right">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr :each="a in activity" :class="{'row-link': !!a.id}" :onclick="a.id && openActivity(a)">
-          <td :text="a.date"></td>
-          <td><span class="badge" :text="fmtCat(a.type)"></span></td>
-          <td :text="a.desc"></td>
-          <td style="text-align:right" :text="a.amount ? '$' + fmtAmt(a.amount) : '—'"></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div :if="!activity.length" class="dim" style="font-size:var(--f-sm); padding:var(--s-sm) 0">No recent activity</div>
-</div>
-
-<div class="modal-overlay" :if="showActivity" :onkeydown.esc.document="closeActivity()" :onclick="e => { if (e.target === e.currentTarget) closeActivity() }">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 :text="activityDetail?.title || 'Transaction'"></h2>
-      <button class="modal-close" :onclick="closeActivity()">&times;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:var(--s-sm)">
-      <div :if="activityErr" class="login-error" :text="activityErr"></div>
-      <div :if="activityLoading" class="dim" style="font-size:var(--f-sm)">Loading transaction details...</div>
-      <div :if="activityDetail" style="display:grid;grid-template-columns:120px 1fr;gap:var(--s-xs) var(--s-sm);font-size:var(--f-sm)">
-        <div class="dim">Date</div><div :text="activityDetail.date || '—'"></div>
-        <div class="dim">Action</div><div :text="fmtCat(activityDetail.action || activityDetail.type || '—')"></div>
-        <div class="dim">Amount</div><div :text="activityDetail.amount ? '$' + fmtAmt(activityDetail.amount) : '—'"></div>
-        <div class="dim">Category</div><div :text="activityDetail.category ? fmtCat(activityDetail.category) : '—'"></div>
-        <div class="dim">Method</div><div :text="activityDetail.method ? fmtCat(activityDetail.method) : '—'"></div>
-        <div class="dim">Status</div><div :text="activityDetail.status ? fmtCat(activityDetail.status) : '—'"></div>
-        <div class="dim">Member</div><div :text="activityDetail.member || '—'"></div>
-        <div class="dim">Payee</div><div :text="activityDetail.payee || '—'"></div>
-        <div class="dim">Note</div><div :text="activityDetail.note || '—'"></div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;gap:var(--s-sm)">
-        <button :if="activityTarget?.id && activityTarget?.canEdit" class="btn btn-primary" :onclick="openActivityEdit()" :class="{'btn-loading': activityEditLoading}">Edit</button>
-        <button class="btn btn-outline" :onclick="closeActivity()">Close</button>
-      </div>
+  <div :if="memLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
+  <div :if="!memLoading" style="display:flex; gap:var(--s-xl); flex-wrap:wrap">
+    <div>
+      <div class="stat-label">Total members</div>
+      <div class="stat-value" :text="members.total"></div>
     </div>
   </div>
 </div>
 
 <!-- My Expenses -->
-<div :if="myExpenses.length" class="card" style="margin-bottom:var(--s-xl)">
+<div :if="showOwnExpenses && myExpenses.length" class="card" style="margin-bottom:var(--s-xl)">
   <div class="card-header">
     <h3>My Expenses</h3>
   </div>
@@ -131,7 +143,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr :each="x in myExpenses" class="row-link" :onclick="editExpense(x)">
+        <tr :each="x in myExpenses" class="row-link" :onclick="viewExpense(x)">
           <td :text="(x.created_at || x.expense_date)?.slice(0,10) || '—'"></td>
           <td :text="fmtCat(x.category)"></td>
           <td><span class="badge" :class="'badge-' + x.status" :text="x.status === 'submitted' ? `Pending ${x.approval_count||0}/${x.approvals_required||'?'}` : fmtCat(x.status)"></span></td>
@@ -200,8 +212,8 @@
   import { init, fmtAmt, fmtCat, rawAmt, toast, auth } from '../lib/app.js'
   import { api, BASE } from '../lib/api.js'
   import { greeting } from '../lib/greeting.js'
-  import { activityIcon } from '../lib/icons.js'
-  import { parseDiff, parseMemberNames } from '../lib/finance.js'
+  import { catCls, changedAt, fmtDate, fmtStatus, parseMemberNames } from '../lib/finance.js'
+  import { actionIcon, methodIcon, statusIcon } from '../lib/icons.js'
   import { formDefaults, bindForm, expIsEditable, expGetAttachments, buildExpTimeline } from '../lib/form.js'
 
   const now = new Date()
@@ -215,92 +227,105 @@
   const vis = prev ? (Date.now() - prev) / 3600000 : Infinity
 
   const MY_USER_ID = auth.user?.id
-  let activityReq = 0
-
-  function activityKind(entityType) {
-    const t = String(entityType || '').toLowerCase()
-    if (t.includes('donation')) return 'donation'
-    if (t.includes('expense')) return 'expense'
-    return ''
-  }
-  function activityAmount(diff) {
-    const d = parseDiff(diff)
-    if (!d || !d.amount) return null
-    if (typeof d.amount === 'number') return d.amount
-    if (typeof d.amount === 'object') return d.amount.new ?? d.amount.old ?? null
-    return null
-  }
-  function diffValue(diff, key) {
-    if (!diff || !(key in diff)) return null
-    const v = diff[key]
-    if (v && typeof v === 'object' && ('new' in v || 'old' in v)) return v.new ?? v.old ?? null
-    return v ?? null
-  }
-  function activityTitle(kind, id, entityType) {
-    const label = kind ? fmtCat(kind) : fmtCat(entityType || 'transaction')
-    return id ? `${label} #${id}` : label
-  }
-  function baseActivityDetail(a) {
-    const d = a.diff || null
-    return {
-      title: activityTitle(a.kind, a.id, a.entityType),
-      type: a.type, action: a.action, date: a.date, amount: a.amount,
-      category: diffValue(d, 'category'), method: diffValue(d, 'method'),
-      status: diffValue(d, 'status'), member: null,
-      payee: diffValue(d, 'payee'),
-      note: diffValue(d, 'note') || diffValue(d, 'description'),
-    }
-  }
-  async function findDonationById(id, createdAt) {
-    const params = { limit: 200, page: 1 }
-    const year = (createdAt || '').slice(0, 4)
-    if (/^\d{4}$/.test(year)) { params.dateFrom = `${year}-01-01`; params.dateTo = `${year}-12-31` }
-    let seen = 0
-    for (let page = 1; page <= 20; page++) {
-      const res = await api.getDonations({ ...params, page })
-      const items = res.items || []
-      const hit = items.find(d => d.id === id)
-      if (hit) return hit
-      if (!items.length) break
-      seen += items.length
-      if (res.total && seen >= res.total) break
-    }
-    return null
-  }
-  function mapActivity(a) {
-    const kind = activityKind(a.entity_type)
-    const id = Number(a.entity_id) || null
-    const diff = parseDiff(a.diff)
-    const canOpen = (kind === 'donation' && auth.can('donations:view')) || (kind === 'expense' && auth.can('expenses:view'))
-    const canEdit = (kind === 'donation' && auth.can('donations:create')) || (kind === 'expense' && auth.can('expenses:create'))
-    return {
-      date: a.created_at?.slice(0, 10) || '—',
-      type: a.action || a.entity_type || '—',
-      action: a.action || '', entityType: a.entity_type || '',
-      kind, id: canOpen ? id : null, canEdit,
-      createdAt: a.created_at || '', diff,
-      desc: [a.entity_type, a.entity_id ? '#' + a.entity_id : '', a.action].filter(Boolean).join(' '),
-      amount: activityAmount(diff),
-    }
-  }
 
   const s = init({
     ...formDefaults(BASE, MY_USER_ID),
     _greeting: greeting(now, vis),
-    fmtAmt, fmtCat, activityIcon,
-    fin: { donations: 0, expenses: 0, net: 0, donPct: 0, expPct: 0 },
+    fmtAmt, fmtCat, fmtDate, catCls, statusIcon, methodIcon, changedAt,
+    fin: { income: 0, expenses: 0, net: 0, incPct: 0, expPct: 0 },
+    finTasks: { pending: 0, ready: 0 },
+    donMonth: { count: 0, total: 0 },
     finLoading: true,
     members: { total: 0 },
     memLoading: true,
     giving: { total: 0, count: 0, byCategory: {}, receipts: [] },
-    activity: [],
-    showActivity: false,
-    activityLoading: false,
-    activityEditLoading: false,
-    activityErr: '',
-    activityDetail: null,
-    activityTarget: null,
     myExpenses: [],
+    recentExpenses: [],
+    recentIncome: [],
+    quickExpenseAction: {},
+    editIcon: actionIcon('edit'),
+    printIcon: actionIcon('print'),
+    approveIcon: actionIcon('approve'),
+    payIcon: actionIcon('pay'),
+    showOwnExpenses: !auth.can('income:create') && !auth.can('expenses:approve'),
+    recentExpReporter(x) {
+      if (!x?.created_by) return ''
+      if (x.created_by === MY_USER_ID) return 'you'
+      return this.userNames?.[x.created_by] || ''
+    },
+    recentExpStatus(x) {
+      const st = x?.status || 'submitted'
+      return st === 'submitted' ? `Pending ${x?.approval_count || 0}/${x?.approvals_required || '?'}` : fmtStatus(st)
+    },
+    recentIncSource(d) {
+      if (d?.member_id && this.memberNames?.[d.member_id]) return this.memberNames[d.member_id]
+      return d?.source_name || 'Anonymous'
+    },
+    recentIncReporter(d) {
+      if (!d?.created_by) return ''
+      if (d.created_by === MY_USER_ID) return 'by you'
+      const who = this.userNames?.[d.created_by]
+      return who ? `by ${who}` : ''
+    },
+    recentIncKind(d) {
+      return d?.type === 'donation' ? (d?.category || 'donation') : (d?.type || 'income')
+    },
+    recentIncMethod(d) {
+      const method = (d?.method || 'cash').toLowerCase()
+      return method === 'e transfer' ? 'e-transfer' : method
+    },
+    get financeIntro() {
+      if (this.finLoading) return 'Loading monthly finance snapshot'
+      const p = this.finTasks?.pending || 0
+      const r = this.finTasks?.ready || 0
+      if (p && r) return `${p} pending review, ${r} ready to pay`
+      if (p) return `${p} pending review this month`
+      if (r) return `${r} approved expense${r === 1 ? '' : 's'} ready to pay`
+      return 'No pending expenses this month'
+    },
+    get donationIntro() {
+      const total = Number(this.donMonth?.total || 0)
+      const count = Number(this.donMonth?.count || 0)
+      if (!count) return 'This month · no donations yet'
+      return `${count} donation${count === 1 ? '' : 's'} this month · $${fmtAmt(total)}`
+    },
+    async approveRecentExpense(x) {
+      if (!x?.id || this.quickExpenseAction[x.id]) return
+      this.quickExpenseAction = { ...this.quickExpenseAction, [x.id]: 'approve' }
+      try {
+        const res = await api.approveExpense(x.id, '')
+        const exp = res.expense || res
+        x.status = exp.status || x.status
+        x.approval_count = res.approval_count ?? x.approval_count
+        x.approvals_required = res.approvals_required ?? x.approvals_required
+        this.recentExpenses = [...this.recentExpenses]
+        toast(exp.status === 'approved' ? 'Expense approved' : `Approval recorded (${res.approval_count}/${res.approvals_required})`, 'success')
+        refreshDashboard()
+      } catch (e) {
+        toast(e.message)
+      } finally {
+        const next = { ...this.quickExpenseAction }
+        delete next[x.id]
+        this.quickExpenseAction = next
+      }
+    },
+    async payRecentExpense(x) {
+      if (!x?.id || this.quickExpenseAction[x.id]) return
+      this.quickExpenseAction = { ...this.quickExpenseAction, [x.id]: 'pay' }
+      try {
+        const res = await api.payExpense(x.id, '')
+        x.status = res.status || x.status
+        this.recentExpenses = [...this.recentExpenses]
+        toast('Expense marked as paid', 'success')
+        refreshDashboard()
+      } catch (e) {
+        toast(e.message)
+      } finally {
+        const next = { ...this.quickExpenseAction }
+        delete next[x.id]
+        this.quickExpenseAction = next
+      }
+    },
     get expEditable() { return expIsEditable(this) },
     get expAttachments() { return expGetAttachments(this) },
     get expTimeline() { return buildExpTimeline(this) },
@@ -308,94 +333,44 @@
 
   bindForm(s, { api, onSave: refreshDashboard })
 
-  const hasFin = s.can('donations:view') || s.can('expenses:view')
+  const hasFin = s.can('income:view') || s.can('expenses:view')
   const hasMem = s.can('members:view')
 
   const _openDonForm = s.openDonForm
   s.openDonForm = () => { _openDonForm(); loadMemberNames() }
 
-  s.closeActivity = () => {
-    activityReq++
-    s.showActivity = false; s.activityLoading = false; s.activityEditLoading = false
-    s.activityErr = ''; s.activityDetail = null; s.activityTarget = null
-  }
-  s.openActivity = async a => {
-    const req = ++activityReq
-    s.showActivity = true; s.activityErr = ''; s.activityEditLoading = false
-    s.activityDetail = baseActivityDetail(a); s.activityTarget = a
-    if (!a?.id || !a?.kind) return
-    s.activityLoading = true
-    try {
-      if (!Object.keys(s.memberNames || {}).length) await loadMemberNames()
-      if (a.kind === 'expense') {
-        const x = await api.getExpense(a.id)
-        if (req !== activityReq) return
-        s.activityDetail = {
-          ...s.activityDetail,
-          date: (x.expense_date || x.created_at || s.activityDetail.date || '').slice(0, 10) || s.activityDetail.date,
-          amount: x.amount ?? s.activityDetail.amount,
-          category: x.category || s.activityDetail.category,
-          status: x.status || s.activityDetail.status,
-          payee: x.payee || s.activityDetail.payee,
-          member: x.member_id ? (s.memberNames[x.member_id] || `Member #${x.member_id}`) : s.activityDetail.member,
-          note: x.description || s.activityDetail.note,
-        }
-      } else if (a.kind === 'donation') {
-        const d = await findDonationById(a.id, a.createdAt)
-        if (req !== activityReq) return
-        if (!d) {
-          s.activityErr = 'Donation details could not be loaded'
-        } else {
-          s.activityDetail = {
-            ...s.activityDetail,
-            date: (d.date_received || d.created_at || s.activityDetail.date || '').slice(0, 10) || s.activityDetail.date,
-            amount: d.amount ?? s.activityDetail.amount,
-            category: d.category || s.activityDetail.category,
-            method: d.method || s.activityDetail.method,
-            member: d.member_id ? (s.memberNames[d.member_id] || `Member #${d.member_id}`) : 'Anonymous',
-            note: d.note || s.activityDetail.note,
-          }
-        }
-      }
-    } catch (e) {
-      if (req !== activityReq) return
-      s.activityErr = e.message || 'Failed to load transaction details'
-    } finally {
-      if (req === activityReq) s.activityLoading = false
-    }
-  }
-  s.openActivityEdit = async () => {
-    const a = s.activityTarget
-    if (!a?.id || !a?.kind || !a?.canEdit || s.activityEditLoading) return
-    s.activityEditLoading = true
-    try {
-      if (a.kind === 'expense') {
-        const x = await api.getExpense(a.id)
-        if (!x) throw new Error('Expense not found')
-        s.closeActivity(); s.editExpense(x); return
-      }
-      if (a.kind === 'donation') {
-        const d = await findDonationById(a.id, a.createdAt)
-        if (!d) throw new Error('Donation not found')
-        s.closeActivity(); s.editDonation(d)
-      }
-    } catch (e) {
-      s.activityErr = e.message || 'Failed to open editor'
-      s.activityEditLoading = false
-    }
+  async function loadRecentTables() {
+    if (!hasFin) return
+    const [exp, inc] = await Promise.all([
+      auth.can('expenses:view') ? api.getExpenses({ limit: 8, sortBy: 'updated_at', sortDesc: 'true' }).catch(() => ({ items: [] })) : { items: [] },
+      auth.can('income:view') ? api.getIncome({ limit: 8, sortBy: 'updated_at', sortDesc: 'true', dateFrom: monthStart, dateTo: monthEnd }).catch(() => ({ items: [] })) : { items: [] },
+    ])
+    s.recentExpenses = exp.items || []
+    s.recentIncome = (inc.items || []).filter(d => (d?.type || 'income') === 'donation')
   }
 
   if (hasFin || hasMem) {
     Promise.all([
-      hasFin ? api.getDonations({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
+      hasFin ? api.getIncome({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
       hasFin ? api.getExpenses({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
       hasMem ? api.getMembers({ limit: 1 }) : null,
-    ]).then(([don, exp, mem]) => {
-      if (don && exp) {
-        const donAmt = (don.items || []).reduce((s, d) => s + (d.amount || 0), 0)
+    ]).then(([inc, exp, mem]) => {
+      if (inc && exp) {
+        const incItems = inc.items || []
+        const donationItems = incItems.filter(d => (d?.type || 'income') === 'donation')
+        const incAmt = incItems.reduce((s, d) => s + (d.amount || 0), 0)
         const expAmt = (exp.items || []).reduce((s, x) => s + (x.amount || 0), 0)
-        const gross = donAmt + expAmt || 1
-        s.fin = { donations: donAmt, expenses: expAmt, net: donAmt - expAmt, donPct: Math.round(donAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
+        const expItems = exp.items || []
+        const gross = incAmt + expAmt || 1
+        s.fin = { income: incAmt, expenses: expAmt, net: incAmt - expAmt, incPct: Math.round(incAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
+        s.donMonth = {
+          count: donationItems.length,
+          total: donationItems.reduce((sum, d) => sum + (d.amount || 0), 0),
+        }
+        s.finTasks = {
+          pending: expItems.filter(x => (x.status || 'submitted') === 'submitted').length,
+          ready: expItems.filter(x => (x.status || '') === 'approved').length,
+        }
         s.finLoading = false
       }
       if (mem) { s.members = { total: mem.total || 0 }; s.memLoading = false }
@@ -417,11 +392,6 @@
   api.getMyExpenses({ limit: 10, sortBy: 'created_at', sortDesc: 'true' })
     .then(res => { s.myExpenses = res.items || [] }).catch(() => {})
 
-  if (hasFin) {
-    api.getAuditLogs({ limit: 15, sortBy: 'created_at', sortDesc: 'true' })
-      .then(res => { s.activity = (res.items || []).map(mapActivity) }).catch(() => {})
-  }
-
   let _membersLoaded = false
   async function loadMemberNames() {
     if (_membersLoaded) return
@@ -433,19 +403,31 @@
     } catch {}
   }
 
+  if (hasFin) loadMemberNames().then(loadRecentTables)
+
   function refreshDashboard() {
     if (hasFin) {
       Promise.all([
-        api.getDonations({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }),
+        api.getIncome({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }),
         api.getExpenses({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }),
-      ]).then(([don, exp]) => {
-        const donAmt = (don.items || []).reduce((t, d) => t + (d.amount || 0), 0)
+      ]).then(([inc, exp]) => {
+        const incItems = inc.items || []
+        const donationItems = incItems.filter(d => (d?.type || 'income') === 'donation')
+        const incAmt = incItems.reduce((t, d) => t + (d.amount || 0), 0)
         const expAmt = (exp.items || []).reduce((t, x) => t + (x.amount || 0), 0)
-        const gross = donAmt + expAmt || 1
-        s.fin = { donations: donAmt, expenses: expAmt, net: donAmt - expAmt, donPct: Math.round(donAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
+        const expItems = exp.items || []
+        const gross = incAmt + expAmt || 1
+        s.fin = { income: incAmt, expenses: expAmt, net: incAmt - expAmt, incPct: Math.round(incAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
+        s.donMonth = {
+          count: donationItems.length,
+          total: donationItems.reduce((sum, d) => sum + (d.amount || 0), 0),
+        }
+        s.finTasks = {
+          pending: expItems.filter(x => (x.status || 'submitted') === 'submitted').length,
+          ready: expItems.filter(x => (x.status || '') === 'approved').length,
+        }
       }).catch(() => {})
-      api.getAuditLogs({ limit: 15, sortBy: 'created_at', sortDesc: 'true' })
-        .then(res => { s.activity = (res.items || []).map(mapActivity) }).catch(() => {})
+      loadRecentTables().catch(() => {})
     }
     Promise.all([api.getMyDonationSummary(y).catch(() => null), api.getMyTaxReceipts().catch(() => null)]).then(([summary, receipts]) => {
       if (!summary && !receipts) return
@@ -457,5 +439,4 @@
       .then(res => { s.myExpenses = res.items || [] }).catch(() => {})
   }
 
-  if (hasFin) loadMemberNames()
 </script>

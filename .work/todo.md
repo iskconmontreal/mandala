@@ -35,6 +35,12 @@
 
 ## [ ] Notifications
   * [ ] Invitations for all oboardees
+  * [ ] Integrate backend notification center from Goloka Swagger
+    * [ ] Read `GET /api/me/notifications`
+    * [ ] Use `POST /api/me/notifications/:id/read` and `POST /api/me/notifications/read-all`
+    * [ ] Add toasts for successful expense/donation submit
+    * [ ] Highlight newly created row for 3 seconds
+    * [ ] Show status badges + timeline in `/me/expenses`
 
 ## [ ] Auth flows
   * [ ] Google
@@ -69,11 +75,14 @@
 
 * [ ] Change expense grouping
 
+
 ## Ideas
 
+* [ ] Link to soundboard (can be iframe)
+* [ ] Write down Luv prabhu / sankirtan numbers
 * [ ] Upload a file, system decides itself where to classify it: expense, donation, legal etc.
 * [ ] Who is online feature
-
+* [ ] Tracking spiritual results to please Guru
 
 ## Archive
 

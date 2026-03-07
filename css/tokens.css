@@ -13,6 +13,16 @@
   --c-warn:     #e6a23c;
   --c-err:      #e25c5c;    /* negative / expense */
 
+  /* Category colors */
+  --c-cat-purple: #6b5ce7;
+  --c-cat-amber:  #b8860b;
+  --c-cat-teal:   #1a7a72;
+  --c-cat-blue:   #3a6098;
+  --c-cat-green:  #2d7a52;
+  --c-cat-brown:  #7a5c30;
+  --c-cat-indigo: #504696;
+  --c-cat-gray:   #aaa;
+
   /* Space — 4px base, limited scale */
   --s-xs:  0.25rem;   /* 4 */
   --s-sm:  0.5rem;    /* 8 */

@@ -10,6 +10,14 @@ function mockMembers(page, { members = [] } = {}) {
     const method = route.request().method()
     const path = url.pathname
 
+    if (path === '/api/roles' && method === 'GET') {
+      const names = [...new Set(members
+        .map(m => typeof m.data === 'string' ? JSON.parse(m.data)?.role : m.data?.role)
+        .filter(Boolean)
+      )]
+      return route.fulfill({ json: { roles: names.map((name, i) => ({ id: i + 1, name })) } })
+    }
+
     if (path === '/api/members') {
       if (method === 'POST') {
         const body = route.request().postDataJSON()

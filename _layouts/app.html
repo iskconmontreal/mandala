@@ -14,8 +14,10 @@
 </head>
 <body>
   <div class="progress loading"
-      :scope="{loading: true}"
+      :scope="{loading: true, mouse: .5}"
+      :style="{'--progress-mouse': mouse}"
       :class="{loading, done: !loading}"
+      :onmousemove.document.throttle-raf="event => { mouse = Math.max(0, Math.min(1, (event?.clientX || 0) / Math.max(window.innerWidth, 1))) }"
       :onload.window="loading = false"></div>
   <div class="app" id="app">
 
@@ -26,7 +28,7 @@
       </a>
 
       <nav class="nav">
-        <a :if="can('donations:view') || can('expenses:view')" class="nav-item" :class="{active: active('finance')}" href="{{ '/app/finance/' | relative_url }}">
+        <a :if="can('income:view') || can('expenses:view')" class="nav-item" :class="{active: active('finance')}" href="{{ '/app/finance/' | relative_url }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Finance
         </a>
@@ -62,7 +64,7 @@
     <main class="main">
       {{ content }}
 
-      <p :if="can('donations:view') || can('expenses:view')"
+      <p :if="can('income:view') || can('expenses:view')"
         class="dim" style="text-align:center; margin-top:auto; padding-top:var(--s-xl); font-size:var(--f-sm); font-style:italic"
         :scope="((a) => ({_q: a[Math.floor(Math.random() * a.length)]}))([
           '&ldquo;There must be always individual striving and work and responsibility.&rdquo; — Śrīla Prabhupāda',
@@ -73,7 +75,7 @@
           '&ldquo;Our leaders shall be careful not to kill the spirit of enthusiastic service.&rdquo; — Śrīla Prabhupāda',
           '&ldquo;Record of expenditures must be there, that is standard procedure.&rdquo; — Śrīla Prabhupāda' ])"
         :text="_q"></p>
-      <p :if="!(can('donations:view') || can('expenses:view'))"
+      <p :if="!(can('income:view') || can('expenses:view'))"
         class="dim" style="text-align:center; margin-top:auto; padding-top:var(--s-xl); font-size:var(--f-sm); font-style:italic"
         :scope="((a) => ({_q: a[Math.floor(Math.random() * a.length)]}))([ '&ldquo;Even a small service to the Lord is accepted by Him.&rdquo; — Śrīla Prabhupāda',
         '&ldquo;Whatever you do, do it as an offering to Krishna.&rdquo; — Śrīla Prabhupāda',

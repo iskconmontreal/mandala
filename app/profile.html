@@ -26,7 +26,7 @@
   <h3 style="margin-bottom:var(--s-md)">Permissions</h3>
   <div style="display:flex; flex-direction:column; gap:var(--s-md)">
     <div :each="scope in Object.keys(permGroups)">
-      <div class="stat-label" style="margin-bottom:var(--s-xs)" :text="({clients:'Members',users:'Users',expenses:'Expenses',donations:'Donations',roles:'Roles'})[scope] || fmtCat(scope)"></div>
+      <div class="stat-label" style="margin-bottom:var(--s-xs)" :text="({clients:'Members',users:'Users',expenses:'Expenses',income:'Income',donations:'Donations',roles:'Roles'})[scope] || fmtCat(scope)"></div>
       <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs)">
         <span class="badge" :each="action in permGroups[scope]" :text="action"></span>
       </div>

@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test'
 import { loginAs, API } from './fixtures.js'
 
 const ALL_PERMS = [
-  'donations:view', 'donations:create',
+  'income:view', 'income:create',
   'expenses:view', 'expenses:create', 'expenses:approve',
   'members:view', 'members:create', 'members:manage',
   'roles:update',
@@ -87,8 +87,8 @@ test.describe('roles & permissions', () => {
 
   test('renders role cards with grouped permissions', async ({ page }) => {
     const roles = [
-      mkRole(1, 'Admin', ['donations:view', 'expenses:view', 'members:view'], 'Full access'),
-      mkRole(2, 'Viewer', ['donations:view'], 'Read only'),
+      mkRole(1, 'Admin', ['income:view', 'expenses:view', 'members:view'], 'Full access'),
+      mkRole(2, 'Viewer', ['income:view'], 'Read only'),
     ]
     await mockRoles(page, { roles })
     await openRoles(page)
@@ -101,7 +101,7 @@ test.describe('roles & permissions', () => {
   })
 
   test('admin creates new role via modal', async ({ page }) => {
-    const roles = [mkRole(1, 'Existing', ['donations:view'])]
+    const roles = [mkRole(1, 'Existing', ['income:view'])]
     await mockRoles(page, { roles })
     await openRoles(page)
 
@@ -112,8 +112,8 @@ test.describe('roles & permissions', () => {
     await page.fill('#r-desc', 'Temple duties')
 
     const modal = page.locator('.modal')
-    const donationsRow = modal.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Donations' }) })
-    await donationsRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
+    const incomeRow = modal.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
+    await incomeRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
 
     await page.getByRole('button', { name: 'Create Role' }).click()
     await expect(page.locator('.modal')).toBeHidden()
@@ -121,7 +121,7 @@ test.describe('roles & permissions', () => {
   })
 
   test('admin toggles permission on existing role', async ({ page }) => {
-    const roles = [mkRole(1, 'Sevaka', ['donations:view'])]
+    const roles = [mkRole(1, 'Sevaka', ['income:view'])]
     await mockRoles(page, { roles })
     await openRoles(page)
 
@@ -135,12 +135,12 @@ test.describe('roles & permissions', () => {
   })
 
   test('admin unchecks permission on existing role', async ({ page }) => {
-    const roles = [mkRole(1, 'Sevaka', ['donations:view', 'donations:create'])]
+    const roles = [mkRole(1, 'Sevaka', ['income:view', 'income:create'])]
     await mockRoles(page, { roles })
     await openRoles(page)
 
     const card = page.locator('.card').first()
-    const donRow = card.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Donations' }) })
+    const donRow = card.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
     const createCheck = donRow.locator('.perm-check', { hasText: 'create' }).locator('input')
 
     await expect(createCheck).toBeChecked()
@@ -149,8 +149,8 @@ test.describe('roles & permissions', () => {
   })
 
   test('admin resets role permissions to defaults', async ({ page }) => {
-    const roles = [mkRole(1, 'Sevaka', ['donations:view', 'expenses:view'])]
-    roles[0].permissions = ['donations:view', 'expenses:view', 'members:view']
+    const roles = [mkRole(1, 'Sevaka', ['income:view', 'expenses:view'])]
+    roles[0].permissions = ['income:view', 'expenses:view', 'members:view']
     await mockRoles(page, { roles })
     await openRoles(page)
 
@@ -165,7 +165,7 @@ test.describe('roles & permissions', () => {
 
   test('admin deletes a role', async ({ page }) => {
     const roles = [
-      mkRole(1, 'Keep', ['donations:view']),
+      mkRole(1, 'Keep', ['income:view']),
       mkRole(2, 'Remove', ['expenses:view']),
     ]
     await mockRoles(page, { roles })
@@ -180,7 +180,7 @@ test.describe('roles & permissions', () => {
   })
 
   test('delete shows confirm dialog and cancelling preserves role', async ({ page }) => {
-    const roles = [mkRole(1, 'Protected', ['donations:view'])]
+    const roles = [mkRole(1, 'Protected', ['income:view'])]
     await mockRoles(page, { roles })
     await openRoles(page)
 
@@ -215,7 +215,7 @@ test.describe('roles & permissions', () => {
 
   test('modify permissions across multiple roles', async ({ page }) => {
     const roles = [
-      mkRole(1, 'Role A', ['donations:view']),
+      mkRole(1, 'Role A', ['income:view']),
       mkRole(2, 'Role B', ['expenses:view']),
     ]
     await mockRoles(page, { roles })
@@ -227,7 +227,7 @@ test.describe('roles & permissions', () => {
     const aExpRow = cardA.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Expenses' }) })
     await aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
 
-    const bDonRow = cardB.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Donations' }) })
+    const bDonRow = cardB.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
     await bDonRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
 
     await expect(aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input')).toBeChecked()

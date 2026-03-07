@@ -117,6 +117,8 @@ td {
   padding: var(--s-sm) var(--s-md);
   border-bottom: 1px solid var(--c-border);
 }
+th:first-child, td:first-child { padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
 
 /* Buttons */
 .btn {
@@ -145,6 +147,17 @@ td {
 .btn-outline:hover {
   border-color: var(--c-accent);
   color: var(--c-accent);
+}
+
+.btn-secondary {
+  border: 1px solid color-mix(in srgb, var(--c-accent) 18%, var(--c-border));
+  background: var(--c-accent-hover);
+  color: var(--c-accent);
+}
+.btn-secondary:hover {
+  border-color: var(--c-accent);
+  background: var(--c-accent-active);
+  color: var(--c-accent-h);
 }
 
 .btn-block { width: 100%; }

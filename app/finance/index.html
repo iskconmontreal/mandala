@@ -6,7 +6,7 @@
     <div style="font-size:var(--f-sm)" class="dim"><span :class="net > 0 ? 'stat-ok' : net < 0 ? 'stat-err' : ''" :text="(net >= 0 ? '+' : '−') + '$' + fmtAmt(Math.abs(net))"></span> this month</div>
   </div>
   <div style="display:flex; align-items:center; gap:var(--s-md)">
-    <select class="year-select" :onchange="e => { year = +e.target.value; loadAll() }">
+    <select class="year-select" :onchange="e => setYear(+e.target.value)">
       <option :each="y in years" :value="y" :text="y" :selected="y === year"></option>
     </select>
   </div>
@@ -20,11 +20,11 @@
     <div class="stat-value"><span :text="'$' + fmtAmt(expMonth)"></span></div>
     <div class="stat-sub dim"><svg :if="trend(expMonth, expPrevMonth, true).dir" class="trend-arrow" :class="trend(expMonth, expPrevMonth, true).cls" viewBox="0 0 12 12"><path :d="trend(expMonth, expPrevMonth, true).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trend(expMonth, expPrevMonth, true).num"></span><span :text="trend(expMonth, expPrevMonth, true).label"></span></div>
   </div>
-  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donations'}"
-    :onclick="e => { switchTab('donations'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
-    <div class="stat-label">Donations</div>
-    <div class="stat-value"><span :text="'$' + fmtAmt(donMonth)"></span></div>
-    <div class="stat-sub dim"><svg :if="trend(donMonth, donPrevMonth).dir" class="trend-arrow" :class="trend(donMonth, donPrevMonth).cls" viewBox="0 0 12 12"><path :d="trend(donMonth, donPrevMonth).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trend(donMonth, donPrevMonth).num"></span><span :text="trend(donMonth, donPrevMonth).label"></span></div>
+  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'income'}"
+    :onclick="e => { switchTab('income'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
+    <div class="stat-label">Income</div>
+    <div class="stat-value"><span :text="'$' + fmtAmt(incMonth)"></span></div>
+    <div class="stat-sub dim"><svg :if="trend(incMonth, incPrevMonth).dir" class="trend-arrow" :class="trend(incMonth, incPrevMonth).cls" viewBox="0 0 12 12"><path :d="trend(incMonth, incPrevMonth).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trend(incMonth, incPrevMonth).num"></span><span :text="trend(incMonth, incPrevMonth).label"></span></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donors'}"
     :onclick="e => { switchTab('donors'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
@@ -40,29 +40,29 @@
   <div class="filter-bar">
     <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Expense</button>
     <input class="filter-search" type="search" placeholder="Search expense, vendor, submitter…"
-      :value="expSearch" :oninput.debounce-150="e => { expSearch = e.target.value; expPage = 1 }">
+      :value="expSearch" :oninput.debounce-150="e => patchState({ expSearch: e.target.value, expPage: 1 })">
     <div style="position:relative" :onclick.outside="showFilter = false">
       <button class="btn btn-filter" :onclick="showFilter = !showFilter"
         :style="{color: expFilterCat || expFilterStatus || expDateFrom || expDateTo ? 'var(--c-accent)' : ''}">Filter</button>
       <div :if="showFilter" class="filter-dropdown">
         <div class="field">
           <label>Status</label>
-          <select :value="expFilterStatus" :onchange="e => { expFilterStatus = e.target.value; expPage = 1 }">
-            <option value="">All statuses</option>
-            <option :each="st in expStatuses" :value="st" :text="fmtStatus(st)"></option>
+          <select :value="expFilterStatus" :onchange="e => patchState({ expFilterStatus: e.target.value, expPage: 1 })">
+            <option value="" :selected="!expFilterStatus">All statuses</option>
+            <option :each="st in expStatuses" :value="st" :text="fmtStatus(st)" :selected="st === expFilterStatus"></option>
           </select>
         </div>
         <div class="field">
           <label>Date range</label>
           <div style="display:flex;gap:var(--s-sm);align-items:center">
-            <input type="date" :value="expDateFrom" :onchange="e => { expDateFrom = e.target.value; expPage = 1 }" style="flex:1">
+            <input type="date" :value="expDateFrom" :onchange="e => patchState({ expDateFrom: e.target.value, expPage: 1 })" style="flex:1">
             <span class="dim">—</span>
-            <input type="date" :value="expDateTo" :onchange="e => { expDateTo = e.target.value; expPage = 1 }" style="flex:1">
+            <input type="date" :value="expDateTo" :onchange="e => patchState({ expDateTo: e.target.value, expPage: 1 })" style="flex:1">
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--s-sm);border-top:1px solid var(--c-border)">
           <button class="btn-link" :if="expFilterCat || expFilterStatus || expDateFrom || expDateTo"
-            :onclick="e => { expFilterCat = ''; expFilterStatus = ''; expDateFrom = ''; expDateTo = ''; expPage = 1 }">Clear all</button>
+            :onclick="clearExpenseFilters()">Clear all</button>
           <span :if="!expFilterCat && !expFilterStatus && !expDateFrom && !expDateTo"></span>
           <button class="btn btn-primary btn-sm" :onclick="showFilter = false"
             :text="'Show ' + expFiltered.length + ' results'"></button>
@@ -90,17 +90,17 @@
     <div :each="seg in catBreakdown" class="cat-pill-seg"
       :class="{dim: expFilterCat && expFilterCat !== seg.cat, active: expFilterCat === seg.cat}"
       :style="{width: Math.max(seg.pct, 0.5) + '%', background: seg.color}"
-      :onclick="e => { expFilterCat = expFilterCat === seg.cat ? '' : seg.cat; expPage = 1 }">
+      :onclick="patchState({ expFilterCat: expFilterCat === seg.cat ? '' : seg.cat, expPage: 1 })">
       <span class="cat-pill-tip" :text="fmt(seg.cat) + ' ' + Math.round(seg.pct) + '%'"></span>
     </div>
   </div>
 
   <div :if="expFilterStatus || expDateFrom || expDateTo" class="filter-chips">
-    <span :if="expFilterStatus" class="chip" :onclick="e => { expFilterStatus = ''; expPage = 1 }" :text="fmtStatus(expFilterStatus) + ' ×'"></span>
-    <span :if="expDateFrom" class="chip" :onclick="e => { expDateFrom = ''; expPage = 1 }" :text="'From ' + expDateFrom + ' ×'"></span>
-    <span :if="expDateTo" class="chip" :onclick="e => { expDateTo = ''; expPage = 1 }" :text="'To ' + expDateTo + ' ×'"></span>
+    <span :if="expFilterStatus" class="chip" :onclick="patchState({ expFilterStatus: '', expPage: 1 })" :text="fmtStatus(expFilterStatus) + ' ×'"></span>
+    <span :if="expDateFrom" class="chip" :onclick="patchState({ expDateFrom: '', expPage: 1 })" :text="'From ' + expDateFrom + ' ×'"></span>
+    <span :if="expDateTo" class="chip" :onclick="patchState({ expDateTo: '', expPage: 1 })" :text="'To ' + expDateTo + ' ×'"></span>
     <button class="btn-link" style="font-size:var(--f-sm);color:var(--c-text-dim)"
-      :onclick="e => { expFilterCat = ''; expFilterStatus = ''; expDateFrom = ''; expDateTo = ''; expPage = 1 }">Clear all</button>
+      :onclick="clearExpenseFilters()">Clear all</button>
   </div>
 
   <!-- Table view -->
@@ -122,7 +122,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr :each="x in expPaged" class="row-link" :onclick="editExpense(x)">
+          <tr :each="x in expPaged" class="row-link" :onclick="viewExpense(x)">
             <td :each="c in expCols" :html="_expCell(x, c.key)" :style="c.right ? 'text-align:right' : ''"></td>
             <td :if="can('expenses:approve')" class="quick-actions" :onclick.stop="">
               <button :if="x.status === 'submitted' && !myApprovals[x.id]" class="btn-quick btn-quick-approve" :class="{'btn-loading': quickLoading[x.id]}" :onclick="quickApprove(x)">Approve</button>
@@ -219,29 +219,37 @@
 
 </section>
 
-<!-- ===== DONATIONS TAB ===== -->
-<section :class="{'hidden': activeTab !== 'donations'}" :scope="{showFilter: false, showExport: false}">
+<!-- ===== INCOME TAB ===== -->
+<section :class="{'hidden': activeTab !== 'income'}" :scope="{showFilter: false, showExport: false}">
 
   <div class="filter-bar">
-    <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Donation</button>
-    <input class="filter-search" type="search" placeholder="Search donor or note…"
-      :value="donSearch" :oninput.debounce-150="e => { donSearch = e.target.value; donPage = 1 }">
+    <button class="btn btn-primary btn-sm" :onclick="openDonForm()">+ Income</button>
+    <input class="filter-search" type="search" placeholder="Search source or note…"
+      :value="donSearch" :oninput.debounce-150="e => patchState({ donSearch: e.target.value, donPage: 1 })">
     <div style="position:relative" :onclick.outside="showFilter = false">
       <button class="btn btn-filter" :onclick="showFilter = !showFilter"
-        :style="{color: donFilterCat || donDateFrom || donDateTo ? 'var(--c-accent)' : ''}">Filter</button>
+        :style="{color: donFilterCat || donFilterType || donDateFrom || donDateTo ? 'var(--c-accent)' : ''}">Filter</button>
       <div :if="showFilter" class="filter-dropdown">
+        <div class="field">
+          <label>Type</label>
+          <select :value="donFilterType" :onchange="e => patchState({ donFilterType: e.target.value, donPage: 1 })">
+            <option value="" :selected="!donFilterType">All income</option>
+            <option value="donation" :selected="donFilterType === 'donation'">Donations</option>
+            <option value="other" :selected="donFilterType === 'other'">Other income</option>
+          </select>
+        </div>
         <div class="field">
           <label>Date range</label>
           <div style="display:flex;gap:var(--s-sm);align-items:center">
-            <input type="date" :value="donDateFrom" :onchange="e => { donDateFrom = e.target.value; donPage = 1 }" style="flex:1">
+            <input type="date" :value="donDateFrom" :onchange="e => patchState({ donDateFrom: e.target.value, donPage: 1 })" style="flex:1">
             <span class="dim">—</span>
-            <input type="date" :value="donDateTo" :onchange="e => { donDateTo = e.target.value; donPage = 1 }" style="flex:1">
+            <input type="date" :value="donDateTo" :onchange="e => patchState({ donDateTo: e.target.value, donPage: 1 })" style="flex:1">
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--s-sm);border-top:1px solid var(--c-border)">
-          <button class="btn-link" :if="donFilterCat || donDateFrom || donDateTo"
-            :onclick="e => { donFilterCat = ''; donDateFrom = ''; donDateTo = ''; donPage = 1 }">Clear all</button>
-          <span :if="!donFilterCat && !donDateFrom && !donDateTo"></span>
+          <button class="btn-link" :if="donFilterCat || donFilterType || donDateFrom || donDateTo"
+            :onclick="clearIncomeFilters()">Clear all</button>
+          <span :if="!donFilterCat && !donFilterType && !donDateFrom && !donDateTo"></span>
           <button class="btn btn-primary btn-sm" :onclick="showFilter = false"
             :text="'Show ' + donFiltered.length + ' results'"></button>
         </div>
@@ -260,16 +268,17 @@
     <div :each="seg in catBreakdown" class="cat-pill-seg"
       :class="{dim: donFilterCat && donFilterCat !== seg.cat, active: donFilterCat === seg.cat}"
       :style="{width: Math.max(seg.pct, 0.5) + '%', background: seg.color}"
-      :onclick="e => { donFilterCat = donFilterCat === seg.cat ? '' : seg.cat; donPage = 1 }">
+      :onclick="patchState({ donFilterCat: donFilterCat === seg.cat ? '' : seg.cat, donPage: 1 })">
       <span class="cat-pill-tip" :text="fmt(seg.cat) + ' ' + Math.round(seg.pct) + '%'"></span>
     </div>
   </div>
 
-  <div :if="donDateFrom || donDateTo" class="filter-chips">
-    <span :if="donDateFrom" class="chip" :onclick="e => { donDateFrom = ''; donPage = 1 }" :text="'From ' + donDateFrom + ' ×'"></span>
-    <span :if="donDateTo" class="chip" :onclick="e => { donDateTo = ''; donPage = 1 }" :text="'To ' + donDateTo + ' ×'"></span>
+  <div :if="donFilterType || donDateFrom || donDateTo" class="filter-chips">
+    <span :if="donFilterType" class="chip" :onclick="patchState({ donFilterType: '', donPage: 1 })" :text="(donFilterType === 'donation' ? 'Donations' : 'Other income') + ' ×'"></span>
+    <span :if="donDateFrom" class="chip" :onclick="patchState({ donDateFrom: '', donPage: 1 })" :text="'From ' + donDateFrom + ' ×'"></span>
+    <span :if="donDateTo" class="chip" :onclick="patchState({ donDateTo: '', donPage: 1 })" :text="'To ' + donDateTo + ' ×'"></span>
     <button class="btn-link" style="font-size:var(--f-sm);color:var(--c-text-dim)"
-      :onclick="e => { donFilterCat = ''; donDateFrom = ''; donDateTo = ''; donPage = 1 }">Clear all</button>
+      :onclick="clearIncomeFilters()">Clear all</button>
   </div>
 
   <div class="card">
@@ -279,9 +288,9 @@
         <thead>
           <tr>
             <th class="th-sort" :class="_sortCls('don', 'date_received')" :onclick="_toggleSort('don', 'date_received')">Date</th>
-            <th>Donor</th>
+            <th>Source</th>
             <th class="th-sort" :class="_sortCls('don', 'method')" :onclick="_toggleSort('don', 'method')">Method</th>
-            <th class="th-sort" :class="_sortCls('don', 'category')" :onclick="_toggleSort('don', 'category')">Category</th>
+            <th class="th-sort" :class="_sortCls('don', 'type')" :onclick="_toggleSort('don', 'type')">Type</th>
             <th>Note</th>
             <th class="th-sort" :class="_sortCls('don', 'amount')" :onclick="_toggleSort('don', 'amount')" style="text-align:right">Amount</th>
           </tr>
@@ -289,20 +298,20 @@
         <tbody>
           <tr :each="d in donPaged" class="row-link" :onclick="editDonation(d)">
             <td :text="fmtDate(d.date_received)"></td>
-            <td :html="hl(d.client_id ? (memberNames[d.client_id] || '—') : 'Anonymous', donSearch)"></td>
+            <td :html="hl(incomeSource(d), donSearch)"></td>
             <td :html="hl(fmt(d.method), donSearch)"></td>
-            <td><span class="badge" :class="catCls(d.category)" :text="fmt(d.category)"></span></td>
+            <td><span class="badge" :class="catCls(incomeBucket(d))" :text="fmt(incomeLabel(d))"></span></td>
             <td class="dim" :html="hl(d.note || '—', donSearch)"></td>
             <td style="text-align:right" class="stat-ok" :text="'+$' + fmtAmt(d.amount)"></td>
           </tr>
           <tr :if="!donations.length && !loading">
             <td colspan="6" style="text-align:center;padding:var(--s-xl)">
-              <div class="dim" style="margin-bottom:var(--s-sm)">No donations yet</div>
-              <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Record first donation</button>
+              <div class="dim" style="margin-bottom:var(--s-sm)">No income yet</div>
+              <button class="btn btn-primary btn-sm" :onclick="openDonForm()">+ Record first income</button>
             </td>
           </tr>
           <tr :if="donations.length && !donFiltered.length && !loading">
-            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">No donations match filters</td>
+            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">No income matches filters</td>
           </tr>
           <tr :if="loading">
             <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
@@ -322,7 +331,7 @@
 
   <div class="filter-bar">
     <input class="filter-search" type="search" placeholder="Search donor…"
-      :value="donorSearch" :oninput.debounce-150="e => { donorSearch = e.target.value; donorPage = 1 }">
+      :value="donorSearch" :oninput.debounce-150="e => patchState({ donorSearch: e.target.value, donorPage: 1 })">
     <div style="position:relative">
       <button class="btn btn-export" :onclick="showExport = !showExport" :onclick.outside="showExport = false">Export</button>
       <div :if="showExport" class="quick-add" style="right:0;left:auto">
@@ -376,12 +385,12 @@
   import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth, hl } from '../../lib/app.js'
   import { api, BASE } from '../../lib/api.js'
   import { statusIcon } from '../../lib/icons.js'
-  import { EXP_STATUSES, STATUS_ORDER, catCls, catHex, fmtStatus, fmtDate, parseDiff, eventBadge, eventLabel, eventDetail, actorName as _actorName, parseMemberNames } from '../../lib/finance.js'
+  import { EXP_STATUSES, STATUS_ORDER, catCls, catHex, fmtStatus, fmtDate, eventBadge, eventLabel, eventDetail, actorName as _actorName, parseMemberNames, buildMetaHistory } from '../../lib/finance.js'
   import { formDefaults, bindForm, expIsEditable, expGetAttachments, buildExpTimeline } from '../../lib/form.js'
 
   const MY_USER_ID = auth.user?.id
 
-  if (!auth.can('donations:view') && !auth.can('expenses:view')) {
+  if (!auth.can('income:view') && !auth.can('expenses:view')) {
     location.replace(new URL('../', location.href).href)
     throw new Error('redirecting')
   }
@@ -391,6 +400,71 @@
   const years = Array.from({ length: 3 }, (_, i) => curYear - i)
   const monthLabel = now.toLocaleString('default', { month: 'short' })
   const perPage = 20
+  const normTab = tab => tab === 'donations' ? 'income' : (tab || 'expenses')
+  const normYear = value => years.includes(+value) ? +value : curYear
+  const normIncomeType = value => value === 'donation' || value === 'other' ? value : ''
+  const bucketOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
+  const labelOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
+  const sourceOf = (x, names) => x.member_id ? (names[x.member_id] || x.source_name || '—') : (x.source_name || 'Anonymous')
+  const urlState = () => {
+    const url = new URL(location.href)
+    return {
+      activeTab: normTab(url.searchParams.get('tab') || url.hash.slice(1) || 'expenses'),
+      year: normYear(url.searchParams.get('year')),
+      expSearch: url.searchParams.get('exp_q') || '',
+      expFilterCat: url.searchParams.get('exp_cat') || '',
+      expFilterStatus: url.searchParams.get('exp_status') || '',
+      expDateFrom: url.searchParams.get('exp_from') || '',
+      expDateTo: url.searchParams.get('exp_to') || '',
+      donSearch: url.searchParams.get('inc_q') || '',
+      donFilterCat: url.searchParams.get('inc_cat') || '',
+      donFilterType: normIncomeType(url.searchParams.get('inc_type') || ''),
+      donDateFrom: url.searchParams.get('inc_from') || '',
+      donDateTo: url.searchParams.get('inc_to') || '',
+      donorSearch: url.searchParams.get('donor_q') || '',
+    }
+  }
+  const initUrl = urlState()
+  const incomeTypeMatch = (row, filter) => {
+    const type = row?.type || 'donation'
+    if (!filter) return true
+    if (filter === 'donation') return type === 'donation'
+    return type !== 'donation'
+  }
+
+  function writeUrl(state, mode = 'replaceState') {
+    const url = new URL(location.href)
+    const params = new URLSearchParams()
+    params.set('tab', normTab(state.activeTab || 'expenses'))
+    if (+state.year !== curYear) params.set('year', String(state.year))
+    if (state.expSearch) params.set('exp_q', state.expSearch)
+    if (state.expFilterCat) params.set('exp_cat', state.expFilterCat)
+    if (state.expFilterStatus) params.set('exp_status', state.expFilterStatus)
+    if (state.expDateFrom) params.set('exp_from', state.expDateFrom)
+    if (state.expDateTo) params.set('exp_to', state.expDateTo)
+    if (state.donSearch) params.set('inc_q', state.donSearch)
+    if (state.donFilterCat) params.set('inc_cat', state.donFilterCat)
+    if (state.donFilterType) params.set('inc_type', state.donFilterType)
+    if (state.donDateFrom) params.set('inc_from', state.donDateFrom)
+    if (state.donDateTo) params.set('inc_to', state.donDateTo)
+    if (state.donorSearch) params.set('donor_q', state.donorSearch)
+    url.search = params.toString()
+    url.hash = '#' + normTab(state.activeTab || 'expenses')
+    history[mode](null, '', url)
+  }
+
+  function monthKeys(year) {
+    const curMonth = year === curYear ? now.getMonth() + 1 : 12
+    let prevYear = year, prevMonth = curMonth - 1
+    if (prevMonth < 1) {
+      prevMonth = 12
+      prevYear--
+    }
+    return {
+      cur: `${year}-${String(curMonth).padStart(2, '0')}`,
+      prev: `${prevYear}-${String(prevMonth).padStart(2, '0')}`,
+    }
+  }
   function observe(el, cb) {
     if (!el) return
     let visible = false
@@ -398,6 +472,10 @@
     io.observe(el)
     const timer = setInterval(() => { if (visible) cb() }, 800)
     return () => { io.disconnect(); clearInterval(timer) }
+  }
+
+  function expenseMetaHistory(x) {
+    return buildMetaHistory(x).sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
   }
 
   function dlCSV(rows, name) {
@@ -412,15 +490,15 @@
 
   const s = init({
     ...formDefaults(BASE, MY_USER_ID),
-    activeTab: location.hash.slice(1) || 'expenses',
+    activeTab: initUrl.activeTab,
     actorName: (uid, names) => _actorName(uid, names, MY_USER_ID),
     hl, observe, statusIcon, catCls, catHex,
 
-    year: curYear, years, monthLabel,
+    year: initUrl.year, years, monthLabel,
     loading: false, loadErr: null,
     donations: [], expenses: [],
     expTotal: 0, donTotal: 0,
-    expMonth: 0, expPrevMonth: 0, donMonth: 0, donPrevMonth: 0,
+    expMonth: 0, expPrevMonth: 0, incMonth: 0, incPrevMonth: 0,
     donorsMonth: 0, donorsPrevMonth: 0,
     donorRows: [], donorTotal: 0,
     expStatuses: Object.keys(EXP_STATUSES),
@@ -429,11 +507,16 @@
     get expEditable() { return expIsEditable(this) },
     get expAttachments() { return expGetAttachments(this) },
     get expTimeline() { return buildExpTimeline(this) },
+    incomeBucket: bucketOf,
+    incomeLabel: labelOf,
+    incomeSource(x) { return sourceOf(x, this.memberNames) },
     get catBreakdown() {
-      const items = this.activeTab === 'donations' ? this.donations : this.expenses
+      const items = this.activeTab === 'income'
+        ? this.donations.filter(r => incomeTypeMatch(r, this.donFilterType))
+        : this.expenses
       const map = {}
       for (const r of items) {
-        const c = r.category || 'other'
+        const c = this.activeTab === 'income' ? bucketOf(r) : (r.category || 'other')
         map[c] = (map[c] || 0) + (r.amount || 0)
       }
       const total = Object.values(map).reduce((s, v) => s + v, 0)
@@ -462,9 +545,9 @@
       if (!this.expInlineHistory[id]) loadExpInlineHistory(id)
     },
 
-    get _filterCat() { return this.activeTab === 'donations' ? this.donFilterCat : this.expFilterCat },
+    get _filterCat() { return this.activeTab === 'income' ? this.donFilterCat : this.expFilterCat },
     toggleCat(cat) {
-      if (this.activeTab === 'donations') {
+      if (this.activeTab === 'income') {
         this.donFilterCat = this.donFilterCat === cat ? '' : cat
         this.donPage = 1
       } else {
@@ -473,7 +556,7 @@
       }
     },
 
-    get net() { return this.donMonth - this.expMonth },
+    get net() { return this.incMonth - this.expMonth },
 
     trend(cur, prev, invert) {
       if (!cur && !prev) return { cls: '', dir: '', num: '', label: 'No data yet' }
@@ -490,7 +573,7 @@
       return { cls: d > 0 ? 'stat-ok' : 'stat-err', dir: d > 0 ? 'up' : 'down', num: (d > 0 ? '+' : '') + d, label: ' from last month' }
     },
 
-    expSearch: '', expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1,
+    expSearch: initUrl.expSearch, expFilterCat: initUrl.expFilterCat, expFilterStatus: initUrl.expFilterStatus, expDateFrom: initUrl.expDateFrom, expDateTo: initUrl.expDateTo, expPage: 1,
     expView: 'list', expExpandId: null, expInlineHistory: {}, expInlineLoading: {},
     expSortBy: 'created_at', expSortDir: 'desc',
     expCols: [
@@ -575,15 +658,16 @@
       return arr.slice(0, this.expPage * perPage)
     },
 
-    donSearch: '', donFilterCat: '', donDateFrom: '', donDateTo: '', donPage: 1, donSortBy: '', donSortDir: 'asc',
+    donSearch: initUrl.donSearch, donFilterCat: initUrl.donFilterCat, donFilterType: initUrl.donFilterType, donDateFrom: initUrl.donDateFrom, donDateTo: initUrl.donDateTo, donPage: 1, donSortBy: '', donSortDir: 'asc',
     get donFiltered() {
       const q = this.donSearch.toLowerCase()
       return this.donations.filter(r => {
         const dt = r.date_received?.slice(0, 10) || ''
-        if (this.donFilterCat && r.category !== this.donFilterCat) return false
+        if (!incomeTypeMatch(r, this.donFilterType)) return false
+        if (this.donFilterCat && bucketOf(r) !== this.donFilterCat) return false
         if (this.donDateFrom && dt < this.donDateFrom) return false
         if (this.donDateTo && dt > this.donDateTo) return false
-        return !q || [r.note, r.method, r.member_id ? this.memberNames[r.member_id] : ''].filter(Boolean).join(' ').toLowerCase().includes(q)
+        return !q || [r.note, r.method, r.type, bucketOf(r), sourceOf(r, this.memberNames)].filter(Boolean).join(' ').toLowerCase().includes(q)
       })
     },
     get donHasMore() { return this.donPage * perPage < this.donFiltered.length || this.donations.length < this.donTotal },
@@ -592,7 +676,7 @@
       return arr.slice(0, this.donPage * perPage)
     },
 
-    donorSearch: '', donorPage: 1, donorSortBy: 'total', donorSortDir: 'desc',
+    donorSearch: initUrl.donorSearch, donorPage: 1, donorSortBy: 'total', donorSortDir: 'desc',
     get donorFiltered() {
       const q = this.donorSearch.toLowerCase()
       return q ? this.donorRows.filter(d => d.name.toLowerCase().includes(q)) : this.donorRows
@@ -603,10 +687,27 @@
       return arr.slice(0, this.donorPage * perPage)
     },
 
+    patchState(patch) {
+      Object.assign(this, patch)
+      writeUrl(this)
+    },
+    setYear(year) {
+      const next = normYear(year)
+      if (next === this.year) return
+      this.year = next
+      writeUrl(this)
+      loadAll()
+    },
+    clearExpenseFilters() {
+      this.patchState({ expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 })
+    },
+    clearIncomeFilters() {
+      this.patchState({ donFilterCat: '', donFilterType: '', donDateFrom: '', donDateTo: '', donPage: 1 })
+    },
     switchTab(tab) {
+      s.cancelAdd()
       s.activeTab = tab
-      s.showAdd = false
-      if (location.hash.slice(1) !== tab) history.pushState(null, '', '#' + tab)
+      writeUrl(s, 'pushState')
     },
 
     filterMembers(q) {
@@ -653,10 +754,10 @@
         const rows = [['Donor', 'Donations', 'Total', 'Last Donation']]
         for (const d of this.donorFiltered) rows.push([d.name, d.count, rawAmt(d.total), d.lastDate])
         dlCSV(rows, 'donors.csv')
-      } else if (this.activeTab === 'donations') {
-        const rows = [['Date', 'Donor', 'Method', 'Category', 'Amount', 'Note']]
-        for (const d of this.donFiltered) rows.push([d.date_received?.slice(0, 10), d.member_id ? (this.memberNames[d.member_id] || '') : 'Anonymous', d.method, d.category, rawAmt(d.amount), d.note || ''])
-        dlCSV(rows, 'donations.csv')
+      } else if (this.activeTab === 'income') {
+        const rows = [['Date', 'Source', 'Method', 'Type', 'Amount', 'Note']]
+        for (const d of this.donFiltered) rows.push([d.date_received?.slice(0, 10), sourceOf(d, this.memberNames), d.method, labelOf(d), rawAmt(d.amount), d.note || ''])
+        dlCSV(rows, 'income.csv')
       } else {
         const rows = [['Date', 'Status', 'Payee', 'Category', 'Amount', 'Description']]
         for (const x of this.expFiltered) rows.push([x.expense_date?.slice(0, 10), x.status || 'submitted', x.payee, x.category, rawAmt(x.amount), x.description || ''])
@@ -684,20 +785,26 @@
 
   bindForm(s, { api, onSave: loadAll })
 
+  function refreshIncomeStats() {
+    const { cur, prev } = monthKeys(s.year)
+    let curAmt = 0, prevAmt = 0
+    for (const item of s.donations) {
+      const key = (item.date_received || '').slice(0, 7)
+      if (key === cur) curAmt += item.amount || 0
+      if (key === prev) prevAmt += item.amount || 0
+    }
+    s.incMonth = curAmt
+    s.incPrevMonth = prevAmt
+  }
+
   async function loadExpInlineHistory(id) {
     s.expInlineLoading = { ...s.expInlineLoading, [id]: true }
     try {
-      const r = await api.getAuditLogs({ entity_type: 'expense', entity_id: id, limit: 20, sortBy: 'created_at', sortDesc: 'false' })
-      const items = (r.items || []).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-      if (!items.some(h => h.action === 'create')) {
-        const exp = s.expenses.find(e => e.id === id)
-        if (exp) items.unshift({ action: 'create', created_at: exp.created_at || exp.expense_date })
-      }
-      s.expInlineHistory = { ...s.expInlineHistory, [id]: items }
+      const exp = await api.getExpense(id).catch(() => s.expenses.find(e => e.id === id) || null)
+      s.expInlineHistory = { ...s.expInlineHistory, [id]: expenseMetaHistory(exp) }
     } catch {
       const exp = s.expenses.find(e => e.id === id)
-      const fallback = exp ? [{ action: 'create', created_at: exp.created_at || exp.expense_date }] : []
-      s.expInlineHistory = { ...s.expInlineHistory, [id]: fallback }
+      s.expInlineHistory = { ...s.expInlineHistory, [id]: expenseMetaHistory(exp) }
     }
     finally {
       const l = { ...s.expInlineLoading }; delete l[id]; s.expInlineLoading = l
@@ -706,14 +813,13 @@
 
   async function loadExpenseDetail(id) {
     s.expApprovals = []; s.expHistory = []
-    const [exp, approvals, history] = await Promise.all([
+    const [exp, approvals] = await Promise.all([
       api.getExpense(id).catch(() => null),
       api.getExpenseApprovals(id).catch(() => ({ items: [] })),
-      api.getAuditLogs({ entity_type: 'expense', entity_id: id, limit: 20, sortBy: 'created_at', sortDesc: 'true' }).catch(() => ({ items: [] })),
     ])
     if (exp) s.detailExp = exp
     s.expApprovals = approvals.items || approvals || []
-    s.expHistory = history.items || []
+    s.expHistory = buildMetaHistory(exp)
   }
 
   const BATCH = 200
@@ -737,21 +843,19 @@
     s.expInlineHistory = {}
     const dateP = { dateFrom: `${s.year}-01-01`, dateTo: `${s.year}-12-31` }
     try {
-      const [don, exp, mem, summary, donors] = await Promise.all([
-        api.getDonations({ ...dateP, limit: BATCH, page: 1 }),
+      const [inc, exp, mem, summary, donors] = await Promise.all([
+        api.getIncome({ ...dateP, limit: BATCH, page: 1 }),
         api.getExpenses({ ...dateP, limit: BATCH, page: 1 }),
         api.getMembers({ limit: 500 }),
         api.getFinanceSummary({ year: s.year }),
         api.getDonorsSummary({ year: s.year, limit: 500 }),
       ])
-      s.donations = don.items || []
+      s.donations = inc.items || []
       s.expenses = exp.items || []
-      s.donTotal = don.total ?? s.donations.length
+      s.donTotal = inc.total ?? s.donations.length
       s.expTotal = exp.total ?? s.expenses.length
       s.expMonth = summary.exp_month || 0
       s.expPrevMonth = summary.exp_prev_month || 0
-      s.donMonth = summary.don_month || 0
-      s.donPrevMonth = summary.don_prev_month || 0
       s.donorsMonth = summary.donors_month || 0
       s.donorsPrevMonth = summary.donors_prev_month || 0
       s.donorRows = (donors.items || []).map(d => ({ ...d, lastDate: d.last_date }))
@@ -759,17 +863,40 @@
       const { names, unames } = parseMemberNames(mem.items || [])
       s.memberNames = names
       s.userNames = unames
+      refreshIncomeStats()
     } catch (e) {
       s.loadErr = e.message || 'Failed to load finance data'
     } finally { s.loading = false }
-    loadRemaining(api.getDonations, dateP, 'donations', 'donTotal')
+    loadRemaining(api.getIncome, dateP, 'donations', 'donTotal').then(refreshIncomeStats)
     loadRemaining(api.getExpenses, dateP, 'expenses', 'expTotal')
   }
 
-  window.addEventListener('hashchange', () => {
-    const tab = location.hash.slice(1)
-    if (tab && tab !== s.activeTab) s.switchTab(tab)
-  })
+  function applyUrlStateFromLocation() {
+    const next = urlState()
+    const yearChanged = next.year !== s.year
+    s.activeTab = next.activeTab
+    s.expPage = 1
+    s.donPage = 1
+    s.donorPage = 1
+    s.expSearch = next.expSearch
+    s.expFilterCat = next.expFilterCat
+    s.expFilterStatus = next.expFilterStatus
+    s.expDateFrom = next.expDateFrom
+    s.expDateTo = next.expDateTo
+    s.donSearch = next.donSearch
+    s.donFilterCat = next.donFilterCat
+    s.donFilterType = next.donFilterType
+    s.donDateFrom = next.donDateFrom
+    s.donDateTo = next.donDateTo
+    s.donorSearch = next.donorSearch
+    if (yearChanged) {
+      s.year = next.year
+      loadAll()
+    }
+  }
+
+  window.addEventListener('hashchange', applyUrlStateFromLocation)
+  window.addEventListener('popstate', applyUrlStateFromLocation)
 
   loadAll()
 </script>

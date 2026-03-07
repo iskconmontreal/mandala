@@ -5,11 +5,11 @@ const mk = (perms, uid) => 'header.' + btoa(JSON.stringify({ permissions: perms,
 export const API = 'https://api.iskconmontreal.ca'
 
 export const TOKENS = {
-  admin:     mk(['users:view', 'users:create', 'members:view', 'members:create', 'members:manage', 'donations:view', 'donations:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'roles:update'], 1),
-  treasurer: mk(['donations:view', 'donations:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'members:view'], 2),
+  admin:     mk(['users:view', 'users:create', 'members:view', 'members:create', 'members:manage', 'income:view', 'income:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'roles:update'], 1),
+  treasurer: mk(['income:view', 'income:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'members:view'], 2),
   member:    mk(['expenses:view', 'expenses:create', 'members:view'], 3),
-  approver:  mk(['audit:view', 'donations:view', 'expenses:approve', 'expenses:create', 'expenses:view', 'members:view', 'users:view'], 5),
-  viewer:    mk(['donations:view', 'expenses:create', 'expenses:view'], 4),
+  approver:  mk(['audit:view', 'income:view', 'expenses:approve', 'expenses:create', 'expenses:view', 'members:view', 'users:view'], 5),
+  viewer:    mk(['income:view', 'expenses:create', 'expenses:view'], 4),
 }
 
 export const USERS = {

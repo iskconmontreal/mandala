@@ -21,12 +21,16 @@
 <div class="form-row">
   <div class="field">
     <label for="don-amount">Amount ($)</label>
-    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" :oninput="e => donForm.amount = e.target.value" placeholder="0.00" required>
+    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" :oninput="e => syncDonAmount(e)" placeholder="0.00" required>
   </div>
   <div class="field">
     <label for="don-method">Method</label>
-    <select id="don-method" :value="donForm.method" :onchange="e => donForm.method = e.target.value">
-      <option :each="m in donMethods" :value="m" :text="fmt(m)"></option>
+    <select id="don-method" :oninput="e => donForm.method = e.target.value" :onchange="e => donForm.method = e.target.value">
+      <option value="cash" :selected="donForm.method === 'cash'" :text="fmt('cash')"></option>
+      <option value="cheque" :selected="donForm.method === 'cheque'" :text="fmt('cheque')"></option>
+      <option value="e-transfer" :selected="donForm.method === 'e-transfer'" :text="fmt('e-transfer')"></option>
+      <option value="card" :selected="donForm.method === 'card'" :text="fmt('card')"></option>
+      <option value="in-kind" :selected="donForm.method === 'in-kind'" :text="fmt('in-kind')"></option>
     </select>
   </div>
 </div>
@@ -38,11 +42,19 @@
     placeholder="Optional…"></textarea>
 </div>
 
-<div :if="can('donations:create')" class="form-row">
+<div :if="can('income:create')" class="form-row">
   <div class="field">
     <label for="don-cat">Category</label>
-    <select id="don-cat" :value="donForm.category" :onchange="e => donForm.category = e.target.value">
-      <option :each="c in donCats" :value="c" :text="fmt(c)"></option>
+    <select id="don-cat" :oninput="e => donForm.category = e.target.value" :onchange="e => donForm.category = e.target.value">
+      <option value="general" :selected="donForm.category === 'general'" :text="fmt('general')"></option>
+      <option value="sunday_feast" :selected="donForm.category === 'sunday_feast'" :text="fmt('sunday_feast')"></option>
+      <option value="book_distribution" :selected="donForm.category === 'book_distribution'" :text="fmt('book_distribution')"></option>
+      <option value="deity_worship" :selected="donForm.category === 'deity_worship'" :text="fmt('deity_worship')"></option>
+      <option value="building_fund" :selected="donForm.category === 'building_fund'" :text="fmt('building_fund')"></option>
+      <option value="annadana" :selected="donForm.category === 'annadana'" :text="fmt('annadana')"></option>
+      <option value="festival" :selected="donForm.category === 'festival'" :text="fmt('festival')"></option>
+      <option value="events" :selected="donForm.category === 'events'" :text="fmt('events')"></option>
+      <option value="other" :selected="donForm.category === 'other'" :text="fmt('other')"></option>
     </select>
   </div>
   <div class="field">
@@ -57,7 +69,7 @@
     :ondragover.prevent=""
     :ondrop="e => { e.preventDefault(); scanFile(e.dataTransfer.files[0]) }">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-    Attach receipt
+    Attach image / cheque
   </a>
   <span :if="extracting" class="dim" style="font-size:var(--f-sm)">Scanning…</span>
   <span :if="receiptName && !extracting" class="attach-badge">

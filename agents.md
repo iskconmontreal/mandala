@@ -33,6 +33,10 @@ Swagger: `https://api.iskconmontreal.ca/swagger/index.html`
 - **CSS custom properties** — Hand-written design tokens in `tokens.css`. Temple-inspired palette: devotional purple `#6b5ce7`, warm neutrals.
 - **ES modules** — Vanilla JS, no transpilation.
 
+## Design Token Rule
+
+Use design tokens for visual decisions first: colors, spacing, padding, radius, shadows, typography, and semantic state styling should come from `css/tokens.css` or be derived from those tokens with `calc()`. Avoid raw hex, rgba, or ad-hoc spacing values in component CSS when an existing token or token-derived value can express it.
+
 ## UI / Business Logic Separation
 
 JS `<script>` blocks contain **business logic only**: API calls, data transforms, auth guards, localStorage side effects. UI concerns live in **sprae markup**.

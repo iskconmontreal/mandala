@@ -84,10 +84,7 @@
           <div :if="!receipts.length" style="flex:1;text-align:center;cursor:pointer"
             :onclick="() => { filePickerOpen = true; document.getElementById('receipt-input').click() }">
             <div class="scan-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
-                <line x1="9" y1="3" x2="9" y2="9"/><circle cx="14" cy="15" r="2.5"/><path d="M16 17l2.5 2.5"/>
-              </svg>
+              <span :html="icon('scan_receipts')"></span>
             </div>
             <div style="font-weight:var(--f-wt-b)">Scan receipts</div>
             <div class="scan-hint">Drop images or PDFs, or click to browse</div>
@@ -122,12 +119,21 @@
           <div :if="can('expenses:approve')" class="form-row">
             <div class="field autocomplete">
               <label>Payee</label>
-              <input :id="location.pathname.includes('/app/finance') ? 'exp-vendor' : 'home-exp-vendor'" type="text" :value="expForm.payee"
-                :oninput="e => filterVendors(e.target.value)"
-                :onblur="e => { vendorHits = [] }"
+              <div style="position:relative">
+                <input :id="location.pathname.includes('/app/finance') ? 'exp-vendor' : 'home-exp-vendor'" type="text" :value="expForm.member_id ? memberQuery : expForm.payee"
+                :onfocus="e => filterExpensePayees(expForm.member_id ? memberQuery : expForm.payee)"
+                :oninput="e => { expForm.member_id = null; filterExpensePayees(e.target.value) }"
+                :onblur="e => { vendorHits = []; memberHits = [] }"
                 placeholder="Vendor, store, person…" :required="!editId">
-              <div :if="vendorHits.length" class="autocomplete-list">
-                <div class="autocomplete-item" :each="v in vendorHits" :onmousedown.prevent="() => { expForm.payee = v; vendorHits = [] }" :text="v"></div>
+                <button :if="expForm.member_id" type="button" class="btn-link"
+                  style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%)"
+                  :onclick="clearExpMember()">&times;</button>
+              </div>
+              <div :if="memberHits.length || vendorHits.length" class="autocomplete-list">
+                <div :if="memberHits.length" class="autocomplete-group-label">Members</div>
+                <div class="autocomplete-item" :each="m in memberHits" :onmousedown.prevent="selectExpMember(m)" :text="m.name"></div>
+                <div :if="vendorHits.length" class="autocomplete-group-label">Recent payees</div>
+                <div class="autocomplete-item" :each="v in vendorHits" :onmousedown.prevent="selectExpVendor(v)" :text="v"></div>
               </div>
             </div>
             <div class="field">
@@ -149,8 +155,8 @@
             </div>
           </div>
           <div :if="can('expenses:approve')" class="field">
-            <label>Description</label>
-            <textarea :id="location.pathname.includes('/app/finance') ? 'exp-desc' : 'home-exp-desc'" rows="1" style="field-sizing:content;resize:none" :value="expForm.description" :oninput="e => expForm.description = e.target.value" placeholder="Optional…"></textarea>
+            <label>Note</label>
+            <textarea :id="location.pathname.includes('/app/finance') ? 'exp-desc' : 'home-exp-desc'" rows="1" style="field-sizing:content;resize:none" :value="expForm.note" :oninput="e => expForm.note = e.target.value" placeholder="Optional…"></textarea>
           </div>
           <div :if="!can('expenses:approve')" class="form-row">
             <div class="field">
@@ -167,7 +173,7 @@
           </div>
           <div :if="!can('expenses:approve')" class="field">
             <label>Note</label>
-            <textarea :id="location.pathname.includes('/app/finance') ? 'exp-desc' : 'home-exp-desc'" rows="1" style="field-sizing:content;resize:none" :value="expForm.description" :oninput="e => expForm.description = e.target.value" placeholder="Optional…"></textarea>
+            <textarea :id="location.pathname.includes('/app/finance') ? 'exp-desc' : 'home-exp-desc'" rows="1" style="field-sizing:content;resize:none" :value="expForm.note" :oninput="e => expForm.note = e.target.value" placeholder="Optional…"></textarea>
           </div>
 
           <div :if="receipts.some(r => r.duplicate)" class="form-warn">Possible duplicate — a receipt was previously uploaded for another expense</div>

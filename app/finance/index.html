@@ -18,19 +18,19 @@
     :onclick="e => { switchTab('expenses'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Expenses</div>
     <div class="stat-value"><span :text="'$' + fmtAmt(expMonth)"></span></div>
-    <div class="stat-sub dim"><svg :if="trend(expMonth, expPrevMonth, true).dir" class="trend-arrow" :class="trend(expMonth, expPrevMonth, true).cls" viewBox="0 0 12 12"><path :d="trend(expMonth, expPrevMonth, true).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trend(expMonth, expPrevMonth, true).num"></span><span :text="trend(expMonth, expPrevMonth, true).label"></span></div>
+    <div class="stat-sub dim"><span :if="trend(expMonth, expPrevMonth, true).dir" class="trend-arrow" :class="trend(expMonth, expPrevMonth, true).cls" :html="trendIcon(trend(expMonth, expPrevMonth, true).dir)"></span><span :text="trend(expMonth, expPrevMonth, true).num"></span><span :text="trend(expMonth, expPrevMonth, true).label"></span></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'income'}"
     :onclick="e => { switchTab('income'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Income</div>
     <div class="stat-value"><span :text="'$' + fmtAmt(incMonth)"></span></div>
-    <div class="stat-sub dim"><svg :if="trend(incMonth, incPrevMonth).dir" class="trend-arrow" :class="trend(incMonth, incPrevMonth).cls" viewBox="0 0 12 12"><path :d="trend(incMonth, incPrevMonth).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trend(incMonth, incPrevMonth).num"></span><span :text="trend(incMonth, incPrevMonth).label"></span></div>
+    <div class="stat-sub dim"><span :if="trend(incMonth, incPrevMonth).dir" class="trend-arrow" :class="trend(incMonth, incPrevMonth).cls" :html="trendIcon(trend(incMonth, incPrevMonth).dir)"></span><span :text="trend(incMonth, incPrevMonth).num"></span><span :text="trend(incMonth, incPrevMonth).label"></span></div>
   </div>
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donors'}"
     :onclick="e => { switchTab('donors'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Donors</div>
     <div class="stat-value"><span :text="donorsMonth"></span></div>
-    <div class="stat-sub dim"><svg :if="trendDiff(donorsMonth, donorsPrevMonth).dir" class="trend-arrow" :class="trendDiff(donorsMonth, donorsPrevMonth).cls" viewBox="0 0 12 12"><path :d="trendDiff(donorsMonth, donorsPrevMonth).dir === 'up' ? 'M2 10L10 2M10 2H4M10 2v6' : 'M2 2l8 8M10 10H4M10 10V4'" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span :text="trendDiff(donorsMonth, donorsPrevMonth).num"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).label"></span></div>
+    <div class="stat-sub dim"><span :if="trendDiff(donorsMonth, donorsPrevMonth).dir" class="trend-arrow" :class="trendDiff(donorsMonth, donorsPrevMonth).cls" :html="trendIcon(trendDiff(donorsMonth, donorsPrevMonth).dir)"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).num"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).label"></span></div>
   </div>
 </div>
 
@@ -78,10 +78,10 @@
     </div>
     <div class="seg-group" hidden>
       <span class="seg" :class="{'seg-active': expView === 'list'}" :onclick="expView = 'list'" title="List view" style="display:flex;align-items:center">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1.5" width="3" height="3" rx=".5"/><line x1="6.5" y1="3" x2="15" y2="3"/><rect x="1" y="6.5" width="3" height="3" rx=".5"/><line x1="6.5" y1="8" x2="15" y2="8"/><rect x="1" y="11.5" width="3" height="3" rx=".5"/><line x1="6.5" y1="13" x2="15" y2="13"/></svg>
+        <span :html="icon('view_list')"></span>
       </span>
       <span class="seg" :class="{'seg-active': expView === 'table'}" :onclick="expView = 'table'" title="Table view" style="display:flex;align-items:center">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        <span :html="icon('view_grid')"></span>
       </span>
     </div>
   </div>
@@ -184,9 +184,9 @@
                   <div class="stat-label">ID</div>
                   <div class="mono" :text="x.expense_no || ('#' + x.id)"></div>
                 </div>
-                <div :if="x.description">
+                <div :if="x.note || x.description">
                   <div class="stat-label">Note</div>
-                  <div :html="hl(x.description, expSearch)"></div>
+                  <div :html="hl(x.note || x.description, expSearch)"></div>
                 </div>
                 <div :if="x.attachments?.length">
                   <div class="stat-label">Receipts</div>
@@ -628,7 +628,7 @@
         if (this.expFilterCat && r.category !== this.expFilterCat) return false
         if (this.expDateFrom && dt < this.expDateFrom) return false
         if (this.expDateTo && dt > this.expDateTo) return false
-        return !q || [r.payee, r.description, r.expense_no, String(r.id || ''), r.expense_date?.slice(0, 10), r.member_id ? this.memberNames[r.member_id] : '', fmtCat(r.category)].filter(Boolean).join(' ').toLowerCase().includes(q)
+        return !q || [r.payee, r.note || r.description, r.expense_no, String(r.id || ''), r.expense_date?.slice(0, 10), r.member_id ? this.memberNames[r.member_id] : '', fmtCat(r.category)].filter(Boolean).join(' ').toLowerCase().includes(q)
       })
     },
     get expGrouped() {
@@ -759,8 +759,8 @@
         for (const d of this.donFiltered) rows.push([d.date_received?.slice(0, 10), sourceOf(d, this.memberNames), d.method, labelOf(d), rawAmt(d.amount), d.note || ''])
         dlCSV(rows, 'income.csv')
       } else {
-        const rows = [['Date', 'Status', 'Payee', 'Category', 'Amount', 'Description']]
-        for (const x of this.expFiltered) rows.push([x.expense_date?.slice(0, 10), x.status || 'submitted', x.payee, x.category, rawAmt(x.amount), x.description || ''])
+        const rows = [['Date', 'Status', 'Payee', 'Category', 'Amount', 'Note']]
+        for (const x of this.expFiltered) rows.push([x.expense_date?.slice(0, 10), x.status || 'submitted', x.payee, x.category, rawAmt(x.amount), x.note || x.description || ''])
         dlCSV(rows, 'expenses.csv')
       }
     },

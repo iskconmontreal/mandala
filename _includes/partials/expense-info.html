@@ -33,9 +33,9 @@
   <div class="stat-label">Submitted by</div>
   <div :text="memberNames[detailExp?.member_id]"></div>
 </div>
-<div :if="detailExp?.description">
-  <div class="stat-label">Description</div>
-  <div :text="detailExp?.description"></div>
+<div :if="detailExp?.note || detailExp?.description">
+  <div class="stat-label">Note</div>
+  <div :text="detailExp?.note || detailExp?.description"></div>
 </div>
 <div class="form-row" :if="detailExp?.created_at || detailExp?.updated_at">
   <div class="detail-field" :if="detailExp?.created_at">

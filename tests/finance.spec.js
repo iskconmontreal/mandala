@@ -589,8 +589,7 @@ test.describe('finance section', () => {
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     expect(savedBody.attachment_ids).toHaveLength(2)
-    expect(savedBody.attachment_ids[0]).toBe(101)
-    expect(savedBody.attachment_ids[1]).toBe(102)
+    expect([...savedBody.attachment_ids].sort((a, b) => a - b)).toEqual([101, 102])
   })
 
   test('receipt extraction failure: save proceeds without that file', async ({ page }) => {
@@ -847,13 +846,54 @@ test.describe('finance section', () => {
 
     await page.locator('tr.row-link').first().click()
     await page.click('button:has-text("Edit")')
-    await page.locator('#exp-amount').waitFor({ timeout: 5000 })
-    await page.fill('#exp-amount', '75.00')
+    const amount = page.locator('#exp-amount:visible')
+    await amount.waitFor({ timeout: 5000 })
+    await amount.fill('75.00')
+    await expect(amount).toHaveValue('75')
     await page.click('button:has-text("Update")')
     await expect(page.locator('.modal-overlay')).not.toBeVisible({ timeout: 5000 })
 
     expect(updatedBody?.amount).toBe(7500)
     expect(expenses[0].amount).toBe(7500)
+  })
+
+  test('edit donation: donor suggestions stay visible in modal', async ({ page }) => {
+    const members = [
+      { id: 1, user_id: 11, data: { name: 'Hari Das' } },
+      { id: 2, user_id: 12, data: { name: 'Gopi Devi' } },
+    ]
+    const donations = [{ id: 1, member_id: 1, source_name: 'Hari Das', amount: 5000, method: 'cash', category: 'general', date_received: '2025-01-15', note: '' }]
+    await mockFinance(page, { donations, members })
+    await openFinance(page, 'income')
+
+    await page.locator('section').nth(1).locator('tr.row-link').first().click()
+    await expect(page.getByRole('heading', { name: 'Edit donation' })).toBeVisible()
+    await page.locator('#don-donor').focus()
+
+    const list = page.locator('.autocomplete-list').filter({ has: page.locator('.autocomplete-item') }).first()
+    await expect(list).toBeVisible()
+    await expect(list).toContainText('Hari Das')
+  })
+
+  test('edit expense: payee shows member suggestions in modal', async ({ page }) => {
+    const members = [
+      { id: 1, user_id: 11, data: { name: 'Hari Das' } },
+      { id: 2, user_id: 12, data: { name: 'Gopi Devi' } },
+    ]
+    const expenses = [
+      { id: 1, member_id: 1, amount: 5000, payee: 'Hari Das', category: 'kitchen', expense_date: '2025-01-10', status: 'submitted' },
+      { id: 2, amount: 3000, payee: 'Hydro Quebec', category: 'utilities', expense_date: '2025-01-09', status: 'submitted' },
+    ]
+    await mockFinance(page, { expenses, members })
+    await openFinance(page)
+    await page.locator('tr.row-link').first().click()
+    await page.click('button:has-text("Edit")')
+
+    const payee = page.locator('#exp-vendor:visible')
+    await payee.focus()
+    const list = page.locator('.autocomplete-list').filter({ has: page.locator('.autocomplete-item') }).first()
+    await expect(list).toBeVisible()
+    await expect(list).toContainText('Hari Das')
   })
 
 

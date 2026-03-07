@@ -68,7 +68,7 @@
     :onclick.prevent="document.getElementById('don-receipt-input').click()"
     :ondragover.prevent=""
     :ondrop="e => { e.preventDefault(); scanFile(e.dataTransfer.files[0]) }">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+    <span :html="icon('attach')"></span>
     Attach image / cheque
   </a>
   <span :if="extracting" class="dim" style="font-size:var(--f-sm)">Scanning…</span>

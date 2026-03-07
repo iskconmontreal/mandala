@@ -48,6 +48,10 @@
             <span :html="icon('user_profile')"></span>
             Profile
           </a>
+          <a href="{{ '/app/organization/' | relative_url }}" class="user-menu-item">
+            <span :html="icon('user_organization')"></span>
+            Organization
+          </a>
           <a :if="can('roles:update')" href="{{ '/app/admin/roles/' | relative_url }}" class="user-menu-item">
             <span :html="icon('user_roles')"></span>
             Roles

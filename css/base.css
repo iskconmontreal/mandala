@@ -45,6 +45,7 @@ input, select, textarea, button {
 input[type="text"],
 input[type="email"],
 input[type="password"],
+input[type="url"],
 input[type="number"],
 input[type="search"],
 input[type="date"],

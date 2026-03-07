@@ -65,8 +65,8 @@
           <div class="recent-inc-title-row">
             <div class="recent-inc-title" :text="recentIncSource(d)"></div>
           </div>
-          <div class="recent-inc-meta-row">
-            <span :if="recentIncReporter(d)" class="recent-inc-meta" :text="recentIncReporter(d)"></span>
+          <div class="recent-inc-subtitle">
+            <span class="recent-inc-method" :class="'recent-inc-method-' + recentIncMethod(d)" :text="recentIncMethod(d)"></span>
             <span class="recent-inc-time" :text="fmtDate(changedAt(d) || d.created_at || d.date_received)"></span>
           </div>
         </div>
@@ -77,7 +77,7 @@
           <div class="recent-inc-value stat-ok" :text="'+$' + fmtAmt(d.amount || 0)"></div>
           <div class="recent-row-actions" :onclick.stop="">
             <button type="button" class="recent-row-action" title="Quick receipt" aria-label="Quick receipt" :onclick.stop="printDonation(d)" :html="printIcon"></button>
-            <button type="button" class="recent-row-action recent-row-action-edit" title="Quick revise donation" aria-label="Quick revise donation" :onclick.stop="editDonation(d)" :html="editIcon"></button>
+            <button type="button" class="recent-row-action recent-row-action-edit" title="Quick revise donation" aria-label="Quick revise donation" hidden :onclick.stop="editDonation(d)" :html="editIcon"></button>
           </div>
         </div>
       </div>
@@ -223,6 +223,7 @@
     editIcon: actionIcon('edit'),
     printIcon: actionIcon('print'),
     approveIcon: actionIcon('approve'),
+    rejectIcon: actionIcon('reject'),
     payIcon: actionIcon('pay'),
     showOwnExpenses: !auth.can('income:create') && !auth.can('expenses:approve'),
     recentExpActorId(x) {
@@ -243,7 +244,7 @@
       return who ? `by ${who}` : ''
     },
     expenseRowTitle(x) {
-      return x?.payee || '—'
+      return this.expenseTitle(x)
     },
     expenseRowCategory(x) {
       return fmtCat(x?.category || 'other')
@@ -254,14 +255,23 @@
     expenseCanQuickApprove(x) {
       return this.can('expenses:approve') && (x?.status || 'submitted') === 'submitted' && !this.quickExpenseAction[x.id]
     },
+    expenseCanQuickReject(x) {
+      return this.can('expenses:approve') && (x?.status || 'submitted') === 'submitted' && !this.quickExpenseAction[x.id]
+    },
     expenseCanQuickPay(x) {
       return this.can('expenses:approve') && (x?.status || 'submitted') === 'approved' && !this.quickExpenseAction[x.id]
     },
     expenseActionBusy(x) {
       return this.can('expenses:approve') && !!this.quickExpenseAction[x.id]
     },
+    expenseHasQuickActions(x) {
+      return this.expenseCanQuickReject(x) || this.expenseCanQuickApprove(x) || this.expenseCanQuickPay(x) || this.expenseActionBusy(x)
+    },
     expenseQuickApprove(x) {
       return this.approveRecentExpense(x)
+    },
+    expenseQuickReject(x) {
+      return this.rejectExpense(x)
     },
     expenseQuickPay(x) {
       return this.payRecentExpense(x)
@@ -269,12 +279,6 @@
     recentIncSource(d) {
       if (d?.member_id && this.memberNames?.[d.member_id]) return this.memberNames[d.member_id]
       return d?.source_name || 'Anonymous'
-    },
-    recentIncReporter(d) {
-      if (!d?.created_by) return ''
-      if (d.created_by === MY_USER_ID) return 'by you'
-      const who = this.userNames?.[d.created_by]
-      return who ? `by ${who}` : ''
     },
     recentIncKind(d) {
       return d?.type === 'donation' ? (d?.category || 'donation') : (d?.type || 'income')

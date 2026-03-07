@@ -1,0 +1,359 @@
+---
+---
+<div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; gap:var(--s-md); flex-wrap:wrap">
+  <div>
+    <h1>Organization</h1>
+    <p>Temple identity, tax receipt details, and approval defaults.</p>
+  </div>
+  <span class="badge" :class="orgEditor ? 'badge-active' : ''" :text="orgEditor ? 'Editable' : 'View only'"></span>
+</div>
+
+<div :if="loading" class="card">
+  <div class="dim" style="padding:var(--s-sm) 0">Loading organization settings…</div>
+</div>
+
+<div :if="loadErr && !loading" class="login-error" style="margin-bottom:var(--s-md)" :text="loadErr"></div>
+
+<div :if="!loading" class="org-layout">
+  <aside class="org-aside">
+    <div class="card org-summary-card">
+      <div class="org-logo-shell">
+        <img :if="form.org_logo_url && !logoBroken" :src="form.org_logo_url" alt="Organization logo" :onerror="() => logoBroken = true">
+        <div :if="!form.org_logo_url || logoBroken" class="org-logo-fallback" :text="orgInitials"></div>
+      </div>
+
+      <div>
+        <h2 class="org-summary-title" :text="displayName"></h2>
+        <div class="dim org-meta-line" :text="displayAddress"></div>
+      </div>
+
+      <div class="org-summary-list">
+        <div class="org-view-block">
+          <div class="stat-label">Charity BN</div>
+          <div :class="{'org-empty': !form.charity_bn}" :text="form.charity_bn || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Fiscal year end</div>
+          <div :class="{'org-empty': !form.fiscal_year_end}" :text="form.fiscal_year_end || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Auto-approval threshold</div>
+          <div :text="thresholdText"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Required approvals</div>
+          <div :text="approvalCountText"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:var(--s-md)">What this controls</h3>
+      <div class="org-summary-rule">
+        <span class="badge">Receipts</span>
+        <div>Branding and charity business number on tax receipts.</div>
+      </div>
+      <div class="org-summary-rule">
+        <span class="badge">Expenses</span>
+        <div :text="thresholdRule"></div>
+      </div>
+      <div class="org-summary-rule">
+        <span class="badge">Approvals</span>
+        <div :text="approvalRule"></div>
+      </div>
+    </div>
+
+    <div class="org-note">
+      <div style="font-weight:var(--f-wt-b); margin-bottom:var(--s-xs)">Approvers stay role-based</div>
+      <div class="dim" style="font-size:var(--f-sm)">Approver accounts are still managed through users and roles, not organization settings.</div>
+      <a :if="can('roles:update')" href="{{ '/app/admin/roles/' | relative_url }}" style="display:inline-block; margin-top:var(--s-sm)">Open roles →</a>
+    </div>
+  </aside>
+
+  <section class="org-main">
+    <form :if="orgEditor" class="card" :onsubmit.prevent="save">
+      <div class="card-header" style="align-items:flex-start; gap:var(--s-md)">
+        <div>
+          <h3 style="margin:0">Organization profile</h3>
+          <div class="dim" style="font-size:var(--f-sm)">Public-facing identity and finance defaults.</div>
+        </div>
+        <div class="org-form-actions">
+          <button type="button" class="btn btn-outline" :if="dirty" :onclick="resetForm">Reset</button>
+          <button type="submit" class="btn btn-primary" :class="{'btn-loading': saving}">Save changes</button>
+        </div>
+      </div>
+
+      <div class="org-form-sections">
+        <section class="org-section">
+          <div class="org-section-head">
+            <h3 style="margin:0">Identity</h3>
+            <div class="dim" style="font-size:var(--f-sm)">Shown on receipts and organization documents.</div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="org-name">Organization name</label>
+              <input id="org-name" type="text" :value="form.org_name" :oninput="e => form.org_name = e.target.value" placeholder="ISKCON Montreal">
+            </div>
+            <div class="field">
+              <label for="org-logo-url">Logo URL</label>
+              <input id="org-logo-url" type="url" :value="form.org_logo_url" :oninput="e => { form.org_logo_url = e.target.value; logoBroken = false }" placeholder="https://…">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="org-charity-bn">Charity BN</label>
+              <input id="org-charity-bn" type="text" :value="form.charity_bn" :oninput="e => form.charity_bn = e.target.value" placeholder="123456789RR0001">
+            </div>
+            <div class="field">
+              <label for="org-fiscal-year-end">Fiscal year end</label>
+              <input id="org-fiscal-year-end" type="text" :value="form.fiscal_year_end" :oninput="e => form.fiscal_year_end = e.target.value" placeholder="03-31">
+            </div>
+          </div>
+        </section>
+
+        <section class="org-section">
+          <div class="org-section-head">
+            <h3 style="margin:0">Mailing address</h3>
+            <div class="dim" style="font-size:var(--f-sm)">Used for branded receipts and organization identity.</div>
+          </div>
+          <div class="form-row">
+            <div class="field" style="flex:2 1 20rem">
+              <label for="org-address">Street address</label>
+              <input id="org-address" type="text" :value="form.org_address" :oninput="e => form.org_address = e.target.value" placeholder="Street address">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="org-city">City</label>
+              <input id="org-city" type="text" :value="form.org_city" :oninput="e => form.org_city = e.target.value" placeholder="Montreal">
+            </div>
+            <div class="field">
+              <label for="org-province">Province / State</label>
+              <input id="org-province" type="text" :value="form.org_province" :oninput="e => form.org_province = e.target.value" placeholder="QC">
+            </div>
+            <div class="field">
+              <label for="org-postal">Postal code</label>
+              <input id="org-postal" type="text" :value="form.org_postal" :oninput="e => form.org_postal = e.target.value" placeholder="H1V 2C5">
+            </div>
+            <div class="field">
+              <label for="org-country">Country</label>
+              <input id="org-country" type="text" :value="form.org_country" :oninput="e => form.org_country = e.target.value" placeholder="Canada">
+            </div>
+          </div>
+        </section>
+
+        <section class="org-section">
+          <div class="org-section-head">
+            <h3 style="margin:0">Expense approval defaults</h3>
+            <div class="dim" style="font-size:var(--f-sm)">Approval rules for submitted expenses.</div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="org-threshold">Auto-approval threshold</label>
+              <input id="org-threshold" type="number" min="0" step="0.01" inputmode="decimal" :value="form.approval_threshold_input" :oninput="e => form.approval_threshold_input = e.target.value" placeholder="0.00">
+            </div>
+            <div class="field">
+              <label for="org-required-approvals">Required approvals</label>
+              <input id="org-required-approvals" type="number" min="1" step="1" inputmode="numeric" :value="form.required_approvals" :oninput="e => form.required_approvals = e.target.value" placeholder="1">
+            </div>
+          </div>
+        </section>
+      </div>
+    </form>
+
+    <div :if="!orgEditor" class="card">
+      <div class="card-header" style="align-items:flex-start; gap:var(--s-md)">
+        <div>
+          <h3 style="margin:0">Organization details</h3>
+          <div class="dim" style="font-size:var(--f-sm)">Visible to signed-in users. Editing is limited to administrators and presidents.</div>
+        </div>
+      </div>
+
+      <div class="org-view-grid">
+        <div class="org-view-block">
+          <div class="stat-label">Organization name</div>
+          <div :class="{'org-empty': !form.org_name}" :text="form.org_name || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Charity BN</div>
+          <div :class="{'org-empty': !form.charity_bn}" :text="form.charity_bn || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Fiscal year end</div>
+          <div :class="{'org-empty': !form.fiscal_year_end}" :text="form.fiscal_year_end || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Auto-approval threshold</div>
+          <div :text="thresholdText"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Required approvals</div>
+          <div :text="approvalCountText"></div>
+        </div>
+        <div class="org-view-block" style="grid-column:1 / -1">
+          <div class="stat-label">Address</div>
+          <div :class="{'org-empty': !displayAddressValue}" :text="displayAddressValue || 'Not set'"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import { init, auth, canEditOrgSettings, fmtAmt, rawAmt, toCents, toast } from '../../lib/app.js'
+  import { api } from '../../lib/api.js'
+
+  const EMPTY = {
+    org_name: '',
+    org_logo_url: '',
+    org_address: '',
+    org_city: '',
+    org_province: '',
+    org_postal: '',
+    org_country: '',
+    charity_bn: '',
+    fiscal_year_end: '',
+    approval_threshold_cents: 0,
+    required_approvals: 1,
+  }
+
+  function cleanText(value) {
+    return String(value ?? '').trim()
+  }
+
+  function normalizeSettings(res) {
+    const src = res?.settings || res?.item || res || {}
+    const out = { ...EMPTY }
+    for (const key of Object.keys(EMPTY)) out[key] = src[key] ?? EMPTY[key]
+    out.approval_threshold_cents = Math.max(0, parseInt(out.approval_threshold_cents, 10) || 0)
+    out.required_approvals = Math.max(1, parseInt(out.required_approvals, 10) || 1)
+    return out
+  }
+
+  function toForm(data) {
+    return {
+      ...data,
+      approval_threshold_input: data.approval_threshold_cents ? rawAmt(data.approval_threshold_cents) : '',
+      required_approvals: String(Math.max(1, parseInt(data.required_approvals, 10) || 1)),
+    }
+  }
+
+  function toPayload(form) {
+    const threshold = cleanText(form.approval_threshold_input)
+    return {
+      org_name: cleanText(form.org_name),
+      org_logo_url: cleanText(form.org_logo_url),
+      org_address: cleanText(form.org_address),
+      org_city: cleanText(form.org_city),
+      org_province: cleanText(form.org_province),
+      org_postal: cleanText(form.org_postal),
+      org_country: cleanText(form.org_country),
+      charity_bn: cleanText(form.charity_bn),
+      fiscal_year_end: cleanText(form.fiscal_year_end),
+      approval_threshold_cents: threshold ? Math.max(0, toCents(threshold)) : 0,
+      required_approvals: Math.max(1, parseInt(form.required_approvals, 10) || 1),
+    }
+  }
+
+  const s = init({
+    orgEditor: canEditOrgSettings(auth.user),
+    loading: true,
+    saving: false,
+    loadErr: '',
+    logoBroken: false,
+    snapshot: { ...EMPTY },
+    form: toForm(EMPTY),
+
+    get displayName() {
+      return this.form.org_name || 'Organization'
+    },
+
+    get orgInitials() {
+      return (this.form.org_name || 'Organization')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase() || '')
+        .join('') || 'OM'
+    },
+
+    get displayAddressValue() {
+      return [
+        this.form.org_address,
+        [this.form.org_city, this.form.org_province].filter(Boolean).join(', '),
+        [this.form.org_postal, this.form.org_country].filter(Boolean).join(' '),
+      ].filter(Boolean).join(', ')
+    },
+
+    get displayAddress() {
+      return this.displayAddressValue || 'Address not set yet'
+    },
+
+    get thresholdText() {
+      return '$' + fmtAmt(this.snapshot.approval_threshold_cents || 0)
+    },
+
+    get thresholdRule() {
+      const cents = this.snapshot.approval_threshold_cents || 0
+      return cents > 0
+        ? `Expenses at or under $${fmtAmt(cents)} can auto-approve.`
+        : 'Auto-approval is currently disabled.'
+    },
+
+    get approvalRule() {
+      const count = Math.max(1, parseInt(this.snapshot.required_approvals, 10) || 1)
+      return count === 1 ? 'One approval is required.' : `${count} approvals are required.`
+    },
+
+    get approvalCountText() {
+      const count = Math.max(1, parseInt(this.snapshot.required_approvals, 10) || 1)
+      return count === 1 ? '1 approval' : `${count} approvals`
+    },
+
+    get dirty() {
+      return JSON.stringify(toPayload(this.form)) !== JSON.stringify(this.snapshot)
+    },
+
+    applySettings(res) {
+      const data = normalizeSettings(res)
+      this.snapshot = data
+      this.form = toForm(data)
+      this.logoBroken = false
+    },
+
+    resetForm() {
+      this.form = toForm(this.snapshot)
+      this.logoBroken = false
+    },
+
+    async save() {
+      if (!this.orgEditor || this.saving) return
+      this.loadErr = ''
+      this.saving = true
+      try {
+        const res = await api.updateOrgSettings(toPayload(this.form))
+        this.applySettings(res)
+        toast('Organization updated', 'success')
+      } catch (e) {
+        this.loadErr = e.message || 'Failed to save organization settings'
+        toast(this.loadErr)
+      } finally {
+        this.saving = false
+      }
+    },
+  })
+
+  async function load() {
+    s.loading = true
+    s.loadErr = ''
+    try {
+      s.applySettings(await api.getOrgSettings())
+    } catch (e) {
+      s.loadErr = e.message || 'Failed to load organization settings'
+    } finally {
+      s.loading = false
+    }
+  }
+
+  load()
+</script>

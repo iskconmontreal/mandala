@@ -201,7 +201,8 @@ test.describe('e2e: viewer restrictions', () => {
     const modal = viewerPage.locator('.modal')
     await modal.waitFor()
     await expect(modal.locator('button:has-text("Save")')).not.toBeVisible()
-    await expect(modal.locator('select')).not.toBeVisible()
+    await expect(modal.locator('#home-exp-cat')).toBeDisabled()
+    await expect(modal.locator('#home-exp-amount')).toBeDisabled()
     await expect(modal.locator('button:has-text("Close")')).toBeVisible()
 
     await modal.locator('button:has-text("Close")').click()
@@ -324,7 +325,7 @@ test.describe('e2e: expenses', () => {
     expect(body.items[0].amount).toBe(4250)
   })
 
-  test('expense detail modal shows real data', async ({ page }) => {
+  test('expense row opens edit modal with real data', async ({ page }) => {
     await page.goto('/app/finance/')
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
@@ -332,6 +333,7 @@ test.describe('e2e: expenses', () => {
     await page.locator('.finance-exp-item').first().click()
     await page.locator('.modal').waitFor()
     await expect(page.locator('.modal')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
   })
 
   test('search filters expenses', async ({ page }) => {
@@ -375,8 +377,8 @@ test.describe('e2e: income', () => {
     await page.goto('/app/finance/#income')
     await page.locator('.card-tab-group').waitFor()
     await page.locator('.card-tab', { hasText: 'Income' }).click()
-    await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 15_000 })
-    expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0)
+    await expect(page.locator('.recent-inc-item').first()).toBeVisible({ timeout: 15_000 })
+    expect(await page.locator('.recent-inc-item').count()).toBeGreaterThan(0)
   })
 
   test('create income via UI → verify in API', async ({ page }) => {

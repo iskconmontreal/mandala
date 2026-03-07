@@ -5,7 +5,8 @@ const mk = (perms, uid) => 'header.' + btoa(JSON.stringify({ permissions: perms,
 export const API = 'https://api.iskconmontreal.ca'
 
 export const TOKENS = {
-  admin:     mk(['users:view', 'users:create', 'members:view', 'members:create', 'members:manage', 'income:view', 'income:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'roles:update'], 1),
+  admin:     mk(['users:view', 'users:create', 'members:view', 'members:create', 'members:manage', 'income:view', 'income:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'roles:update', 'settings:manage'], 1),
+  president: mk(['members:view', 'income:view', 'expenses:view', 'settings:manage'], 6),
   treasurer: mk(['income:view', 'income:create', 'expenses:view', 'expenses:create', 'expenses:approve', 'members:view'], 2),
   member:    mk(['expenses:view', 'expenses:create', 'members:view'], 3),
   approver:  mk(['audit:view', 'income:view', 'expenses:approve', 'expenses:create', 'expenses:view', 'members:view', 'users:view'], 5),
@@ -13,7 +14,8 @@ export const TOKENS = {
 }
 
 export const USERS = {
-  admin:     { name: 'Bhakti Devi',   email: 'admin@test.local',     meta: { name: 'Bhakti Devi' } },
+  admin:     { name: 'Bhakti Devi',   email: 'admin@test.local',     meta: { name: 'Bhakti Devi' }, roles: ['Administrator'] },
+  president: { name: 'Temple President', email: 'president@test.local', meta: { name: 'Temple President' }, roles: ['President'] },
   treasurer: { name: 'Bhaktin Maria', email: 'treasurer@test.local', meta: { name: 'Bhaktin Maria' } },
   member:    { name: 'Prabhu Das',    email: 'member@test.local',    meta: { name: 'Prabhu Das' } },
   approver:  { name: 'Approver',      email: 'approver@test.local',  meta: { name: 'Approver' } },

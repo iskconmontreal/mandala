@@ -1,111 +1,83 @@
-<!-- Donation detail modal -->
-<div class="modal-overlay" :if="showAdd && activeTab === 'income' && donMode === 'detail'" :onkeydown.esc.document="cancelAdd()">
+<!-- Income existing modal -->
+<template id="don-existing-modal-template">
+<div class="modal-overlay" :onkeydown.esc.document="cancelAdd()">
   <div class="modal" :onclick.outside="cancelAdd()">
     <div class="modal-header">
-      <h2>Donation</h2>
+      <h2 style="display:flex;align-items:center;gap:var(--s-sm)">
+        <span :text="location.pathname.includes('/app/finance') ? 'Edit Income' : 'Edit donation'"></span>
+        <span :if="detailDon?.id" class="dim modal-title-sub" :text="'#' + detailDon?.id"></span>
+      </h2>
       <button class="modal-close" :onclick="cancelAdd()">&times;</button>
     </div>
     <div class="modal-body">
       <div style="display:flex;flex-direction:column;gap:var(--s-md)">
-        <div class="form-row">
-          <div class="detail-field">
-            <div class="stat-label">Amount</div>
-            <div class="stat-ok" :text="'+$' + fmtAmt(detailDon?.amount || 0)"></div>
-          </div>
-          <div class="detail-field">
-            <div class="stat-label">Date</div>
-            <div :text="detailDon?.date_received?.slice(0,10) || '—'"></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="detail-field">
-            <div class="stat-label">Source</div>
-            <div :text="detailDon?.member_id ? (memberNames[detailDon?.member_id] || detailDon?.source_name || 'Anonymous') : (detailDon?.source_name || 'Anonymous')"></div>
-          </div>
-          <div class="detail-field">
-            <div class="stat-label">Method</div>
-            <div :text="fmt(detailDon?.method || '—')"></div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="detail-field">
-            <div class="stat-label">Type</div>
-            <div :text="fmt(detailDon?.type === 'donation' ? (detailDon?.category || 'donation') : (detailDon?.type || 'income'))"></div>
-          </div>
-          <div class="detail-field" :if="detailDon?.created_at">
-            <div class="stat-label">Created</div>
-            <div :text="(detailDon?.created_at || '').replace('T', ' ').slice(0,16) + (detailDon?.created_by ? (' · ' + (detailDon?.created_by === myUid ? 'you' : (userNames[detailDon?.created_by] || ('User #' + detailDon?.created_by)))) : '')"></div>
-          </div>
-        </div>
-        <div class="detail-field" :if="detailDon?.updated_at && detailDon?.updated_at !== detailDon?.created_at">
-          <div class="stat-label">Updated</div>
-          <div :text="(detailDon?.updated_at || '').replace('T', ' ').slice(0,16) + (detailDon?.updated_by ? (' · ' + (detailDon?.updated_by === myUid ? 'you' : (userNames[detailDon?.updated_by] || ('User #' + detailDon?.updated_by)))) : '')"></div>
-        </div>
-        <div :if="detailDon?.note">
-          <div class="stat-label">Note</div>
-          <div :text="detailDon?.note"></div>
-        </div>
+        <form id="don-existing-form" :onsubmit.prevent="saveDonation" style="display:flex;flex-direction:column;gap:var(--s-md)">
+          {% include partials/donation-fields.html %}
+          <div class="form-warn" :if="addErr" :text="addErr"></div>
+        </form>
 
-        <div :if="donHistory.length">
-          <div class="stat-label" style="margin-bottom:var(--s-sm)">History</div>
-          <div class="history-list">
-            <div class="history-item" :each="h in donHistory">
-              <span class="badge" :class="'badge-' + h.badge" :text="h.label"></span>
-              <span :if="h.actor" class="activity-actor" :text="h.actor"></span>
-              <span class="dim" :if="h.detail" :text="'· ' + h.detail"></span>
-              <span class="history-date" :text="h.date?.slice(0,16).replace('T', ' ') || ''"></span>
+        <div :if="detailDon" style="display:flex;flex-direction:column;gap:var(--s-sm)">
+          <div class="stat-label">History</div>
+          <div class="activity-feed" :if="donHistory.length">
+            <div class="activity-item" :each="h in donHistory">
+              <span class="activity-dot" :class="'activity-dot-' + h.badge"></span>
+              <div class="activity-copy">
+                <div class="activity-line">
+                  <span class="activity-actor" :text="h.label"></span>
+                  <span :if="h.actor"> by </span>
+                  <span :if="h.actor" :text="h.actor"></span>
+                </div>
+                <div :if="h.detail" class="activity-detail dim" :text="h.detail"></div>
+              </div>
+              <span class="activity-date" :text="fmtDate(h.date)"></span>
             </div>
           </div>
+          <div :if="!donHistory.length" class="dim" style="font-size:var(--f-sm)">No activity yet</div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--s-sm); flex-wrap:wrap">
-          <button type="button" class="btn btn-secondary" :onclick="printDonation(detailDon)">Print</button>
-          <div style="display:flex; gap:var(--s-sm); margin-left:auto; flex-wrap:wrap; justify-content:flex-end">
-            <button :if="can('income:create')" type="button" class="btn btn-outline" :onclick="editDonation(detailDon)">Edit</button>
-            <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Close</button>
-          </div>
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); align-items:center; flex-wrap:wrap">
+          <button :if="editId && !delConfirm" type="button" class="btn btn-danger" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
+          <button :if="editId && !delConfirm" type="button" class="btn btn-secondary" :onclick="printDonation(detailDon)">Print</button>
+          <span :if="editId && delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
+          <button :if="editId && delConfirm" type="button" class="btn btn-danger" :class="{'btn-loading': deleting}" :onclick="delDonation()">Yes</button>
+          <button :if="editId && delConfirm" type="button" class="btn btn-outline" :onclick="delConfirm = false">No</button>
+          <button :if="!delConfirm" type="button" class="btn btn-outline" :onclick="cancelDonationEdit()">Cancel</button>
+          <button :if="!delConfirm" type="submit" form="don-existing-form" :class="donSaving ? 'btn btn-primary btn-loading' : 'btn btn-primary'">Update</button>
         </div>
       </div>
     </div>
   </div>
 </div>
+</template>
 
-<!-- Donation add/edit modal -->
-<div class="modal-overlay" :if="showAdd && activeTab === 'income' && donMode !== 'detail'" :onkeydown.esc.document="cancelAdd()">
+<!-- Income create modal -->
+<template id="don-create-modal-template">
+<div class="modal-overlay" :onkeydown.esc.document="cancelAdd()">
   <div class="modal" :onclick.outside="cancelAdd()">
     <div class="modal-header">
-      <h2 :text="editId ? 'Edit donation' : 'Add donation'"></h2>
+      <h2 :text="location.pathname.includes('/app/finance') ? 'Add Income' : 'Add donation'"></h2>
       <button class="modal-close" :onclick="cancelAdd()">&times;</button>
     </div>
     <div class="modal-body">
       <form :onsubmit.prevent="saveDonation" style="display:flex;flex-direction:column;gap:var(--s-md)">
         {% include partials/donation-fields.html %}
 
-        <div :if="donHistory.length">
-          <div class="stat-label" style="margin-bottom:var(--s-sm)">History</div>
-          <div class="history-list">
-            <div class="history-item" :each="h in donHistory">
-              <span class="badge" :class="'badge-' + h.badge" :text="h.label"></span>
-              <span :if="h.actor" class="activity-actor" :text="h.actor"></span>
-              <span class="dim" :if="h.detail" :text="'· ' + h.detail"></span>
-              <span class="history-date" :text="h.date?.slice(0,16).replace('T', ' ') || ''"></span>
-            </div>
-          </div>
-        </div>
-
         <div class="form-warn" :if="addErr" :text="addErr"></div>
 
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm)">
-          <button :if="editId && !delConfirm" type="button" class="btn btn-danger btn-sm" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
-          <span :if="editId && delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
-          <button :if="editId && delConfirm" type="button" class="btn btn-danger btn-sm" :class="{'btn-loading': deleting}" :onclick="delDonation()">Yes</button>
-          <button :if="editId && delConfirm" type="button" class="btn btn-outline btn-sm" :onclick="delConfirm = false">No</button>
-          <button :if="editId && donMode === 'edit'" type="button" class="btn btn-outline" :onclick="cancelDonationEdit()">Cancel</button>
-          <button :if="!editId" type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
-          <button :if="editId" type="submit" :class="donSaving ? 'btn btn-primary btn-loading' : 'btn btn-primary'">Update</button>
-          <button :if="!editId" type="submit" :class="donSaving ? 'btn btn-primary btn-loading' : 'btn btn-primary'">Save</button>
+          <button type="button" class="btn btn-outline" :onclick="cancelAdd()">Cancel</button>
+          <button type="submit" :class="donSaving ? 'btn btn-primary btn-loading' : 'btn btn-primary'">Save</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+</template>
+
+<div :html="showAdd && activeTab === 'income'
+  ? document.getElementById(
+      donMode === 'create'
+        ? 'don-create-modal-template'
+        : 'don-existing-modal-template'
+    )
+  : ''"></div>

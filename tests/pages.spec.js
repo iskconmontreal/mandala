@@ -63,6 +63,10 @@ test.describe('overview donations', () => {
       if (path === '/api/me/tax-receipts' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
       if (path === '/api/finance/summary' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
       if (path === '/api/audit' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/expenses/1/reject' && method === 'POST') {
+        expenses[0] = { ...expenses[0], status: 'rejected' }
+        return route.fulfill({ json: { ...expenses[0] } })
+      }
       if (path === '/api/expenses/1/approve' && method === 'POST') {
         expenses[0] = { ...expenses[0], status: 'approved', approval_count: 1 }
         return route.fulfill({ json: { ...expenses[0], approval_count: 1, approvals_required: 1 } })
@@ -79,6 +83,7 @@ test.describe('overview donations', () => {
     const expenseRow = page.locator('.recent-exp-item').first()
     await expenseRow.hover()
     await expect(expenseRow.locator('.recent-row-action')).toHaveCount(2)
+    await expect(expenseRow.locator('[aria-label="Quick reject expense"]')).toBeVisible()
     await expenseRow.locator('[aria-label="Quick approve expense"]').click()
     await expect(expenseRow).toContainText('Approved')
     await expect(expenseRow).toContainText('by you')
@@ -89,10 +94,9 @@ test.describe('overview donations', () => {
     await expect(expenseRow).toContainText('by you')
 
     const donationRow = page.locator('.recent-inc-item').first()
+    await expect(donationRow.locator('.recent-inc-subtitle')).toHaveText(/card\s+.+ago/i)
     await donationRow.hover()
     await expect(donationRow.locator('.recent-row-action')).toHaveCount(2)
-    await donationRow.locator('[aria-label="Quick revise donation"]').click()
-    await expect(page.getByRole('heading', { name: 'Edit donation' })).toBeVisible()
   })
 
   test('recent approved expense shows last updater name', async ({ page }) => {
@@ -244,7 +248,7 @@ test.describe('overview donations', () => {
     await amount.pressSequentially('100.5')
     await expect(amount).toHaveValue('100.5')
 
-    await expect(page.locator('#don-method option')).toHaveCount(5)
+    await expect(page.locator('#don-method option')).toHaveCount(9)
     await page.selectOption('#don-method', 'e-transfer')
 
     await expect(page.locator('#don-cat option')).toHaveCount(9)
@@ -272,8 +276,6 @@ test.describe('overview donations', () => {
     await expect(page.locator('.modal')).toContainText('Radhika Dasi')
     await expect(page.locator('.modal')).toContainText('E-Transfer')
     await expect(page.getByRole('button', { name: 'Print' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'Edit' }).click()
     await expect(page.locator('#don-donor')).toHaveValue('Radhika Dasi')
     await expect(page.locator('#don-amount')).toHaveValue('100.50')
     await expect(page.locator('#don-method')).toHaveValue('e-transfer')
@@ -281,9 +283,9 @@ test.describe('overview donations', () => {
     await expect(page.locator('#don-date')).toHaveValue(today)
 
     await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByRole('button', { name: 'Print' })).toBeVisible()
+    await expect(page.locator('.modal')).toBeHidden()
 
-    await page.getByRole('button', { name: 'Edit' }).click()
+    await donationRow.click()
     await page.locator('.autocomplete .btn-link').click()
     await donor.fill('Temple Walk-in')
     await page.locator('.modal-overlay:visible').first().getByRole('button', { name: 'Update' }).click()
@@ -320,8 +322,7 @@ test.describe('overview donations', () => {
     await page.goto('/app/')
 
     const expenseRow = page.locator('.recent-exp-item').first()
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
 
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
     await expect(page.getByText('Scan receipts')).toHaveCount(0)
@@ -336,8 +337,7 @@ test.describe('overview donations', () => {
     await activeModal.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden()
 
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
 
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
@@ -460,8 +460,7 @@ test.describe('overview donations', () => {
     await page.goto('/app/')
 
     const expenseRow = page.locator('.recent-exp-item').first()
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
 
     const firstModal = page.locator('.modal-overlay:visible').first()
     await expect(firstModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
@@ -471,8 +470,7 @@ test.describe('overview donations', () => {
 
     await expect(expenseRow).toContainText('Kitchen')
 
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
 
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
@@ -510,8 +508,7 @@ test.describe('overview donations', () => {
     await page.goto('/app/')
 
     const expenseRow = page.locator('.recent-exp-item').first()
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
     const activeModal = page.locator('.modal-overlay:visible').first()
     await expect(activeModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
     await expect(activeModal.getByRole('button', { name: 'Cancel' })).toHaveCount(1)
@@ -520,8 +517,7 @@ test.describe('overview donations', () => {
     await expect(page.locator('.modal-overlay')).toBeHidden()
     await expect(page.getByRole('button', { name: 'Close' })).toHaveCount(0)
 
-    await expenseRow.hover()
-    await expenseRow.locator('[aria-label="Quick revise expense"]').click()
+    await expenseRow.click()
     const secondModal = page.locator('.modal-overlay:visible').first()
     await expect(secondModal.getByRole('button', { name: 'Cancel' })).toHaveCount(1)
   })
@@ -585,8 +581,7 @@ test.describe('overview donations', () => {
     await page.goto('/app/')
 
     const receiptRow = page.locator('.recent-exp-item').filter({ hasText: 'Receipt Expense' })
-    await receiptRow.hover()
-    await receiptRow.locator('[aria-label="Quick revise expense"]').click()
+    await receiptRow.click()
     const firstEdit = page.locator('.modal-overlay:visible').first()
     await expect(firstEdit.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
     await expect(firstEdit.getByText('Receipts')).toBeVisible()
@@ -596,8 +591,7 @@ test.describe('overview donations', () => {
     await expect(page.locator('.modal-overlay')).toBeHidden()
 
     const plainRow = page.locator('.recent-exp-item').filter({ hasText: 'Plain Expense' })
-    await plainRow.hover()
-    await plainRow.locator('[aria-label="Quick revise expense"]').click()
+    await plainRow.click()
     const secondEdit = page.locator('.modal-overlay:visible').first()
     await expect(secondEdit.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
     await expect(secondEdit.getByText('Receipts')).toHaveCount(0)
@@ -606,8 +600,7 @@ test.describe('overview donations', () => {
     await secondEdit.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden()
 
-    await receiptRow.hover()
-    await receiptRow.locator('[aria-label="Quick revise expense"]').click()
+    await receiptRow.click()
     const reopenedFirstEdit = page.locator('.modal-overlay:visible').first()
     await expect(reopenedFirstEdit.getByText('Receipts')).toBeVisible()
     await expect(reopenedFirstEdit.locator('.receipt-thumb')).toHaveCount(1)

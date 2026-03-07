@@ -131,8 +131,38 @@ test.describe('overview donations', () => {
     await page.goto('/app/')
 
     const expenseRow = page.locator('.recent-exp-item').first()
+    await expect(expenseRow.locator('.recent-exp-title')).toContainText('Govindas Supplies')
     await expect(expenseRow).toContainText('Approved')
     await expect(expenseRow).toContainText('by Madhava Prabhu')
+  })
+
+  test('recent overview expense keeps visible title', async ({ page }) => {
+    await loginAs(page, 'treasurer')
+
+    const today = new Date().toISOString().slice(0, 10)
+    const expenses = [
+      { id: 1, amount: 4200, payee: 'Govindas Supplies', category: 'kitchen', expense_date: today, created_at: `${today}T10:00:00Z`, status: 'submitted', approval_count: 0, approvals_required: 1, created_by: 2 },
+    ]
+
+    await page.route(`${API}/**`, async route => {
+      const url = new URL(route.request().url())
+      const path = url.pathname
+      const method = route.request().method()
+
+      if (path === '/api/income' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/expenses' && method === 'GET') return route.fulfill({ json: { items: expenses, total: expenses.length } })
+      if (path === '/api/members' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/me/expenses' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/me/donations/summary' && method === 'GET') return route.fulfill({ json: { total: 0, count: 0, by_category: {} } })
+      if (path === '/api/me/tax-receipts' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/finance/summary' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      if (path === '/api/audit' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
+      return route.fulfill({ json: { items: [], total: 0 } })
+    })
+
+    await page.goto('/app/')
+
+    await expect(page.locator('.recent-exp-item .recent-exp-title')).toContainText('Govindas Supplies')
   })
 
   test('can add, inspect, cancel edit, and update a donation from overview', async ({ page }) => {

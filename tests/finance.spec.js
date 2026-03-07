@@ -304,7 +304,7 @@ test.describe('finance section', () => {
 
     const section = page.locator('section').first()
     await section.locator('.btn-filter').click()
-    await section.locator('label', { hasText: 'Category' }).locator('..').locator('select').selectOption('kitchen')
+    await section.locator('label', { hasText: 'Category' }).locator('..').locator('select').selectOption(['kitchen'])
     await section.locator('.filter-dropdown .btn-primary').click()
 
     await expect(section.locator('tr.row-link')).toHaveCount(1)
@@ -323,12 +323,15 @@ test.describe('finance section', () => {
     const section = page.locator('section').first()
     await section.locator('.btn-filter').click()
     const category = section.locator('label', { hasText: 'Category' }).locator('..').locator('select')
-    await category.selectOption('kitchen')
+    await category.selectOption(['kitchen'])
     await section.locator('.filter-dropdown .btn-primary').click()
     await expect(section.locator('tr.row-link')).toHaveCount(1)
 
     await section.locator('.btn-filter').click()
-    await category.selectOption('')
+    await category.evaluate(el => {
+      for (const option of el.options) option.selected = false
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    })
     await section.locator('.filter-dropdown .btn-primary').click()
     await expect(section.locator('tr.row-link')).toHaveCount(2)
   })
@@ -583,12 +586,13 @@ test.describe('finance section', () => {
     expect(expenseRequests.map(req => req.dateFrom)).toContain(previousMonthStart)
   })
 
-  test('expense month header shows thin category breakdown next to total', async ({ page }) => {
+  test('expense month header shows clickable category breakdown next to total', async ({ page }) => {
     const currentMonthDate = isoMonthDate(0, '05')
     const expenses = [
       { id: 1, amount: 340000, payee: 'Florist', category: 'flowers', expense_date: currentMonthDate, status: 'submitted' },
       { id: 2, amount: 120000, payee: 'Temple Store', category: 'deity', expense_date: currentMonthDate, status: 'approved' },
       { id: 3, amount: 45000, payee: 'Kitchen Goods', category: 'kitchen', expense_date: currentMonthDate, status: 'approved' },
+      { id: 5, amount: 35000, payee: 'Bus Fare', category: 'travel', expense_date: currentMonthDate, status: 'approved' },
       { id: 4, amount: 15000, payee: 'More Flowers', category: 'flowers', expense_date: currentMonthDate, status: 'approved' },
     ]
     await mockFinance(page, { expenses })
@@ -597,9 +601,18 @@ test.describe('finance section', () => {
     await page.locator('.card-tab-group').waitFor()
 
     const header = page.locator('.exp-group-header').first()
-    await expect(header.locator('.exp-group-count')).toHaveText('4')
-    await expect(header.locator('.exp-group-breakdown')).toHaveAttribute('title', /Flowers · \$3,550\.00\nDeity · \$1,200\.00\nKitchen · \$450\.00/)
-    await expect(header.locator('.exp-group-total')).toHaveText('$5,200.00')
+    await expect(header.locator('.exp-group-count')).toHaveText('5')
+    await expect(header.locator('.exp-group-breakdown-seg')).toHaveCount(3)
+    await expect(header.locator('.exp-group-breakdown-seg').nth(0)).toHaveAttribute('title', 'Flowers · $3,550.00')
+    await expect(header.locator('.exp-group-breakdown-seg').nth(1)).toHaveAttribute('title', 'Deity · $1,200.00')
+    await expect(header.locator('.exp-group-breakdown-seg').nth(2)).toHaveAttribute('title', 'Everything else · $800.00')
+    await expect(header.locator('.exp-group-total')).toHaveText('$5,550.00')
+
+    await header.locator('.exp-group-breakdown-seg').nth(0).click()
+    await expect(page.locator('.filter-inline-chip')).toContainText(['Flowers ×'])
+
+    await header.locator('.exp-group-breakdown-seg').nth(2).click()
+    await expect(page.locator('.filter-inline-chip')).toContainText(['Kitchen ×', 'Travel ×'])
   })
 
 
@@ -1192,6 +1205,32 @@ test.describe('finance section', () => {
     await expect(page.locator('#exp-vendor:visible')).toHaveValue(updatedPayee)
   })
 
+  test('list view: editing opened older month refreshes that month row', async ({ page }) => {
+    const currentMonthDate = isoMonthDate(0, '10')
+    const previousMonthDate = isoMonthDate(-1, '12')
+    const expenses = [
+      { id: 1, amount: 5000, payee: 'Current Expense', category: 'kitchen', expense_date: currentMonthDate, status: 'submitted' },
+      { id: 2, amount: 3000, payee: 'Old Vendor', category: 'utilities', expense_date: previousMonthDate, status: 'submitted' },
+    ]
+    await mockFinance(page, { expenses })
+    await page.goto('/app/finance/#expenses')
+    await page.locator('.card-tab-group').waitFor()
+
+    const headers = page.locator('.exp-group-header')
+    await headers.nth(1).click()
+
+    const previousRow = page.locator('.finance-exp-item').filter({ hasText: 'Old Vendor' })
+    await previousRow.click()
+    await page.locator('#exp-vendor:visible').fill('Updated Vendor')
+    await page.selectOption('#exp-cat:visible', 'travel')
+    await page.getByRole('button', { name: 'Update' }).click()
+    await expect(page.locator('.toast-success').filter({ hasText: 'Expense updated' })).toBeVisible({ timeout: 5000 })
+
+    const updatedRow = page.locator('.finance-exp-item').filter({ hasText: 'Updated Vendor' })
+    await expect(updatedRow).toBeVisible()
+    await expect(updatedRow.locator('.badge')).toHaveText('Travel')
+  })
+
 
   test('quick actions: approve and pay from table row', async ({ page }) => {
     const expenses = [
@@ -1441,6 +1480,25 @@ test.describe('finance section', () => {
     await expect(page.locator('#exp-vendor')).toBeEnabled()
   })
 
+  test('list view: quick actions update expense row inside month section', async ({ page }) => {
+    const currentMonthDate = isoMonthDate(0, '10')
+    const expenses = [
+      { id: 1, amount: 5000, payee: 'Costco', category: 'kitchen', expense_date: currentMonthDate, status: 'submitted', approval_count: 0, approvals_required: 1 },
+    ]
+    await mockFinance(page, { expenses })
+    await page.goto('/app/finance/#expenses')
+    await page.locator('.card-tab-group').waitFor()
+
+    const row = page.locator('.finance-exp-item').first()
+    await row.hover()
+    await row.locator('[aria-label="Quick approve expense"]').click()
+    await expect(row.locator('.recent-exp-status-text')).toHaveText('Approved')
+
+    await row.hover()
+    await row.locator('[aria-label="Quick pay expense"]').click()
+    await expect(row.locator('.recent-exp-status-text')).toHaveText('Paid')
+  })
+
   test('list view: expenses within month are ordered by status then latest update', async ({ page }) => {
     const expDate = isoMonthDate(0, '03')
     const expenses = [
@@ -1495,6 +1553,24 @@ test.describe('finance section', () => {
 
     await headers.nth(1).click()
     await expect(previous).toBeVisible()
+  })
+
+  test('list view: expense search highlights matching title text', async ({ page }) => {
+    const expenses = [
+      { id: 1, amount: 5000, payee: 'Hydro Quebec', category: 'utilities', expense_date: isoMonthDate(0, '10'), status: 'submitted' },
+      { id: 2, amount: 2500, payee: 'Temple Flowers', category: 'deities', expense_date: isoMonthDate(0, '12'), status: 'approved' },
+    ]
+    await mockFinance(page, { expenses })
+    await page.goto('/app/finance/#expenses')
+    await page.locator('.card-tab-group').waitFor()
+    await page.locator('.finance-exp-item').first().waitFor()
+
+    await page.locator('section').first().locator('.filter-search-input').fill('Hydro')
+
+    const hits = page.locator('.finance-exp-item .recent-exp-title .hl-hit')
+    await expect(hits).toHaveText(['Hydro'])
+    await expect(page.locator('.finance-exp-item')).toHaveCount(1)
+    await expect(page.locator('.finance-exp-item').first()).toContainText('Hydro Quebec')
   })
 
   test('submitted expense edit shows single note label and status actions in history', async ({ page }) => {

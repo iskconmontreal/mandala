@@ -36,20 +36,22 @@
     <div class="filter-search-wrap" :onclick.outside="showFilter = false">
       <input class="filter-search filter-search-input" type="search" placeholder="Search expense, vendor, submitter…"
         :value="expSearch" :oninput.debounce-150="e => patchState({ expSearch: e.target.value, expPage: 1 })">
-      <div :if="expFilterStatus || expDateFrom || expDateTo" class="filter-inline-chips">
+      <div :if="expFilterCats.length || expFilterStatus || expDateFrom || expDateTo" class="filter-inline-chips">
+        <span :each="cat in expFilterCats" class="chip filter-inline-chip" :onclick="patchState({ expFilterCats: expFilterCats.filter(x => x !== cat), expPage: 1 })" :text="fmtCat(cat) + ' ×'"></span>
         <span :if="expFilterStatus" class="chip filter-inline-chip" :onclick="patchState({ expFilterStatus: '', expPage: 1 })" :text="fmtStatus(expFilterStatus) + ' ×'"></span>
         <span :if="expDateFrom" class="chip filter-inline-chip" :onclick="patchState({ expDateFrom: '', expPage: 1 })" :text="'From ' + expDateFrom + ' ×'"></span>
         <span :if="expDateTo" class="chip filter-inline-chip" :onclick="patchState({ expDateTo: '', expPage: 1 })" :text="'To ' + expDateTo + ' ×'"></span>
       </div>
       <div class="filter-search-seg">
-        <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': showFilter || expFilterCat || expFilterStatus || expDateFrom || expDateTo}" :onclick="showFilter = !showFilter">Filter</button>
+        <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': showFilter || expFilterCats.length || expFilterStatus || expDateFrom || expDateTo}" :onclick="showFilter = !showFilter">Filter</button>
         <div :if="showFilter" class="filter-dropdown">
           <div class="field">
             <label>Category</label>
-            <select :value="expFilterCat" :onchange="e => patchState({ expFilterCat: e.target.value, expPage: 1 })">
-              <option value="" :selected="!expFilterCat">All categories</option>
-              <option :each="cat in expCats" :value="cat" :selected="expFilterCat === cat" :text="fmtCat(cat)"></option>
+            <select class="filter-multi-select" multiple :size="Math.min(Math.max(expCats.length, 4), 8)"
+              :onchange="e => patchState({ expFilterCats: [...e.target.selectedOptions].map(o => o.value), expPage: 1 })">
+              <option :each="cat in expCats" :value="cat" :selected="expFilterCats.includes(cat)" :text="fmtCat(cat)"></option>
             </select>
+            <div class="dim filter-help">None selected = all categories. Use ⌘/Ctrl-click for multiple.</div>
           </div>
           <div class="field">
             <label>Status</label>
@@ -70,9 +72,9 @@
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--s-sm);border-top:1px solid var(--c-border)">
-            <button class="btn-link" :if="expFilterCat || expFilterStatus || expDateFrom || expDateTo"
-              :onclick="patchState({ expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 }); showFilter = false" :text="'Clear all'"></button>
-            <span :if="!expFilterCat && !expFilterStatus && !expDateFrom && !expDateTo"></span>
+            <button class="btn-link" :if="expFilterCats.length || expFilterStatus || expDateFrom || expDateTo"
+              :onclick="patchState({ expFilterCats: [], expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 }); showFilter = false" :text="'Clear all'"></button>
+            <span :if="!expFilterCats.length && !expFilterStatus && !expDateFrom && !expDateTo"></span>
             <button class="btn btn-primary btn-sm" :onclick="showFilter = false"
               :text="'Show ' + expFiltered.length + ' results'"></button>
           </div>
@@ -165,7 +167,9 @@
               </span>
               <span :if="expMonthHasVisibleData(g.key)" class="exp-group-count" :text="g.count"></span>
             </span>
-            <span :if="expMonthBreakdown(g.key).length && !hasExpFilterState" class="exp-group-breakdown" :style="expBreakdownStyle(g.key)" :title="expMonthBreakdownTooltip(g.key)" aria-hidden="true"></span>
+            <span :if="expMonthBreakdown(g.key).length && !hasExpMetaFilterState" class="exp-group-breakdown" :title="expMonthBreakdownTooltip(g.key)" :aria-label="expMonthBreakdownTooltip(g.key)">
+              <span :each="seg in expMonthBreakdown(g.key)" class="exp-group-breakdown-seg" :style="expBreakdownSegStyle(seg)" :title="expMonthBreakdownSegmentTooltip(seg)" :aria-label="expMonthBreakdownSegmentTooltip(seg)"></span>
+            </span>
             <span :if="expMonthHasVisibleData(g.key)" class="exp-group-total" :text="'$' + fmtAmt(g.total)"></span>
           </button>
           <div class="recent-exp-list finance-exp-list" :class="{'finance-exp-list-open': isExpMonthOpen(g.key), 'finance-exp-list-loading': isExpMonthOpen(g.key) && isExpMonthLoading(g.key), 'finance-exp-list-fx': expMonthFxKey === g.key}" :aria-hidden="isExpMonthOpen(g.key) ? 'false' : 'true'">
@@ -371,7 +375,7 @@
   import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth, hl } from '../../lib/app.js'
   import { api, BASE } from '../../lib/api.js'
   import { actionIcon, statusIcon } from '../../lib/icons.js'
-  import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, catCls, catHex, fmtStatus, fmtDate, changedAt, parseMemberNames } from '../../lib/finance.js'
+  import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, catCls, catHex, catBgHex, fmtStatus, fmtDate, changedAt, parseMemberNames } from '../../lib/finance.js'
   import { formDefaults, bindForm, expIsEditable, expEditPolicy as getExpEditPolicy, expGetAttachments, buildExpTimeline } from '../../lib/form.js'
 
   const MY_USER_ID = auth.user?.id || auth.user?.user_id || (() => {
@@ -405,6 +409,10 @@
     const list = Array.isArray(value) ? value : String(value || '').split(',')
     return [...new Set(list.map(normIncomeMethod).filter(Boolean))]
   }
+  const normExpenseCats = value => {
+    const list = Array.isArray(value) ? value : String(value || '').split(',')
+    return [...new Set(list.map(item => String(item || '').toLowerCase()).filter(cat => EXP_CATS.includes(cat)))]
+  }
   const bucketOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
   const labelOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
   const sourceOf = (x, names) => x.member_id ? (names[x.member_id] || x.source_name || '—') : (x.source_name || 'Anonymous')
@@ -414,7 +422,7 @@
       activeTab: normTab(url.searchParams.get('tab') || url.hash.slice(1) || 'expenses'),
       year: curYear,
       expSearch: url.searchParams.get('exp_q') || '',
-      expFilterCat: url.searchParams.get('exp_cat') || '',
+      expFilterCats: normExpenseCats(url.searchParams.get('exp_cat') || ''),
       expFilterStatus: url.searchParams.get('exp_status') || '',
       expDateFrom: url.searchParams.get('exp_from') || '',
       expDateTo: url.searchParams.get('exp_to') || '',
@@ -457,7 +465,7 @@
     const params = new URLSearchParams()
     params.set('tab', normTab(state.activeTab || 'expenses'))
     if (state.expSearch) params.set('exp_q', state.expSearch)
-    if (state.expFilterCat) params.set('exp_cat', state.expFilterCat)
+    if (state.expFilterCats?.length) params.set('exp_cat', state.expFilterCats.join(','))
     if (state.expFilterStatus) params.set('exp_status', state.expFilterStatus)
     if (state.expDateFrom) params.set('exp_from', state.expDateFrom)
     if (state.expDateTo) params.set('exp_to', state.expDateTo)
@@ -648,22 +656,25 @@
     expenseMatches(r, q = this.expSearch.toLowerCase()) {
       const dt = r.expense_date?.slice(0, 10) || ''
       if (this.expFilterStatus && r.status !== this.expFilterStatus) return false
-      if (this.expFilterCat && r.category !== this.expFilterCat) return false
+      if (this.expFilterCats.length && !this.expFilterCats.includes(r.category || 'other')) return false
       if (this.expDateFrom && dt < this.expDateFrom) return false
       if (this.expDateTo && dt > this.expDateTo) return false
       return !q || [r.payee, r.note || r.description, r.expense_no, String(r.id || ''), r.expense_date?.slice(0, 10), r.member_id ? this.memberNames[r.member_id] : '', fmtCat(r.category)].filter(Boolean).join(' ').toLowerCase().includes(q)
     },
     get hasExpFilterState() {
-      return !!(this.expSearch || this.expFilterCat || this.expFilterStatus || this.expDateFrom || this.expDateTo)
+      return !!(this.expSearch || this.expFilterCats.length || this.expFilterStatus || this.expDateFrom || this.expDateTo)
+    },
+    get hasExpMetaFilterState() {
+      return !!(this.expSearch || this.expFilterStatus || this.expDateFrom || this.expDateTo)
     },
 
-    get _filterCat() { return this.activeTab === 'income' ? this.donFilterCat : this.expFilterCat },
+    get _filterCat() { return this.activeTab === 'income' ? this.donFilterCat : this.expFilterCats[0] || '' },
     toggleCat(cat) {
       if (this.activeTab === 'income') {
         this.donFilterCat = this.donFilterCat === cat ? '' : cat
         this.donPage = 1
       } else {
-        this.expFilterCat = this.expFilterCat === cat ? '' : cat
+        this.expFilterCats = this.expFilterCats.includes(cat) ? this.expFilterCats.filter(x => x !== cat) : [...this.expFilterCats, cat]
         this.expPage = 1
       }
     },
@@ -685,7 +696,7 @@
       return { cls: d > 0 ? 'stat-ok' : 'stat-err', dir: d > 0 ? 'up' : 'down', num: (d > 0 ? '+' : '') + d, label: ' from last month' }
     },
 
-    expSearch: initUrl.expSearch, expFilterCat: initUrl.expFilterCat, expFilterStatus: initUrl.expFilterStatus, expDateFrom: initUrl.expDateFrom, expDateTo: initUrl.expDateTo, expPage: 1,
+    expSearch: initUrl.expSearch, expFilterCats: initUrl.expFilterCats, expFilterStatus: initUrl.expFilterStatus, expDateFrom: initUrl.expDateFrom, expDateTo: initUrl.expDateTo, expPage: 1,
     expView: 'list',
     expSortBy: 'created_at', expSortDir: 'desc',
     expCols: [
@@ -781,44 +792,46 @@
     },
     expMonthTopCats(key) {
       const meta = this.expMonthMeta[key] || { categories: [] }
-      const list = this.hasExpFilterState
+      const list = this.hasExpMetaFilterState
         ? Object.entries((this.expMonthItems[key] || []).reduce((map, item) => {
           const cat = item.category || 'other'
           map[cat] = (map[cat] || 0) + (item.amount || 0)
           return map
         }, {})).map(([category, total]) => ({ category, total }))
         : (meta.categories || [])
-      return [...list].sort((a, b) => (b.total || 0) - (a.total || 0)).slice(0, 2)
+      return [...list].sort((a, b) => (b.total || 0) - (a.total || 0))
     },
     expMonthBreakdown(key) {
       const meta = this.expMonthMeta[key] || { total: 0, categories: [] }
-      const total = this.hasExpFilterState
+      const total = this.hasExpMetaFilterState
         ? (this.expMonthItems[key] || []).reduce((sum, item) => sum + (item.amount || 0), 0)
         : (meta.total || 0)
       if (!total) return []
-      const top = this.expMonthTopCats(key)
+      const all = this.expMonthTopCats(key)
+      const top = all.slice(0, 2)
       const used = top.reduce((sum, item) => sum + (item.total || 0), 0)
       const items = top.map(item => ({
         category: item.category,
         total: item.total || 0,
         pct: ((item.total || 0) / total) * 100,
-        color: catHex(item.category || 'other'),
-      }))
+        color: catBgHex(item.category || 'other'),
+      })).filter(item => item.total > 0)
+      const others = all.slice(2).filter(item => (item.total || 0) > 0)
       const other = total - used
-      if (other > 0) {
+      if (other > 0 && others.length) {
         items.push({
           category: 'other',
           total: other,
           pct: (other / total) * 100,
-          color: 'var(--c-text-dim)',
+          color: 'var(--c-cat-gray-bg)',
           isOther: true,
         })
       }
-      return items.filter(item => item.total > 0)
+      return items
     },
     expMonthBreakdownTooltip(key) {
       const meta = this.expMonthMeta[key] || { categories: [] }
-      const list = this.hasExpFilterState
+      const list = this.hasExpMetaFilterState
         ? Object.entries((this.expMonthItems[key] || []).reduce((map, item) => {
           const cat = item.category || 'other'
           map[cat] = (map[cat] || 0) + (item.amount || 0)
@@ -831,24 +844,15 @@
         .map(item => `${fmtCat(item.category)} · $${fmtAmt(item.total || 0)}`)
         .join('\n')
     },
-    expBreakdownTone(seg) {
-      return seg.isOther
-        ? 'color-mix(in srgb, var(--c-text-dim) 12%, var(--c-surface))'
-        : `color-mix(in srgb, ${seg.color} 14%, var(--c-surface))`
-    },
-    expBreakdownStyle(key) {
-      const parts = this.expMonthBreakdown(key)
-      const gradient = parts.length
-        ? `linear-gradient(90deg, ${parts.map((seg, idx, arr) => {
-          const start = arr.slice(0, idx).reduce((sum, item) => sum + item.pct, 0)
-          const end = start + seg.pct
-          const tone = this.expBreakdownTone(seg)
-          return `${tone} ${start}%, ${tone} ${end}%`
-        }).join(', ')})`
-        : 'none'
+    expBreakdownSegStyle(seg) {
       return {
-        background: gradient,
+        '--seg-color': seg.color,
+        '--seg-hover-color': seg.isOther ? 'var(--c-cat-gray)' : catHex(seg.category || 'other'),
+        width: `${Math.max(seg.pct, 2)}%`,
       }
+    },
+    expMonthBreakdownSegmentTooltip(seg) {
+      return `${seg.isOther ? 'Everything else' : fmtCat(seg.category)} · $${fmtAmt(seg.total || 0)}`
     },
     expMonthHasVisibleData(key) {
       const meta = this.expMonthMeta[key] || { count: 0, total: 0, categories: [] }
@@ -933,7 +937,7 @@
 
     patchState(patch) {
       Object.assign(this, patch)
-      if (Object.keys(patch).some(k => k === 'expSearch' || k === 'expFilterCat' || k === 'expFilterStatus' || k === 'expDateFrom' || k === 'expDateTo')) refreshExpMonthOpen()
+      if (Object.keys(patch).some(k => k === 'expSearch' || k === 'expFilterCats' || k === 'expFilterStatus' || k === 'expDateFrom' || k === 'expDateTo')) refreshExpMonthOpen()
       writeUrl(this)
     },
     setYear(year) {
@@ -944,7 +948,7 @@
       loadAll()
     },
     clearExpenseFilters() {
-      this.patchState({ expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 })
+      this.patchState({ expFilterCats: [], expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 })
     },
     clearIncomeFilters() {
       this.patchState({ donFilterCat: '', donFilterType: '', donFilterMethods: [], donDateFrom: '', donDateTo: '', donPage: 1 })
@@ -963,12 +967,14 @@
       try {
         const res = await api.approveExpense(x.id, '')
         const exp = res.expense || res
-        x.status = exp.status
-        x.updated_by = exp.updated_by || x.updated_by || MY_USER_ID
-        x.approval_count = res.approval_count ?? x.approval_count
-        x.approvals_required = res.approvals_required ?? x.approvals_required
+        mergeExpenseState({
+          ...exp,
+          id: x.id,
+          updated_by: exp.updated_by || x.updated_by || MY_USER_ID,
+          approval_count: res.approval_count ?? x.approval_count,
+          approvals_required: res.approvals_required ?? x.approvals_required,
+        })
         s.myApprovals = { ...s.myApprovals, [x.id]: true }
-        s.expenses = [...s.expenses]
         toast(exp.status === 'approved' ? 'Approved' : `Approval recorded (${res.approval_count}/${res.approvals_required})`, 'success')
       }
       catch (e) { toast(e.message) }
@@ -979,9 +985,11 @@
       s.quickLoading = { ...s.quickLoading, [x.id]: true }
       try {
         const res = await api.payExpense(x.id, '')
-        x.status = res.status
-        x.updated_by = res.updated_by || x.updated_by || MY_USER_ID
-        s.expenses = [...s.expenses]
+        mergeExpenseState({
+          ...res,
+          id: x.id,
+          updated_by: res.updated_by || x.updated_by || MY_USER_ID,
+        })
         toast('Marked paid', 'success')
       }
       catch (e) { toast(e.message) }
@@ -1038,7 +1046,7 @@
 
   s.patchState = patch => {
     Object.assign(s, patch)
-    if (Object.keys(patch).some(k => k === 'expSearch' || k === 'expFilterCat' || k === 'expFilterStatus' || k === 'expDateFrom' || k === 'expDateTo')) refreshExpMonthOpen()
+    if (Object.keys(patch).some(k => k === 'expSearch' || k === 'expFilterCats' || k === 'expFilterStatus' || k === 'expDateFrom' || k === 'expDateTo')) refreshExpMonthOpen()
     writeUrl(s)
   }
   s.setYear = year => {
@@ -1049,7 +1057,7 @@
     loadAll()
   }
   s.clearExpenseFilters = () => {
-    s.patchState({ expFilterCat: '', expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 })
+    s.patchState({ expFilterCats: [], expFilterStatus: '', expDateFrom: '', expDateTo: '', expPage: 1 })
   }
   s.clearIncomeFilters = () => {
     s.donFilterCat = ''
@@ -1095,6 +1103,28 @@
 
   function syncLoadedExpenses() {
     s.expenses = s.expMonthKeys.flatMap(key => s.expMonthItems[key] || [])
+  }
+
+  function mergeExpenseState(updated) {
+    let expChanged = false
+    s.expenses = s.expenses.map(item => {
+      if (item.id !== updated.id) return item
+      expChanged = true
+      return { ...item, ...updated }
+    })
+    if (!expChanged) s.expenses = [...s.expenses]
+
+    let monthChanged = false
+    const nextMonthItems = {}
+    for (const key of Object.keys(s.expMonthItems || {})) {
+      nextMonthItems[key] = (s.expMonthItems[key] || []).map(item => {
+        if (item.id !== updated.id) return item
+        monthChanged = true
+        return { ...item, ...updated }
+      })
+    }
+    if (monthChanged) s.expMonthItems = nextMonthItems
+    if (s.detailExp?.id === updated.id) s.detailExp = { ...s.detailExp, ...updated }
   }
 
   function monthMetaMap(items) {
@@ -1167,6 +1197,7 @@
     s.loading = true; s.loadErr = null
     s.expPage = 1; s.donPage = 1; s.donorPage = 1
     const dateP = { dateFrom: `${curYear}-01-01`, dateTo: `${curYear}-12-31` }
+    const openMonthKeys = Object.entries(s.expMonthOpen || {}).filter(([, open]) => open).map(([key]) => key)
     try {
       const [inc, mem, summary, donors] = await Promise.all([
         api.getIncome({ ...dateP, limit: BATCH, page: 1 }),
@@ -1183,7 +1214,9 @@
       s.expMonthLoading = {}
       s.expMonthFxKey = ''
       s.expRangeLoaded = false
-      s.expMonthOpen = { [currentExpenseMonthKey]: true }
+      const nextOpenKeys = openMonthKeys.filter(key => s.expMonthKeys.includes(key))
+      const visibleOpenKeys = nextOpenKeys.length ? nextOpenKeys : [currentExpenseMonthKey]
+      s.expMonthOpen = Object.fromEntries(visibleOpenKeys.map(key => [key, true]))
       s.expTotal = 0
       s.expMonth = summary.exp_month || 0
       s.expPrevMonth = summary.exp_prev_month || 0
@@ -1194,7 +1227,7 @@
       const { names, unames } = parseMemberNames(mem.items || [])
       s.memberNames = names
       s.userNames = unames
-      await loadExpenseMonth(currentExpenseMonthKey)
+      await Promise.all(visibleOpenKeys.map(loadExpenseMonth))
       refreshExpMonthOpen()
       refreshIncomeStats()
     } catch (e) {
@@ -1243,7 +1276,7 @@
     s.donPage = 1
     s.donorPage = 1
     s.expSearch = next.expSearch
-    s.expFilterCat = next.expFilterCat
+    s.expFilterCats = next.expFilterCats
     s.expFilterStatus = next.expFilterStatus
     s.expDateFrom = next.expDateFrom
     s.expDateTo = next.expDateTo

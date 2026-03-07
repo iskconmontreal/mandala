@@ -5,7 +5,7 @@
   <div class="recent-exp-main">
     <div class="recent-exp-title-row">
       <div class="recent-exp-title">
-        <span :text="expenseRowTitle(x)"></span>
+        <span :html="hl(expenseRowTitle(x), typeof expSearch === 'undefined' ? '' : expSearch)"></span>
         {% if include.show_expense_no %}<span :if="x.expense_no" class="recent-exp-title-sub dim" :text="'#' + x.expense_no"></span>{% endif %}
       </div>
     </div>

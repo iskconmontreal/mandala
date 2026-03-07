@@ -183,7 +183,7 @@
 {% include finance/donation-form.html %}
 
 <script type="module">
-  import { init, fmtAmt, fmtCat, rawAmt, toast, auth } from '../lib/app.js'
+  import { init, fmtAmt, fmtCat, rawAmt, toast, auth, hl } from '../lib/app.js'
   import { api, BASE } from '../lib/api.js'
   import { greeting } from '../lib/greeting.js'
   import { catCls, changedAt, fmtDate, fmtStatus, parseMemberNames } from '../lib/finance.js'
@@ -207,7 +207,7 @@
   const s = init({
     ...formDefaults(BASE, MY_USER_ID),
     _greeting: greeting(now, vis),
-    fmtAmt, fmtCat, fmtDate, catCls, statusIcon, methodIcon, changedAt,
+    fmtAmt, fmtCat, fmtDate, catCls, statusIcon, methodIcon, changedAt, hl,
     fin: { income: 0, expenses: 0, net: 0, incPct: 0, expPct: 0 },
     finTasks: { pending: 0, ready: 0 },
     donMonth: { count: 0, total: 0 },

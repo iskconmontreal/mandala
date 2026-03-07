@@ -91,41 +91,44 @@
 
         <div :if="detailExp" style="display:flex;flex-direction:column;gap:var(--s-sm)">
           <div class="stat-label">History</div>
-          <div class="activity-feed" :if="expTimeline.length">
+          <div class="activity-feed">
             <div class="activity-item" :each="e in expTimeline">
-              <span class="activity-dot" :class="'activity-dot-' + e.badge"></span>
+              <span class="activity-marker" :class="'activity-marker-' + e.badge" :html="activityIcon(e.badge)"></span>
               <div class="activity-copy">
                 <div class="activity-line">
-                  <span class="activity-actor" :text="e.label"></span>
+                  <span class="activity-label" :text="e.label"></span>
                   <span :if="e.actor"> by </span>
-                  <a :if="e.actor && e.uid && e.uid !== myUid" href="{{ '/app/members/' | relative_url }}" :text="e.actor"></a>
+                  <a class="activity-actor-link" :if="e.actor && e.uid && e.uid !== myUid" href="{{ '/app/members/' | relative_url }}" :text="e.actor"></a>
                   <span :if="e.actor && (!e.uid || e.uid === myUid)" :text="e.actor"></span>
+                  <span class="activity-date-inline" :if="e.date" :text="timelineShortDate(e.date)"></span>
                 </div>
-                <div :if="e.detail" class="activity-detail dim" :text="e.detail"></div>
-              </div>
-              <span class="activity-date" :text="fmtDate(e.date)"></span>
-            </div>
-
-            <div :if="detailExp?.status === 'submitted' && can('expenses:approve')" class="activity-followup">
-              <div :if="expRejecting" class="field" style="margin:0">
-                <label>Reason</label>
-                <textarea rows="2" :value="actionNote" :oninput="e => actionNote = e.target.value" placeholder="Optional reason"></textarea>
-              </div>
-              <div class="activity-followup-actions">
-                <button :if="!expRejecting" class="btn btn-danger btn-sm" :onclick="openExpenseReject()">Reject</button>
-                <button :if="expRejecting" class="btn btn-danger btn-sm" :class="{'btn-loading': actioning}" :onclick="rejectExp()">Send reject</button>
-                <button :if="expRejecting" class="btn btn-outline btn-sm" :onclick="cancelExpenseReject()">Cancel</button>
-                <button :if="!expRejecting" class="btn btn-primary btn-sm" :class="{'btn-loading': actioning}" :onclick="approveExp()">Approve</button>
+                <div :if="e.detail" class="activity-detail" :text="e.detail"></div>
               </div>
             </div>
 
-            <div :if="detailExp?.status === 'approved' && can('expenses:approve')" class="activity-followup">
-              <div class="activity-followup-actions">
-                <button class="btn btn-primary btn-sm" :class="{'btn-loading': actioning}" :onclick="payExp()">Paid</button>
+            <div class="activity-item activity-item-current">
+              <span class="activity-marker" :class="'activity-marker-' + expenseCurrentStatusBadge(detailExp)" :html="activityIcon(expenseCurrentStatusBadge(detailExp))"></span>
+              <div class="activity-copy">
+                <div class="activity-line activity-line-current">
+                  <span class="activity-label" :text="expenseCurrentStatusText(detailExp)"></span>
+                  <div :if="detailExp?.status === 'submitted' && can('expenses:approve') && !expRejecting" class="activity-followup-actions activity-followup-actions-inline">
+                    <button class="btn btn-primary btn-sm" :class="{'btn-loading': actioning}" :onclick="approveExp()">Approve</button>
+                    <button class="btn btn-danger btn-sm" :onclick="openExpenseReject()">Reject</button>
+                  </div>
+                  <div :if="detailExp?.status === 'submitted' && can('expenses:approve') && expRejecting" class="activity-followup-actions activity-followup-actions-inline activity-followup-actions-reject-inline">
+                    <span class="activity-inline-input-wrap">
+                      <input class="activity-inline-input" type="text" :value="actionNote" :oninput="e => actionNote = e.target.value" placeholder="Reason">
+                      <button class="activity-inline-clear" aria-label="Cancel reject" title="Cancel reject" :onclick="cancelExpenseReject()">×</button>
+                    </span>
+                    <button class="btn btn-danger btn-sm" :class="{'btn-loading': actioning}" :onclick="rejectExp()">Send</button>
+                  </div>
+                  <div :if="detailExp?.status === 'approved' && can('expenses:approve')" class="activity-followup-actions activity-followup-actions-inline">
+                    <button class="btn btn-primary btn-sm" :class="{'btn-loading': actioning}" :onclick="payExp()">Paid</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div :if="!expTimeline.length" class="dim" style="font-size:var(--f-sm)">No activity yet</div>
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); align-items:center; flex-wrap:wrap">

@@ -149,11 +149,11 @@
   </div>
 
   <!-- List view -->
-  <div :if="expView === 'list'">
+  <div :if="expView === 'list'" :class="{'finance-exp-list-shell-refreshing': expRefreshing}">
     <div :if="loadErr" class="login-error" :text="loadErr" style="margin-bottom:var(--s-sm)"></div>
-    <div :if="loading" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
-    <div :if="!loading && !expenses.length" class="dim" style="text-align:center;padding:var(--s-xl)">No expenses yet</div>
-    <div :if="!loading && expenses.length && !expFiltered.length" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</div>
+    <div :if="loading && !expenses.length" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
+    <div :if="!loading && !expRefreshing && !expenses.length" class="dim" style="text-align:center;padding:var(--s-xl)">No expenses yet</div>
+    <div :if="!loading && !expRefreshing && expenses.length && !expFiltered.length" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</div>
     <div :each="yr in expYearGroups" class="finance-year-section">
       <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
       <div class="finance-year-months">
@@ -524,6 +524,7 @@
 
     year: initUrl.year, years, curYear, monthLabel,
     loading: false, loadErr: null,
+    expRefreshing: false,
     donations: [], expenses: [],
     expTotal: 0, donTotal: 0,
     expMonth: 0, expPrevMonth: 0, incMonth: 0, incPrevMonth: 0,
@@ -1194,7 +1195,10 @@
   }
 
   async function loadAll() {
-    s.loading = true; s.loadErr = null
+    const hasVisibleExpenses = !!(s.expenses.length || Object.keys(s.expMonthItems || {}).some(key => (s.expMonthItems[key] || []).length))
+    s.loading = !hasVisibleExpenses
+    s.expRefreshing = hasVisibleExpenses
+    s.loadErr = null
     s.expPage = 1; s.donPage = 1; s.donorPage = 1
     const dateP = { dateFrom: `${curYear}-01-01`, dateTo: `${curYear}-12-31` }
     const openMonthKeys = Object.entries(s.expMonthOpen || {}).filter(([, open]) => open).map(([key]) => key)
@@ -1205,17 +1209,19 @@
         api.getFinanceSummary({ year: curYear }),
         api.getDonorsSummary({ year: curYear, limit: 500 }),
       ])
+      const nextMonthMeta = monthMetaMap(summary.exp_months || [])
+      const nextOpenKeys = openMonthKeys.filter(key => s.expMonthKeys.includes(key))
+      const visibleOpenKeys = nextOpenKeys.length ? nextOpenKeys : [currentExpenseMonthKey]
+      const nextMonthEntries = await Promise.all(visibleOpenKeys.map(async key => [key, await fetchExpenseMonthItems(key)]))
+      const nextMonthItems = Object.fromEntries(nextMonthEntries)
       s.donations = inc.items || []
       s.donTotal = inc.total ?? s.donations.length
-      s.expenses = []
-      s.expMonthMeta = monthMetaMap(summary.exp_months || [])
-      s.expMonthItems = {}
-      s.expMonthLoaded = {}
+      s.expMonthMeta = nextMonthMeta
+      s.expMonthItems = nextMonthItems
+      s.expMonthLoaded = Object.fromEntries(visibleOpenKeys.map(key => [key, true]))
       s.expMonthLoading = {}
       s.expMonthFxKey = ''
       s.expRangeLoaded = false
-      const nextOpenKeys = openMonthKeys.filter(key => s.expMonthKeys.includes(key))
-      const visibleOpenKeys = nextOpenKeys.length ? nextOpenKeys : [currentExpenseMonthKey]
       s.expMonthOpen = Object.fromEntries(visibleOpenKeys.map(key => [key, true]))
       s.expTotal = 0
       s.expMonth = summary.exp_month || 0
@@ -1227,12 +1233,15 @@
       const { names, unames } = parseMemberNames(mem.items || [])
       s.memberNames = names
       s.userNames = unames
-      await Promise.all(visibleOpenKeys.map(loadExpenseMonth))
+      syncLoadedExpenses()
       refreshExpMonthOpen()
       refreshIncomeStats()
     } catch (e) {
       s.loadErr = e.message || 'Failed to load finance data'
-    } finally { s.loading = false }
+    } finally {
+      s.loading = false
+      s.expRefreshing = false
+    }
     loadRemaining(api.getIncome, dateP, 'donations', 'donTotal').then(refreshIncomeStats)
   }
 

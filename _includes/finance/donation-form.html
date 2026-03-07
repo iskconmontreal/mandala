@@ -20,16 +20,16 @@
           <div class="stat-label">History</div>
           <div class="activity-feed" :if="donHistory.length">
             <div class="activity-item" :each="h in donHistory">
-              <span class="activity-dot" :class="'activity-dot-' + h.badge"></span>
+              <span class="activity-marker" :class="'activity-marker-' + h.badge" :html="activityIcon(h.badge)"></span>
               <div class="activity-copy">
                 <div class="activity-line">
-                  <span class="activity-actor" :text="h.label"></span>
+                  <span class="activity-label" :text="h.label"></span>
                   <span :if="h.actor"> by </span>
                   <span :if="h.actor" :text="h.actor"></span>
+                  <span class="activity-date-inline" :if="h.date" :text="timelineShortDate(h.date)"></span>
                 </div>
-                <div :if="h.detail" class="activity-detail dim" :text="h.detail"></div>
+                <div :if="h.detail" class="activity-detail" :text="h.detail"></div>
               </div>
-              <span class="activity-date" :text="fmtDate(h.date)"></span>
             </div>
           </div>
           <div :if="!donHistory.length" class="dim" style="font-size:var(--f-sm)">No activity yet</div>

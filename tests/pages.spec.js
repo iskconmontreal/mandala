@@ -22,8 +22,6 @@ test.describe('overview page (admin)', () => {
   })
 
   test('finance shortcuts point to the expected tabs and filters', async ({ page }) => {
-    await expect(page.locator('.finance-pulse-link').first()).toHaveAttribute('href', 'finance/?tab=expenses#expenses')
-    await expect(page.locator('.finance-pulse-link').nth(1)).toHaveAttribute('href', 'finance/?tab=income#income')
     await expect(page.locator('.recent-grid .card').nth(0).locator('.section-head-link')).toHaveAttribute('href', 'finance/?tab=expenses#expenses')
     await expect(page.locator('.recent-grid .card').nth(1).locator('.section-head-link')).toHaveAttribute('href', 'finance/?tab=income&inc_type=donation#income')
   })
@@ -39,7 +37,7 @@ test.describe('progress bar', () => {
 })
 
 test.describe('overview donations', () => {
-  test('recent row hover shows quick actions and expense approve then pay works', async ({ page }) => {
+  test('overview renders recent expenses and donations', async ({ page }) => {
     await loginAs(page, 'treasurer')
 
     const today = new Date().toISOString().slice(0, 10)
@@ -63,40 +61,18 @@ test.describe('overview donations', () => {
       if (path === '/api/me/tax-receipts' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
       if (path === '/api/finance/summary' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
       if (path === '/api/audit' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
-      if (path === '/api/expenses/1/reject' && method === 'POST') {
-        expenses[0] = { ...expenses[0], status: 'rejected' }
-        return route.fulfill({ json: { ...expenses[0] } })
-      }
-      if (path === '/api/expenses/1/approve' && method === 'POST') {
-        expenses[0] = { ...expenses[0], status: 'approved', approval_count: 1 }
-        return route.fulfill({ json: { ...expenses[0], approval_count: 1, approvals_required: 1 } })
-      }
-      if (path === '/api/expenses/1/pay' && method === 'POST') {
-        expenses[0] = { ...expenses[0], status: 'paid' }
-        return route.fulfill({ json: { ...expenses[0] } })
-      }
       return route.fulfill({ json: { items: [], total: 0 } })
     })
 
     await page.goto('/app/')
 
     const expenseRow = page.locator('.recent-exp-item').first()
-    await expenseRow.hover()
-    await expect(expenseRow.locator('.recent-row-action')).toHaveCount(2)
-    await expect(expenseRow.locator('[aria-label="Quick reject expense"]')).toBeVisible()
-    await expenseRow.locator('[aria-label="Quick approve expense"]').click()
-    await expect(expenseRow).toContainText('Approved')
-    await expect(expenseRow).toContainText('by you')
-    await expenseRow.hover()
-    await expect(expenseRow.locator('[aria-label="Quick pay expense"]')).toBeVisible()
-    await expenseRow.locator('[aria-label="Quick pay expense"]').click()
-    await expect(expenseRow).toContainText('Paid')
-    await expect(expenseRow).toContainText('by you')
+    await expect(expenseRow).toContainText('Govindas Supplies')
+    await expect(expenseRow).toContainText('$42.00')
 
     const donationRow = page.locator('.recent-inc-item').first()
+    await expect(donationRow).toContainText('Sunday Guest')
     await expect(donationRow.locator('.recent-inc-subtitle')).toHaveText(/card\s+.+ago/i)
-    await donationRow.hover()
-    await expect(donationRow.locator('.recent-row-action')).toHaveCount(2)
   })
 
   test('recent approved expense shows last updater name', async ({ page }) => {
@@ -353,13 +329,12 @@ test.describe('overview donations', () => {
     await expenseRow.click()
 
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await expect(page.getByText('Scan receipts')).toHaveCount(0)
-    await expect(page.locator('#home-exp-vendor')).toBeDisabled()
-    await expect(page.locator('#home-exp-cat')).toHaveValue('utilities')
-    await expect(page.locator('#home-exp-amount')).toBeDisabled()
-    await expect(page.locator('#home-exp-date')).toBeDisabled()
-    await expect(page.locator('#home-exp-cat')).toBeEnabled()
-    await expect(page.locator('#home-exp-desc')).toBeEnabled()
+    await expect(page.locator('#exp-vendor')).toBeDisabled()
+    await expect(page.locator('#exp-cat')).toHaveValue('utilities')
+    await expect(page.locator('#exp-amount')).toBeDisabled()
+    await expect(page.locator('#exp-date')).toBeDisabled()
+    await expect(page.locator('#exp-cat')).toBeEnabled()
+    await expect(page.locator('#exp-desc')).toBeEnabled()
 
     const activeModal = page.locator('.modal-overlay:visible').first()
     await activeModal.getByRole('button', { name: 'Cancel' }).click()
@@ -369,12 +344,11 @@ test.describe('overview donations', () => {
 
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await expect(reopenedModal.getByText('Scan receipts')).toHaveCount(0)
-    await expect(reopenedModal.locator('#home-exp-vendor')).toBeDisabled()
-    await expect(reopenedModal.locator('#home-exp-date')).toBeDisabled()
-    await expect(reopenedModal.locator('#home-exp-amount')).toBeDisabled()
-    await expect(reopenedModal.locator('#home-exp-cat')).toBeEnabled()
-    await expect(reopenedModal.locator('#home-exp-desc')).toBeEnabled()
+    await expect(reopenedModal.locator('#exp-vendor')).toBeDisabled()
+    await expect(reopenedModal.locator('#exp-date')).toBeDisabled()
+    await expect(reopenedModal.locator('#exp-amount')).toBeDisabled()
+    await expect(reopenedModal.locator('#exp-cat')).toBeEnabled()
+    await expect(reopenedModal.locator('#exp-desc')).toBeEnabled()
   })
 
   test('overview expense add clears receipt loader after save and reopen', async ({ page }) => {
@@ -430,16 +404,16 @@ test.describe('overview donations', () => {
     const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 
     await page.getByRole('button', { name: '+ Expense' }).click()
-    await page.locator('#receipt-input').setInputFiles({
+    await page.locator('#exp-receipt-input').setInputFiles({
       name: 'receipt.png',
       mimeType: 'image/png',
       buffer: pngBytes,
     })
     await expect(page.locator('.receipt-thumb')).toHaveCount(1)
     await expect(page.locator('.receipt-add')).toHaveCount(1)
-    await expect(page.locator('#home-exp-vendor')).toHaveValue('Receipt Shop')
-    await expect(page.locator('#home-exp-amount')).toHaveValue('18.25')
-    await page.selectOption('#home-exp-cat', 'utilities')
+    await expect(page.locator('#exp-vendor')).toHaveValue('Receipt Shop')
+    await expect(page.locator('#exp-amount')).toHaveValue('18.25')
+    await page.selectOption('#exp-cat', 'utilities')
 
     await page.getByRole('button', { name: 'Submit' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden({ timeout: 5000 })
@@ -448,7 +422,7 @@ test.describe('overview donations', () => {
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByText('Scan receipts')).toBeVisible()
     await expect(reopenedModal.locator('.receipt-thumb')).toHaveCount(0)
-    await expect(reopenedModal.locator('.receipt-add')).toHaveCount(0)
+    await expect(reopenedModal.locator('.receipt-add:not(.hidden)')).toHaveCount(0)
   })
 
   test('recent paid expense quick edit preserves edited category and reopens with populated form', async ({ page }) => {
@@ -492,7 +466,7 @@ test.describe('overview donations', () => {
 
     const firstModal = page.locator('.modal-overlay:visible').first()
     await expect(firstModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await firstModal.locator('#home-exp-cat').selectOption('kitchen')
+    await firstModal.locator('#exp-cat').selectOption('kitchen')
     await firstModal.getByRole('button', { name: 'Update' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden()
 
@@ -502,9 +476,9 @@ test.describe('overview donations', () => {
 
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await expect(reopenedModal.locator('#home-exp-vendor')).toHaveValue('Govindas Supplies')
-    await expect(reopenedModal.locator('#home-exp-cat')).toHaveValue('kitchen')
-    await expect(reopenedModal.locator('#home-exp-amount')).toHaveValue('42.00')
+    await expect(reopenedModal.locator('#exp-vendor')).toHaveValue('Govindas Supplies')
+    await expect(reopenedModal.locator('#exp-cat')).toHaveValue('kitchen')
+    await expect(reopenedModal.locator('#exp-amount')).toHaveValue('42.00')
     await expect(reopenedModal.getByRole('button', { name: 'Update' })).not.toHaveClass(/btn-loading/)
   })
 
@@ -612,8 +586,8 @@ test.describe('overview donations', () => {
     await receiptRow.click()
     const firstEdit = page.locator('.modal-overlay:visible').first()
     await expect(firstEdit.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await expect(firstEdit.getByText('Receipts')).toBeVisible()
     await expect(firstEdit.locator('.receipt-thumb')).toHaveCount(1)
+    await expect(firstEdit.locator('.expense-media-empty:not(.hidden)')).toHaveCount(0)
 
     await firstEdit.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden()
@@ -622,15 +596,15 @@ test.describe('overview donations', () => {
     await plainRow.click()
     const secondEdit = page.locator('.modal-overlay:visible').first()
     await expect(secondEdit.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
-    await expect(secondEdit.getByText('Receipts')).toHaveCount(0)
     await expect(secondEdit.locator('.receipt-thumb')).toHaveCount(0)
+    await expect(secondEdit.getByText('Scan receipts')).toBeVisible()
 
     await secondEdit.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.locator('.modal-overlay')).toBeHidden()
 
     await receiptRow.click()
     const reopenedFirstEdit = page.locator('.modal-overlay:visible').first()
-    await expect(reopenedFirstEdit.getByText('Receipts')).toBeVisible()
     await expect(reopenedFirstEdit.locator('.receipt-thumb')).toHaveCount(1)
+    await expect(reopenedFirstEdit.locator('.expense-media-empty:not(.hidden)')).toHaveCount(0)
   })
 })

@@ -65,6 +65,12 @@ function mkRole(id, name, perms, desc = '') {
   return { id, name, description: desc, permissions: [...perms], defaultPerms: [...perms] }
 }
 
+/** Locate the badge button for a given action within a perm-row */
+function permBadge(container, scope, action) {
+  const row = container.locator('.perm-row', { has: container.page().locator('.perm-scope', { hasText: scope }) })
+  return row.locator('.perm-check', { hasText: action }).locator('.badge')
+}
+
 async function openRoles(page) {
   await page.goto('/app/admin/roles/')
   await page.locator('.card').first().waitFor()
@@ -112,8 +118,7 @@ test.describe('roles & permissions', () => {
     await page.fill('#r-desc', 'Temple duties')
 
     const modal = page.locator('.modal')
-    const incomeRow = modal.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
-    await incomeRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
+    await permBadge(modal, 'Income', 'view').click()
 
     await page.getByRole('button', { name: 'Create Role' }).click()
     await expect(page.locator('.modal')).toBeHidden()
@@ -126,12 +131,11 @@ test.describe('roles & permissions', () => {
     await openRoles(page)
 
     const card = page.locator('.card').first()
-    const expRow = card.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Expenses' }) })
-    const viewCheck = expRow.locator('.perm-check', { hasText: 'view' }).locator('input')
+    const badge = permBadge(card, 'Expenses', 'view')
 
-    await expect(viewCheck).not.toBeChecked()
-    await viewCheck.check()
-    await expect(viewCheck).toBeChecked()
+    await expect(badge).not.toHaveClass(/badge-active/)
+    await badge.click()
+    await expect(badge).toHaveClass(/badge-active/)
   })
 
   test('admin unchecks permission on existing role', async ({ page }) => {
@@ -140,12 +144,11 @@ test.describe('roles & permissions', () => {
     await openRoles(page)
 
     const card = page.locator('.card').first()
-    const donRow = card.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
-    const createCheck = donRow.locator('.perm-check', { hasText: 'create' }).locator('input')
+    const badge = permBadge(card, 'Income', 'create')
 
-    await expect(createCheck).toBeChecked()
-    await createCheck.uncheck()
-    await expect(createCheck).not.toBeChecked()
+    await expect(badge).toHaveClass(/badge-active/)
+    await badge.click()
+    await expect(badge).not.toHaveClass(/badge-active/)
   })
 
   test('admin resets role permissions to defaults', async ({ page }) => {
@@ -155,12 +158,11 @@ test.describe('roles & permissions', () => {
     await openRoles(page)
 
     const card = page.locator('.card').first()
-    const memRow = card.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Members' }) })
-    await expect(memRow.locator('.perm-check', { hasText: 'view' }).locator('input')).toBeChecked()
+    const badge = permBadge(card, 'Members', 'view')
 
+    await expect(badge).toHaveClass(/badge-active/)
     await card.getByRole('button', { name: 'Reset' }).click()
-
-    await expect(memRow.locator('.perm-check', { hasText: 'view' }).locator('input')).not.toBeChecked()
+    await expect(badge).not.toHaveClass(/badge-active/)
   })
 
   test('admin deletes a role', async ({ page }) => {
@@ -224,17 +226,17 @@ test.describe('roles & permissions', () => {
     const cardA = page.locator('.card').nth(0)
     const cardB = page.locator('.card').nth(1)
 
-    const aExpRow = cardA.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Expenses' }) })
-    await aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
+    const aExp = permBadge(cardA, 'Expenses', 'view')
+    await aExp.click()
 
-    const bDonRow = cardB.locator('.perm-row', { has: page.locator('.perm-scope', { hasText: 'Income' }) })
-    await bDonRow.locator('.perm-check', { hasText: 'view' }).locator('input').check()
+    const bInc = permBadge(cardB, 'Income', 'view')
+    await bInc.click()
 
-    await expect(aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input')).toBeChecked()
-    await expect(bDonRow.locator('.perm-check', { hasText: 'view' }).locator('input')).toBeChecked()
+    await expect(aExp).toHaveClass(/badge-active/)
+    await expect(bInc).toHaveClass(/badge-active/)
 
-    await aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input').uncheck()
-    await expect(aExpRow.locator('.perm-check', { hasText: 'view' }).locator('input')).not.toBeChecked()
-    await expect(bDonRow.locator('.perm-check', { hasText: 'view' }).locator('input')).toBeChecked()
+    await aExp.click()
+    await expect(aExp).not.toHaveClass(/badge-active/)
+    await expect(bInc).toHaveClass(/badge-active/)
   })
 })

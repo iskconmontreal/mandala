@@ -7,7 +7,7 @@
         <span :text="location.pathname.includes('/app/finance') ? 'Edit Income' : 'Edit donation'"></span>
         <span :if="detailDon?.id" class="dim modal-title-sub" :text="'#' + detailDon?.id"></span>
       </h2>
-      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
+      <button class="modal-close" type="button" aria-label="Close dialog" :onclick="cancelAdd()" :html="icon('close')"></button>
     </div>
     <div class="modal-body">
       <div style="display:flex;flex-direction:column;gap:var(--s-md)">
@@ -17,7 +17,7 @@
         </form>
 
         <div :if="detailDon" style="display:flex;flex-direction:column;gap:var(--s-sm)">
-          <div class="stat-label">History</div>
+          <label>History</label>
           <div class="activity-feed" :if="donHistory.length">
             <div class="activity-item" :each="h in donHistory">
               <span class="activity-marker" :class="'activity-marker-' + h.badge" :html="activityIcon(h.badge)"></span>
@@ -56,7 +56,7 @@
   <div class="modal" :onclick.outside="cancelAdd()">
     <div class="modal-header">
       <h2 :text="location.pathname.includes('/app/finance') ? 'Add Income' : 'Add donation'"></h2>
-      <button class="modal-close" :onclick="cancelAdd()">&times;</button>
+      <button class="modal-close" type="button" aria-label="Close dialog" :onclick="cancelAdd()" :html="icon('close')"></button>
     </div>
     <div class="modal-body">
       <form :onsubmit.prevent="saveDonation" style="display:flex;flex-direction:column;gap:var(--s-md)">

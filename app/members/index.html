@@ -4,14 +4,8 @@
   <h1>Community</h1>
 </div>
 
-<div class="pill-tabs">
-  <button class="pill-tab" :class="{'pill-tab-active': activeTab === 'members'}" :onclick="activeTab = 'members'">Members</button>
-  <button class="pill-tab" :class="{'pill-tab-active': activeTab === 'events'}" :onclick="activeTab = 'events'">Events</button>
-  <button class="pill-tab" :class="{'pill-tab-active': activeTab === 'content'}" :onclick="activeTab = 'content'">Content</button>
-</div>
-
 <!-- ===== MEMBERS TAB ===== -->
-<section :class="{'hidden': activeTab !== 'members'}">
+<section>
 
 <!-- Modals loaded via partials -->
 <div :html="editHTML"></div>
@@ -21,8 +15,8 @@
 <div class="filter-bar">
   <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Member</button>
   <input class="filter-search" type="search" placeholder="Search name, email or phone…"
-    :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1; load() }">
-  <select :value="filterRole" :onchange="e => { filterRole = e.target.value; page = 1; load() }" style="width:auto">
+    :value="search" :oninput.debounce-150="e => { page = 1; load() }">
+  <select :value="filterRole" :onchange="e => { page = 1; load() }" style="width:auto">
     <option value="">All roles</option>
     <option :each="r in roles" :value="r" :text="r"></option>
   </select>
@@ -69,31 +63,17 @@
   <div :if="totalPages > 1" style="display:flex; justify-content:space-between; align-items:center; padding:var(--s-sm) var(--s-md); border-top:1px solid var(--c-border)">
     <span class="dim" style="font-size:var(--f-sm)" :text="total + ' members'"></span>
     <div style="display:flex; gap:var(--s-xs)">
-      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1); load()" :class="{dim: page === 1}">←</button>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.max(1, page - 1); load()" :class="{dim: page === 1}" :html="icon('chevron_left')"></button>
       <span style="padding:var(--s-xs) var(--s-sm); font-size:var(--f-sm)" :text="page + ' / ' + totalPages"></span>
-      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1); load()" :class="{dim: page === totalPages}">→</button>
+      <button class="btn btn-outline btn-sm" :onclick="page = Math.min(totalPages, page + 1); load()" :class="{dim: page === totalPages}" :html="icon('chevron_right')"></button>
     </div>
   </div>
 </div>
 
 </section>
 
-<!-- ===== EVENTS TAB ===== -->
-<section :class="{'hidden': activeTab !== 'events'}">
-  <div class="card" style="padding:var(--s-xl); text-align:center">
-    <div class="dim">Events coming soon</div>
-  </div>
-</section>
-
-<!-- ===== CONTENT TAB ===== -->
-<section :class="{'hidden': activeTab !== 'content'}">
-  <div class="card" style="padding:var(--s-xl); text-align:center">
-    <div class="dim">Content coming soon</div>
-  </div>
-</section>
-
 <script type="module">
-  import { init, SERVICES, auth, fmtCat, toast, hl, loadSystemRoles } from '../../lib/app.js'
+  import { init, SERVICES, auth, fmtCat, toast, hl, loadSystemRoles, uniq } from '../../lib/app.js'
   import { api, BASE } from '../../lib/api.js'
 
   if (!auth.can('members:view')) {
@@ -134,35 +114,21 @@
     return v.name || v.role_name || roleName(v.role) || roleName(v.id) || roleName(v.role_id) || ''
   }
 
-  function uniqueRoles(list) {
-    const seen = new Set()
-    const out = []
-    for (const x of list) {
-      const r = String(x || '').trim()
-      if (!r) continue
-      const k = r.toLowerCase()
-      if (seen.has(k)) continue
-      seen.add(k)
-      out.push(r)
-    }
-    return out
-  }
-
   function roleTags(v) {
     if (!v) return []
-    if (Array.isArray(v)) return uniqueRoles(v.flatMap(roleTags))
-    if (typeof v === 'number') return uniqueRoles([roleName(v)])
+    if (Array.isArray(v)) return uniq(v.flatMap(roleTags))
+    if (typeof v === 'number') return uniq([roleName(v)])
     if (typeof v === 'string') {
       const s = v.trim()
       if (!s) return []
       if ((s.startsWith('{') || s.startsWith('[')) && s.length > 1) {
         try { return roleTags(JSON.parse(s)) } catch {}
       }
-      if (s.includes(',')) return uniqueRoles(s.split(',').map(x => roleName(x)))
-      return uniqueRoles([roleName(s) || s])
+      if (s.includes(',')) return uniq(s.split(',').map(x => roleName(x)))
+      return uniq([roleName(s) || s])
     }
     if (typeof v !== 'object') return []
-    return uniqueRoles([
+    return uniq([
       ...roleTags(v.roles),
       ...roleTags(v.role),
       ...roleTags(v.name),
@@ -190,7 +156,7 @@
     const services = Array.isArray(d.services) ? d.services
       : (d.services ? String(d.services).split(',').map(s => s.trim()).filter(Boolean) : [])
 
-    const roles = uniqueRoles([
+    const roles = uniq([
       ...roleTags(d.roles),
       ...roleTags(d.role),
       ...roleTags(d.role_name),
@@ -212,7 +178,7 @@
   }
 
   function userRoles(u) {
-    return uniqueRoles([
+    return uniq([
       ...roleTags(u?.roles),
       ...roleTags(u?.role),
       ...roleTags(u?.role_id),
@@ -233,7 +199,7 @@
       if (!m._user_id) return m
       const extra = userRolesByUserId.get(String(m._user_id)) || []
       if (!extra.length) return m
-      const roles = uniqueRoles([...(m.roles || []), ...extra])
+      const roles = uniq([...(m.roles || []), ...extra])
       return { ...m, roles, role: roles[0] || m.role || '' }
     })
   }
@@ -247,7 +213,6 @@
   }
 
   const s = init({
-    activeTab: 'members',
     editHTML: '',
     detailHTML: '',
     showEdit: false,

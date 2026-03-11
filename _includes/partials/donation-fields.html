@@ -33,7 +33,7 @@
   </div>
   <div class="field">
     <label for="don-amount">Amount ($)</label>
-    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" :oninput="e => syncDonAmount(e)" placeholder="0.00" required>
+    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" placeholder="0.00" required>
   </div>
   <div class="field">
     <label for="don-method">Method</label>
@@ -54,7 +54,6 @@
   <label for="don-note">Note</label>
   <textarea id="don-note" rows="1" style="field-sizing:content;resize:none"
     :value="donForm.note"
-    :oninput="e => donForm.note = e.target.value"
     placeholder="Optional…"></textarea>
 </div>
 
@@ -75,7 +74,7 @@
   </div>
   <div class="field">
     <label for="don-date">Date</label>
-    <input id="don-date" type="date" :value="donForm.date_received" :oninput="e => donForm.date_received = e.target.value">
+    <input id="don-date" type="date" :value="donForm.date_received">
   </div>
 </div>
 

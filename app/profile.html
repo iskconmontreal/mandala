@@ -2,39 +2,308 @@
 ---
 <div class="page-header">
   <h1>Profile</h1>
-  <p>Your account details</p>
+  <button :if="!memberLoading && hasMember && !editing" class="btn btn-outline btn-sm" :onclick="startEdit()">Edit</button>
 </div>
 
-<div class="card" style="margin-bottom:var(--s-xl)">
-  <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
-    <div>
-      <div class="stat-label">Name</div>
-      <div :text="user?.meta?.spiritual_name || user?.meta?.name || user?.email?.split('@')[0] || '—'"></div>
-    </div>
-    <div>
-      <div class="stat-label">Email</div>
-      <div :text="user?.email || '—'"></div>
-    </div>
-    <div>
-      <div class="stat-label">Role</div>
-      <span class="badge" :text="roleName"></span>
+<!-- Loading -->
+<div :if="memberLoading" class="card"><div class="section-loader"><img src="/assets/preloader.svg"></div></div>
+
+<!-- No linked member -->
+<div :if="!memberLoading && !hasMember" class="card" style="margin-bottom:var(--s-lg)">
+  <div class="dim">No community profile linked to your account.</div>
+</div>
+
+<!-- ===== VIEW MODE ===== -->
+<div :if="!memberLoading && hasMember && !editing">
+
+  <!-- Header: photo + identity -->
+  <div class="card" style="margin-bottom:var(--s-lg)">
+    <div style="display:flex; align-items:center; gap:var(--s-lg); flex-wrap:wrap">
+      <img :if="photoSrc" :src="photoSrc" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--c-border);flex-shrink:0">
+      <div :if="!photoSrc" style="width:72px;height:72px;border-radius:50%;background:var(--c-accent);display:flex;align-items:center;justify-content:center;color:white;font-size:1.6rem;font-weight:600;flex-shrink:0" :text="displayName[0]?.toUpperCase() || '?'"></div>
+      <div style="flex:1; min-width:0">
+        <div style="font-size:var(--f-xl); font-weight:var(--f-wt-b); line-height:1.2" :text="displayName"></div>
+        <div :if="m.spiritual_name && m.name" class="dim" style="font-size:var(--f-sm)" :text="m.name"></div>
+        <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs); margin-top:var(--s-xs)">
+          <span class="badge" :text="roleName"></span>
+          <span class="badge" :each="sv in m.services || []" :text="sv"></span>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<div :if="permissions.length" class="card" style="margin-bottom:var(--s-xl)">
-  <h3 style="margin-bottom:var(--s-md)">Permissions</h3>
-  <div style="display:flex; flex-direction:column; gap:var(--s-md)">
-    <div :each="scope in Object.keys(permGroups)">
-      <div class="stat-label" style="margin-bottom:var(--s-xs)" :text="({clients:'Members',users:'Users',expenses:'Expenses',income:'Income',donations:'Donations',roles:'Roles'})[scope] || fmtCat(scope)"></div>
-      <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs)">
-        <span class="badge" :each="action in permGroups[scope]" :text="action"></span>
+  <!-- Contact -->
+  <div class="card" style="margin-bottom:var(--s-lg)">
+    <h3 style="margin-bottom:var(--s-md)">Contact</h3>
+    <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
+      <div>
+        <div class="stat-label">Email</div>
+        <div :text="m.email || user?.email || '—'"></div>
+      </div>
+      <div :if="m.phone">
+        <div class="stat-label">Phone</div>
+        <div :text="m.phone"></div>
+      </div>
+      <div :if="m.address">
+        <div class="stat-label">Address</div>
+        <div style="white-space:pre-line" :text="m.address"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spiritual -->
+  <div :if="hasSpiritual" class="card" style="margin-bottom:var(--s-lg)">
+    <h3 style="margin-bottom:var(--s-md)">Spiritual</h3>
+    <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
+      <div :if="m.diksa_guru">
+        <div class="stat-label">Diksa Guru</div>
+        <div :text="m.diksa_guru"></div>
+      </div>
+      <div :if="m.guiding_devotee">
+        <div class="stat-label">Guiding Devotee</div>
+        <div :text="m.guiding_devotee"></div>
+      </div>
+      <div :if="m.rounds">
+        <div class="stat-label">Japa Rounds</div>
+        <div :text="m.rounds"></div>
+      </div>
+      <div :if="m.rounds_years">
+        <div class="stat-label">Chanting (years)</div>
+        <div :text="m.rounds_years"></div>
+      </div>
+      <div :if="m.four_regs_years">
+        <div class="stat-label">4 Regs (years)</div>
+        <div :text="m.four_regs_years"></div>
+      </div>
+      <div :if="m.kc_years">
+        <div class="stat-label">Years in KC</div>
+        <div :text="m.kc_years"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Community -->
+  <div :if="hasCommunity" class="card" style="margin-bottom:var(--s-lg)">
+    <h3 style="margin-bottom:var(--s-md)">Community</h3>
+    <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
+      <div :if="m.joined">
+        <div class="stat-label">Joined</div>
+        <div :text="m.joined"></div>
+      </div>
+      <div :if="m.temple">
+        <div class="stat-label">Temple</div>
+        <div :text="m.temple"></div>
+      </div>
+      <div :if="m.lives_in_temple">
+        <div class="stat-label">Lives in Temple</div>
+        <div>Yes</div>
+      </div>
+      <div :if="m.namahatta">
+        <div class="stat-label">Namahatta</div>
+        <div>Yes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personal -->
+  <div :if="hasPersonal" class="card" style="margin-bottom:var(--s-lg)">
+    <h3 style="margin-bottom:var(--s-md)">Personal</h3>
+    <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
+      <div :if="m.dob">
+        <div class="stat-label">Date of Birth</div>
+        <div :text="m.dob"></div>
+      </div>
+      <div :if="m.gender">
+        <div class="stat-label">Gender</div>
+        <div :text="m.gender"></div>
+      </div>
+      <div :if="m.nationality">
+        <div class="stat-label">Nationality</div>
+        <div :text="m.nationality"></div>
+      </div>
+      <div :if="m.occupation">
+        <div class="stat-label">Occupation</div>
+        <div :text="m.occupation"></div>
+      </div>
+      <div :if="m.marriage_status">
+        <div class="stat-label">Marriage Status</div>
+        <div :text="m.marriage_status"></div>
+      </div>
+      <div :if="m.spouse">
+        <div class="stat-label">Spouse</div>
+        <div :text="m.spouse"></div>
+      </div>
+      <div :if="m.children">
+        <div class="stat-label">Children</div>
+        <div :text="m.children"></div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card">
+<!-- ===== EDIT MODE ===== -->
+<div :if="!memberLoading && hasMember && editing">
+  <form :onsubmit.prevent="saveProfile()">
+
+    <!-- Photo + Name -->
+    <div class="card" style="margin-bottom:var(--s-lg)">
+      <div style="display:flex; align-items:center; gap:var(--s-lg); flex-wrap:wrap; margin-bottom:var(--s-md)">
+        <div style="position:relative">
+          <img :if="photoPreview || photoSrc" :src="photoPreview || photoSrc" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--c-border)">
+          <div :if="!photoPreview && !photoSrc" style="width:72px;height:72px;border-radius:50%;background:var(--c-accent);display:flex;align-items:center;justify-content:center;color:white;font-size:1.6rem;font-weight:600" :text="(f.name || f.spiritual_name || '?')[0]?.toUpperCase()"></div>
+          <label style="position:absolute;inset:0;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);opacity:0;transition:opacity .15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=0">
+            <span style="color:white;font-size:var(--f-sm)">Change</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" style="display:none" :onchange="pickPhoto">
+          </label>
+        </div>
+        <div style="flex:1; min-width:0">
+          <div class="form-row">
+            <div class="field">
+              <label for="p-name">Name</label>
+              <input id="p-name" type="text" :value="f.name" required placeholder="Full name">
+            </div>
+            <div class="field">
+              <label for="p-spiritual">Spiritual Name</label>
+              <input id="p-spiritual" type="text" :value="f.spiritual_name" placeholder="Initiated name">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="card" style="margin-bottom:var(--s-lg)">
+      <h3 style="margin-bottom:var(--s-md)">Contact</h3>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-email">Email</label>
+          <input id="p-email" type="email" :value="f.email" placeholder="email@example.com">
+        </div>
+        <div class="field">
+          <label for="p-phone">Phone</label>
+          <input id="p-phone" type="tel" :value="f.phone" placeholder="514-000-0000">
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-address">Address</label>
+        <textarea id="p-address" :value="f.address" placeholder="For tax receipts" rows="2"></textarea>
+      </div>
+    </div>
+
+    <!-- Spiritual -->
+    <div class="card" style="margin-bottom:var(--s-lg)">
+      <h3 style="margin-bottom:var(--s-md)">Spiritual</h3>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-guru">Diksa Guru</label>
+          <input id="p-guru" type="text" :value="f.diksa_guru" placeholder="Initiating spiritual master">
+        </div>
+        <div class="field">
+          <label for="p-guide">Guiding Devotee</label>
+          <input id="p-guide" type="text" :value="f.guiding_devotee" placeholder="Siksa guru / mentor">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-rounds">Japa Rounds</label>
+          <input id="p-rounds" type="number" :value="f.rounds" placeholder="16" min="0">
+        </div>
+        <div class="field">
+          <label for="p-rounds-yr">Chanting for (years)</label>
+          <input id="p-rounds-yr" type="number" :value="f.rounds_years" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-regs-yr">4 Regs for (years)</label>
+          <input id="p-regs-yr" type="number" :value="f.four_regs_years" min="0">
+        </div>
+        <div class="field">
+          <label for="p-kc-yr">Years in KC</label>
+          <input id="p-kc-yr" type="number" :value="f.kc_years" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-temple">Temple</label>
+          <input id="p-temple" type="text" :value="f.temple" placeholder="ISKCON Montreal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field" style="display:flex; align-items:center; gap:var(--s-sm); min-height:2.5rem">
+          <input id="p-lives" type="checkbox" :checked="f.lives_in_temple" style="width:auto">
+          <label for="p-lives" style="margin:0">Lives in temple</label>
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:var(--s-sm); min-height:2.5rem">
+          <input id="p-nama" type="checkbox" :checked="f.namahatta" style="width:auto">
+          <label for="p-nama" style="margin:0">Namahatta member</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Personal -->
+    <div class="card" style="margin-bottom:var(--s-lg)">
+      <h3 style="margin-bottom:var(--s-md)">Personal</h3>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-dob">Date of Birth</label>
+          <input id="p-dob" type="date" :value="f.dob">
+        </div>
+        <div class="field">
+          <label for="p-gender">Gender</label>
+          <select id="p-gender" :value="f.gender">
+            <option value="">—</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-nat">Nationality</label>
+          <input id="p-nat" type="text" :value="f.nationality">
+        </div>
+        <div class="field">
+          <label for="p-occ">Occupation</label>
+          <input id="p-occ" type="text" :value="f.occupation">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="p-marriage">Marriage Status</label>
+          <select id="p-marriage" :value="f.marriage_status">
+            <option value="">—</option>
+            <option value="Single">Single</option>
+            <option value="Married">Married</option>
+            <option value="Widowed">Widowed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-spouse">Spouse</label>
+          <input id="p-spouse" type="text" :value="f.spouse" placeholder="Name; KC status">
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-children">Children</label>
+        <input id="p-children" type="text" :value="f.children" placeholder="Names and ages">
+      </div>
+      <div class="field">
+        <label for="p-notes">Notes</label>
+        <textarea id="p-notes" :value="f.notes" rows="2" placeholder="Anything else…"></textarea>
+      </div>
+    </div>
+
+    <div class="login-error" :if="saveErr" :text="saveErr" style="margin-bottom:var(--s-sm)"></div>
+
+    <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-bottom:var(--s-lg)">
+      <button type="button" class="btn btn-outline" :onclick="editing = false">Cancel</button>
+      <button type="submit" class="btn btn-primary" :class="{'btn-loading': saving}">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- Devices -->
+<div class="card" style="margin-bottom:var(--s-lg)">
   <h3 style="margin-bottom:var(--s-md)">Trusted Devices</h3>
   <div :if="devicesLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
   <div :if="!devicesLoading && !devices.length" class="dim" style="font-size:var(--f-sm)">No trusted devices</div>
@@ -61,14 +330,41 @@
   </div>
 </div>
 
+<!-- Permissions (collapsed, multi-column grid like roles page) -->
+<details :if="permissions.length">
+  <summary style="cursor:pointer; font-weight:600; color:var(--c-text-dim); margin-bottom:var(--s-sm)">Permissions</summary>
+  <div class="card">
+    <div class="perm-grid">
+      <div :each="scope in Object.keys(permGroups)" class="perm-row">
+        <span class="perm-scope" :text="permLabels[scope] || fmtCat(scope)"></span>
+        <span class="perm-actions">
+          <span class="badge" :each="action in permGroups[scope]" :text="action"></span>
+        </span>
+      </div>
+    </div>
+  </div>
+</details>
+
 <script type="module">
   import { init, auth, fmtCat, toast } from '../lib/app.js'
-  import { api } from '../lib/api.js'
+  import { api, BASE } from '../lib/api.js'
 
   const u = auth.user
+  let memberRaw = null
 
   const s = init({
     fmtCat,
+    permLabels: { clients: 'Members', users: 'Users', expenses: 'Expenses', income: 'Income', donations: 'Donations', roles: 'Roles', settings: 'Settings', content: 'Content', commerce: 'Commerce' },
+    m: {},
+    f: {},
+    hasMember: false,
+    memberLoading: true,
+    editing: false,
+    saving: false,
+    saveErr: null,
+    photoSrc: null,
+    photoPreview: null,
+    photoFile: null,
     roleName: (() => {
       try {
         const r = u?.role?.role
@@ -76,6 +372,21 @@
         return parsed?.name || '—'
       } catch { return '—' }
     })(),
+    get displayName() {
+      return this.m.spiritual_name || this.m.name || u?.meta?.spiritual_name || u?.meta?.name || u?.email?.split('@')[0] || '—'
+    },
+    get hasSpiritual() {
+      const d = this.m
+      return d.diksa_guru || d.guiding_devotee || d.rounds || d.rounds_years || d.four_regs_years || d.kc_years
+    },
+    get hasCommunity() {
+      const d = this.m
+      return d.joined || d.temple || d.lives_in_temple || d.namahatta
+    },
+    get hasPersonal() {
+      const d = this.m
+      return d.dob || d.gender || d.nationality || d.occupation || d.marriage_status || d.spouse || d.children
+    },
     permissions: auth.permissions,
     get permGroups() {
       const groups = {}
@@ -89,6 +400,65 @@
     devices: [],
     devicesLoading: true,
     currentDeviceId: auth.deviceId,
+
+    startEdit() {
+      s.f = { ...s.m }
+      s.photoFile = null
+      s.photoPreview = null
+      s.saveErr = null
+      s.editing = true
+    },
+
+    pickPhoto(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      s.photoFile = file
+      if (s.photoPreview) URL.revokeObjectURL(s.photoPreview)
+      s.photoPreview = URL.createObjectURL(file)
+    },
+
+    async saveProfile() {
+      s.saving = true
+      s.saveErr = null
+      try {
+        // Upload photo first if changed
+        if (s.photoFile) {
+          await api.updateMyMemberPhoto(s.photoFile)
+        }
+
+        // Collect form values
+        const data = { ...s.f }
+        const num = v => v === '' || v == null ? null : +v
+        data.rounds = num(data.rounds)
+        data.rounds_years = num(data.rounds_years)
+        data.four_regs_years = num(data.four_regs_years)
+        data.kc_years = num(data.kc_years)
+
+        const res = await api.updateMyMember(data)
+        const updated = typeof res.data === 'string' ? JSON.parse(res.data) : (res.data || {})
+        s.m = updated
+        s.editing = false
+        toast('Profile updated', 'success')
+
+        // Reload photo if changed
+        if (s.photoFile && memberRaw?.public_id) {
+          if (s.photoSrc?.startsWith('blob:')) URL.revokeObjectURL(s.photoSrc)
+          try {
+            const r = await fetch(`${BASE}/uploads/community/members/${memberRaw.public_id}.webp?t=${Date.now()}`, {
+              headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+            })
+            if (r.ok) s.photoSrc = URL.createObjectURL(await r.blob())
+          } catch {}
+        }
+        if (s.photoPreview) { URL.revokeObjectURL(s.photoPreview); s.photoPreview = null }
+        s.photoFile = null
+      } catch (e) {
+        s.saveErr = e.message || 'Failed to save'
+      } finally {
+        s.saving = false
+      }
+    },
+
     async revokeDevice(id) {
       try {
         await api.revokeMyDevice(id)
@@ -97,5 +467,25 @@
     },
   })
 
+  // Load member profile
+  api.getMyMember().then(async member => {
+    memberRaw = member
+    const data = typeof member.data === 'string' ? JSON.parse(member.data) : (member.data || {})
+    s.m = data
+    s.hasMember = true
+    s.memberLoading = false
+
+    // Load photo
+    if (member.public_id) {
+      try {
+        const res = await fetch(`${BASE}/uploads/community/members/${member.public_id}.webp`, {
+          headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+        })
+        if (res.ok) s.photoSrc = URL.createObjectURL(await res.blob())
+      } catch {}
+    }
+  }).catch(() => { s.memberLoading = false })
+
+  // Load devices
   api.getMyDevices().then(d => { s.devices = d; s.devicesLoading = false }).catch(() => { s.devicesLoading = false })
 </script>

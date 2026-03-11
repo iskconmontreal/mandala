@@ -5,40 +5,22 @@
   <p :text="_greeting"></p>
 </div>
 
-<!-- Financial pulse -->
-<div :if="can('income:view') || can('expenses:view')" class="card finance-pulse-section" style="margin-bottom:var(--s-xl)">
-    <div class="card-header">
-      <a href="finance/" class="section-head-link">
-        <h3 class="finance-title section-title-row">Finance</h3>
-      </a>
-    </div>
-    <div :if="finLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
-    <div :if="!finLoading" class="finance-pulse-grid">
-      <a href="finance/?tab=expenses#expenses" class="finance-pulse-link finance-pulse-stat finance-pulse-stat-err">
-        <div class="stat-label">Expenses</div>
-        <div class="stat-value" :text="'-$' + fmtAmt(fin.expenses)"></div>
-        <div class="stat-sub stat-err" :text="fin.expPct + '% this month'"></div>
-      </a>
-      <a href="finance/?tab=income#income" class="finance-pulse-link finance-pulse-stat finance-pulse-stat-ok">
-        <div class="stat-label">Income</div>
-        <div class="stat-value" :text="'+$' + fmtAmt(fin.income)"></div>
-        <div class="stat-sub stat-ok" :text="'+' + fin.incPct + '% this month'"></div>
-      </a>
-      <div class="finance-pulse-stat">
-        <div class="stat-label" :text="fin.net >= 0 ? 'Surplus' : 'Deficit'"></div>
-        <div class="stat-value" :class="fin.net >= 0 ? 'stat-ok' : 'stat-err'" :text="'=$' + fmtAmt(Math.abs(fin.net))"></div>
-        <div class="stat-sub" :text="fin.net >= 0 ? 'After income and expenses' : 'Needs attention this month'"></div>
-      </div>
-    </div>
+<!-- Finance -->
+<div :if="can('income:view') || can('expenses:view')" style="margin-bottom:var(--s-xl)">
+  <div class="card-header" style="margin-bottom:var(--s-sm)">
+    <a href="finance/" class="section-head-link">
+      <h3 class="section-title-row">Finance</h3>
+      <div :if="!finLoading" class="recent-list-subtitle" :class="fin.net >= 0 ? 'stat-ok' : 'stat-err'"><span class="trend-arrow" :class="fin.net >= 0 ? 'stat-ok' : 'stat-err'" :html="trendIcon(fin.net >= 0 ? 'up' : 'down')"></span><span :text="finNetIntro"></span></div>
+    </a>
+  </div>
+  <div :if="finLoading" class="section-loader"><img src="/assets/preloader.svg"></div>
 </div>
-
-<!-- Recent finance tables -->
-<div :if="can('income:view') || can('expenses:view')" class="recent-grid">
+<div :if="(can('income:view') || can('expenses:view')) && !finLoading" class="recent-grid">
   <div :if="can('expenses:view')" class="card">
     <div class="card-header recent-list-header">
       <a href="finance/?tab=expenses#expenses" class="section-head-link">
         <h3 class="section-title-row">Recent Expenses</h3>
-        <div class="recent-list-subtitle" :text="financeIntro"></div>
+        <div class="recent-list-subtitle"><span class="trend-arrow" :class="financeArrow === 'up' ? 'stat-ok' : 'stat-err'" :html="trendIcon(financeArrow)"></span><span :text="financeIntro"></span></div>
       </a>
       <button :if="can('expenses:create')" class="btn btn-primary" :onclick="openAdd()">+ Expense</button>
     </div>
@@ -52,7 +34,7 @@
     <div class="card-header recent-list-header">
       <a href="finance/?tab=income&inc_type=donation#income" class="section-head-link">
         <h3 class="section-title-row">Recent Donations</h3>
-        <div class="recent-list-subtitle" :text="donationIntro"></div>
+        <div class="recent-list-subtitle"><span class="trend-arrow stat-ok" :html="trendIcon('up')"></span><span :text="donationIntro"></span></div>
       </a>
       <button :if="can('income:create')" class="btn btn-primary" :onclick="openDonForm()">+ Donation</button>
     </div>
@@ -99,7 +81,7 @@
         <tr :each="x in myExpenses" class="row-link" :onclick="viewExpense(x)">
           <td :text="(x.created_at || x.expense_date)?.slice(0,10) || '—'"></td>
           <td :text="fmtCat(x.category)"></td>
-          <td><span class="badge" :class="'badge-' + x.status" :text="x.status === 'submitted' ? `Pending ${x.approval_count||0}/${x.approvals_required||'?'}` : fmtCat(x.status)"></span></td>
+          <td><span class="badge" :class="'badge-' + x.status" :text="x.status === 'submitted' ? `Approval ${x.approval_count||0}/${x.approvals_required||'?'}` : fmtStatus(x.status)"></span></td>
           <td style="text-align:right" :text="'$' + fmtAmt(x.amount)"></td>
         </tr>
       </tbody>
@@ -158,6 +140,19 @@
   </div>
 </div>
 
+<style>
+  .recent-grid .recent-exp-item {
+    grid-template-columns: var(--s-lg) minmax(0, 1fr) auto auto;
+  }
+  .recent-grid .recent-inc-item {
+    grid-template-columns: var(--recent-inc-icon-size) minmax(0, 1fr) auto auto;
+  }
+  .recent-grid .recent-exp-actions,
+  .recent-grid .recent-inc-actions { display: none; }
+  .recent-grid .recent-exp-meta-row,
+  .recent-grid .recent-inc-subtitle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
 {% include finance/expense-form.html %}
 {% include finance/donation-form.html %}
 
@@ -187,7 +182,8 @@
     ...formDefaults(BASE, MY_USER_ID),
     _greeting: greeting(now, vis),
     fmtAmt, fmtCat, fmtDate, catCls, statusIcon, methodIcon, changedAt, hl,
-    fin: { income: 0, expenses: 0, net: 0, incPct: 0, expPct: 0 },
+    isFresh() { return false },
+    fin: { income: 0, expenses: 0, net: 0 },
     finTasks: { pending: 0, ready: 0 },
     donMonth: { count: 0, total: 0 },
     finLoading: true,
@@ -213,7 +209,7 @@
     },
     recentExpStatus(x) {
       const st = x?.status || 'submitted'
-      return st === 'submitted' ? `Pending ${x?.approval_count || 0}/${x?.approvals_required || '?'}` : fmtStatus(st)
+      return st === 'submitted' ? `Approval ${x?.approval_count || 0}/${x?.approvals_required || '?'}` : fmtStatus(st)
     },
     recentExpReporter(x) {
       const uid = this.recentExpActorId(x)
@@ -238,13 +234,19 @@
       return this.can('expenses:approve') && (x?.status || 'submitted') === 'submitted' && !this.quickExpenseAction[x.id]
     },
     expenseCanQuickPay(x) {
-      return this.can('expenses:approve') && (x?.status || 'submitted') === 'approved' && !this.quickExpenseAction[x.id]
+      return this.can('expenses:approve') && (x?.status || 'submitted') === 'approved' && x.attachments?.length > 0 && !this.quickExpenseAction[x.id]
+    },
+    expensePayDisabled(x) {
+      return this.can('expenses:approve') && (x?.status || 'submitted') === 'approved' && !x.attachments?.length && !this.quickExpenseAction[x.id]
+    },
+    expenseApprovedByMe(x) {
+      return false
     },
     expenseActionBusy(x) {
       return this.can('expenses:approve') && !!this.quickExpenseAction[x.id]
     },
     expenseHasQuickActions(x) {
-      return this.expenseCanQuickReject(x) || this.expenseCanQuickApprove(x) || this.expenseCanQuickPay(x) || this.expenseActionBusy(x)
+      return this.expenseCanQuickReject(x) || this.expenseCanQuickApprove(x) || this.expenseCanQuickPay(x) || this.expensePayDisabled(x) || this.expenseActionBusy(x)
     },
     expenseQuickApprove(x) {
       return this.approveRecentExpense(x)
@@ -266,20 +268,25 @@
       const method = (d?.method || 'cash').toLowerCase()
       return method === 'e transfer' ? 'e-transfer' : method
     },
+    get finNetIntro() {
+      const net = this.fin.net
+      return net >= 0 ? `$${fmtAmt(net)} surplus this month` : `$${fmtAmt(Math.abs(net))} deficit this month`
+    },
     get financeIntro() {
-      if (this.finLoading) return 'Loading monthly finance snapshot'
+      const amt = '$' + fmtAmt(this.fin.expenses)
       const p = this.finTasks?.pending || 0
       const r = this.finTasks?.ready || 0
-      if (p && r) return `${p} pending review, ${r} ready to pay`
-      if (p) return `${p} pending review this month`
-      if (r) return `${r} approved expense${r === 1 ? '' : 's'} ready to pay`
-      return 'No pending expenses this month'
+      if (p && r) return `${amt} · ${p} pending, ${r} to pay`
+      if (p) return `${amt} · ${p} pending review`
+      if (r) return `${amt} · ${r} ready to pay`
+      return amt + ' this month'
     },
+    get financeArrow() { return (this.finTasks?.pending || 0) + (this.finTasks?.ready || 0) > 0 ? 'down' : 'up' },
     get donationIntro() {
-      const total = Number(this.donMonth?.total || 0)
       const count = Number(this.donMonth?.count || 0)
-      if (!count) return 'This month · no donations yet'
-      return `${count} donation${count === 1 ? '' : 's'} this month · $${fmtAmt(total)}`
+      const total = Number(this.donMonth?.total || 0)
+      if (!count) return 'No donations yet this month'
+      return `$${fmtAmt(total)} · ${count} donation${count === 1 ? '' : 's'} this month`
     },
     async approveRecentExpense(x) {
       if (!x?.id || this.quickExpenseAction[x.id]) return
@@ -357,48 +364,42 @@
     s.recentIncome = (inc.items || []).filter(d => (d?.type || 'income') === 'donation')
   }
 
+  function applyFinStats(inc, exp) {
+    const incItems = inc.items || []
+    const donationItems = incItems.filter(d => (d?.type || 'income') === 'donation')
+    const incAmt = incItems.reduce((t, d) => t + (d.amount || 0), 0)
+    const expAmt = (exp.items || []).reduce((t, x) => t + (x.amount || 0), 0)
+    const expItems = exp.items || []
+    s.fin = { income: incAmt, expenses: expAmt, net: incAmt - expAmt }
+    s.donMonth = { count: donationItems.length, total: donationItems.reduce((sum, d) => sum + (d.amount || 0), 0) }
+    s.finTasks = { pending: expItems.filter(x => (x.status || 'submitted') === 'submitted').length, ready: expItems.filter(x => (x.status || '') === 'approved').length }
+  }
+
+  function refreshGiving() {
+    Promise.all([api.getMyDonationSummary(y).catch(() => null), api.getMyTaxReceipts().catch(() => null)]).then(([summary, receipts]) => {
+      if (!summary && !receipts) return
+      const byCat = {}
+      if (summary?.by_category) for (const [k, v] of Object.entries(summary.by_category)) byCat[k] = v
+      s.giving = { total: summary?.total || 0, count: summary?.count || 0, byCategory: byCat, receipts: receipts?.items || receipts || [] }
+    }).catch(() => {})
+    api.getMyExpenses({ limit: 10, sortBy: 'created_at', sortDesc: 'true' })
+      .then(res => { s.myExpenses = res.items || [] }).catch(() => {})
+  }
+
   if (hasFin || hasMem) {
     Promise.all([
       hasFin ? api.getIncome({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
       hasFin ? api.getExpenses({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }) : null,
       hasMem ? api.getMembers({ limit: 1 }) : null,
     ]).then(([inc, exp, mem]) => {
-      if (inc && exp) {
-        const incItems = inc.items || []
-        const donationItems = incItems.filter(d => (d?.type || 'income') === 'donation')
-        const incAmt = incItems.reduce((s, d) => s + (d.amount || 0), 0)
-        const expAmt = (exp.items || []).reduce((s, x) => s + (x.amount || 0), 0)
-        const expItems = exp.items || []
-        const gross = incAmt + expAmt || 1
-        s.fin = { income: incAmt, expenses: expAmt, net: incAmt - expAmt, incPct: Math.round(incAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
-        s.donMonth = {
-          count: donationItems.length,
-          total: donationItems.reduce((sum, d) => sum + (d.amount || 0), 0),
-        }
-        s.finTasks = {
-          pending: expItems.filter(x => (x.status || 'submitted') === 'submitted').length,
-          ready: expItems.filter(x => (x.status || '') === 'approved').length,
-        }
-        s.finLoading = false
-      }
+      if (inc && exp) { applyFinStats(inc, exp); s.finLoading = false }
       if (mem) { s.members = { total: mem.total || 0 }; s.memLoading = false }
     }).catch(() => { s.finLoading = false; s.memLoading = false })
   } else {
     s.finLoading = false; s.memLoading = false
   }
 
-  Promise.all([
-    api.getMyDonationSummary(y).catch(() => null),
-    api.getMyTaxReceipts().catch(() => null),
-  ]).then(([summary, receipts]) => {
-    if (!summary && !receipts) return
-    const byCat = {}
-    if (summary?.by_category) for (const [k, v] of Object.entries(summary.by_category)) byCat[k] = v
-    s.giving = { total: summary?.total || 0, count: summary?.count || 0, byCategory: byCat, receipts: receipts?.items || receipts || [] }
-  }).catch(() => {})
-
-  api.getMyExpenses({ limit: 10, sortBy: 'created_at', sortDesc: 'true' })
-    .then(res => { s.myExpenses = res.items || [] }).catch(() => {})
+  refreshGiving()
 
   let _membersLoaded = false
   async function loadMemberNames() {
@@ -418,33 +419,10 @@
       Promise.all([
         api.getIncome({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }),
         api.getExpenses({ limit: 500, dateFrom: monthStart, dateTo: monthEnd }),
-      ]).then(([inc, exp]) => {
-        const incItems = inc.items || []
-        const donationItems = incItems.filter(d => (d?.type || 'income') === 'donation')
-        const incAmt = incItems.reduce((t, d) => t + (d.amount || 0), 0)
-        const expAmt = (exp.items || []).reduce((t, x) => t + (x.amount || 0), 0)
-        const expItems = exp.items || []
-        const gross = incAmt + expAmt || 1
-        s.fin = { income: incAmt, expenses: expAmt, net: incAmt - expAmt, incPct: Math.round(incAmt / gross * 100), expPct: Math.round(expAmt / gross * 100) }
-        s.donMonth = {
-          count: donationItems.length,
-          total: donationItems.reduce((sum, d) => sum + (d.amount || 0), 0),
-        }
-        s.finTasks = {
-          pending: expItems.filter(x => (x.status || 'submitted') === 'submitted').length,
-          ready: expItems.filter(x => (x.status || '') === 'approved').length,
-        }
-      }).catch(() => {})
+      ]).then(([inc, exp]) => applyFinStats(inc, exp)).catch(() => {})
       loadRecentTables().catch(() => {})
     }
-    Promise.all([api.getMyDonationSummary(y).catch(() => null), api.getMyTaxReceipts().catch(() => null)]).then(([summary, receipts]) => {
-      if (!summary && !receipts) return
-      const byCat = {}
-      if (summary?.by_category) for (const [k, v] of Object.entries(summary.by_category)) byCat[k] = v
-      s.giving = { total: summary?.total || 0, count: summary?.count || 0, byCategory: byCat, receipts: receipts?.items || receipts || [] }
-    }).catch(() => {})
-    api.getMyExpenses({ limit: 10, sortBy: 'created_at', sortDesc: 'true' })
-      .then(res => { s.myExpenses = res.items || [] }).catch(() => {})
+    refreshGiving()
   }
 
 </script>

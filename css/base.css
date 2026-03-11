@@ -100,6 +100,34 @@ select:disabled {
   background-image: none;
 }
 
+.input-prefix {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  transition: border-color .15s;
+}
+.input-prefix-label {
+  padding-left: var(--s-md);
+  color: var(--c-text-dim);
+  pointer-events: none;
+  line-height: 1;
+}
+.input-prefix input {
+  border: none;
+  background: none;
+  padding-left: var(--s-xs);
+}
+.input-prefix:focus-within {
+  border-color: var(--c-accent);
+  box-shadow: var(--focus-ring);
+}
+.input-prefix input:focus {
+  box-shadow: none;
+}
+
 label {
   display: block;
   font-size: var(--f-sm);
@@ -203,6 +231,13 @@ th:last-child, td:last-child { padding-right: 0; }
 }
 @keyframes btn-spin { to { transform: rotate(360deg) } }
 
+/* Disabled buttons */
+.btn:disabled, .btn[disabled] {
+  opacity: .45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Button sizes */
 .btn-sm {
   padding: var(--s-xs) var(--s-md);
@@ -222,14 +257,26 @@ th:last-child, td:last-child { padding-right: 0; }
 .btn-link:hover { color: var(--c-err); }
 
 /* Danger button */
-.btn-danger {
+.btn-danger,
+.btn-danger-outline {
   color: var(--c-err);
   border-color: var(--c-err);
   background: none;
 }
-.btn-danger:hover {
-  background: var(--c-err-hover);
+.btn-danger:hover,
+.btn-danger-outline:hover { background: var(--c-err-hover); }
+.btn-accent-outline {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  background: none;
 }
+.btn-accent-outline:hover { background: var(--c-accent-hover); }
+.btn-ok-outline {
+  color: var(--c-ok);
+  border-color: var(--c-ok);
+  background: none;
+}
+.btn-ok-outline:hover { background: var(--c-ok-active); }
 
 
 /* Utility */
@@ -247,6 +294,6 @@ th:last-child, td:last-child { padding-right: 0; }
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); border: 0;
 }
-.hidden { display: none }
+.hidden { display: none !important }
 
 [\:each],[\:if],[\:else]{visibility:hidden}

@@ -20,5 +20,6 @@ exclude:
   - tests
   - playwright.config.js
   - playwright-report
+  - test-results
   - .mcp_data
   - .well-known

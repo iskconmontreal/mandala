@@ -1,53 +1,51 @@
-
-
-## March ~~5~~ 6
+* [ ] improve add receipt/transaction form
+* [ ] better home page
+* [ ] reorganize finances page
+* [ ] 1-image → multiple receipts OCR segmentation (complex, skip for now)
+  * [ ] integrate better Apple OCR
+* [ ] Double OCR check? ollama can estimate the clarity of parsed data.
 
 * [x] harden backend
-
-* [ ] complete flows (tested dev)
+* [x] complete flows (tested dev)
   * [ ] request expense - treasurer gets notified
-  * [ ] changing / assigning roles
-
-* [ ] switch year persists
-
+  * [x] changing / assigning roles
+* [x] ~~switch year persists~~
 * [ ] adding member when adding expense button
 
 * [ ] main: deploy to prod;
   * [ ] import all 2025 receipts database
-
 * [ ] Import all interacs members names from files: MK, Samir
 * [ ] Onboard MK, Samir, Ash
-
-
-## [ ] User testing
 
 * [x] What if user uploads expense receipt into donation form? -> don't store intent.
 * [x] Donation form should not necessarily have photos.
   * [x] That should not be called scan "receipt".
-* [ ] Viewer doesn't see recent activity after uploading the document
-  * [ ] Viewer has no finance info - no permission
-* Treasurer doesnt see freshly added expenses because they can have old date - should sort by date submitted maybe?
-* Treasurer append expense form error on appending image
-* Hanging loading button on expense details
-* Pujari new role breaks list
-* Pending approval status doesn't approve
+* [x] Viewer doesn't see recent activity after uploading the document
+  * [x] Viewer has no finance info - no permission
+* [x] Treasurer doesnt see freshly added expenses because they can have old date - should sort by date submitted maybe?
+* [x] Treasurer append expense form error on appending image
+* [x] Hanging loading button on expense details
+* [x] Pujari new role breaks list
+* [x] Pending approval status doesn't approve
 * [x] Search doesn't highlight
 
-## [ ] UIs
+* [ ] Ideal scenario: any member can just attach multiple pictures of receipts to goloka. Done: OCR scans and pings treasurer;
 
-* [ ] Search through unloaded data
-* [ ] Better pills alignment
-* [ ] Income same style as expenses
-* [ ] Display attachments shortcuts in the lines
-* [ ] Unify icons across the app
-* [ ] Make preloading better, while JS/data loads
-* [ ] Quick actions can be better in desktops since there's enough space
-* [ ] Make scan image area for existing items less big maybe? Or humbler
-* [ ] Better multiple categories filter
-* [ ] History label in modal info is inconsistent
-* [ ] Highlight added item in content
+* [ ] UIs
+  * [x] Search through unloaded data
+  * [x] Better pills alignment
+  * [x] Income same style as expenses
+  * [x] Display attachments shortcuts in the lines
+  * [x] Unify icons across the app
+  * [ ] Make preloading better, while JS/data loads
+  * [x] Quick actions can be better in desktops since there's enough space
+  * [ ] Make scan image area for existing items less big maybe? Or humbler
+  * [x] Better multiple categories filter
+  * [x] History label in modal info is inconsistent
+  * [x] Highlight added item in content
+  * [x] Fix dot issue with number inputs
 
-## [ ] Notifications
+* [ ] Notifications
   * [ ] Invitations for all oboardees
   * [ ] Integrate backend notification center from Goloka Swagger
     * [ ] Read `GET /api/me/notifications`
@@ -56,28 +54,24 @@
     * [ ] Highlight newly created row for 3 seconds
     * [ ] Show status badges + timeline in `/me/expenses`
 
-## [ ] Auth flows
+* [ ] Auth flows
   * [ ] Google
   * [ ] Apple
   * [ ] OTP SMS
   * [ ] Passcode / keycode (biometrics)
 
 * [x] Donations
-  * [ ] "+" → "Donation" → selects/creates donor → amount, category, date, note → Save or save and add one more
-
-## [ ] Mobile version
 
 
-## Backlog
+* [ ] Mobile version
+
 
 * [ ] Sprae load first
 * [ ] Autoloading is a bit strange
 * [x] page transitions @​view-transition { navigation: auto }
 
-* [ ] Enhance frontend looks: not SLOP
-
 * [ ] Tax receipt template formatting / PDF generation (necessary, not exciting)
-* [ ] Auth/session management for cross-domain static→API (real friction, must solve cleanly)
+* [x] Auth/session management for cross-domain static→API (real friction, must solve cleanly)
   - JWT tokens, cookie-less, Authorization header
 
 * [ ] Offline/unreachable API — Static pages must gracefully handle API being down. No spinner-of-death.
@@ -87,18 +81,22 @@
 
 * [ ] Disaster being pretended away: Mitigation: automated backups to a second location. Document this requirement now.
 
-* [ ] Change expense grouping
-
-
 ## Ideas
 
-* [ ] Link to soundboard (can be iframe)
+* [ ] Link to soundboard (can be iframe), canon URL
+  * [ ] start stream quick button (video control) - links to youtube maybe? in content section?
 * [ ] Write down Luv prabhu / sankirtan numbers
 * [ ] Upload a file, system decides itself where to classify it: expense, donation, legal etc.
 * [ ] Who is online feature
 * [ ] Tracking spiritual results to please Guru
 
 ## Archive
+
+* [x] Add `gst`, `pst` (uint32, cents) and `batch_id` (UUID, nullable, indexed) to `Expense` struct + DB migration (`002_batch.sql`)
+* [x] Populate gst/pst from `Attachment.extracted_data.taxes` (TPS/TVQ) on expense create/promote
+* [x] `POST /api/expenses` accepts array `[]expenseRequest`; len>1 auto-generates shared `batch_id`
+* [x] `GET /api/expenses` supports `?batch=<uuid>` filter
+* [x] Tests: 10 new tests covering batch create, unique expense nos, validation atomicity, attachment linking, batch filter, gst/pst storage and promotion
 
 * [x] landing: basic setup with sprae
 * [x] datatable.net example page for finance

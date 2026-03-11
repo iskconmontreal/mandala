@@ -28,12 +28,12 @@ title: Roles & Permissions
       <div :each="group in permGroups" class="perm-row">
         <span class="perm-scope" :text="group.label"></span>
         <span class="perm-actions">
-          <label :each="perm in group.perms" class="perm-check">
-            <input type="checkbox"
-              :checked="role.permissions.includes(perm.key)"
-              :onchange="e => togglePerm(role, perm.key, e.target.checked)">
-            <span :text="perm.action"></span>
-          </label>
+          <span :each="perm in group.perms" class="perm-check">
+            <button type="button"
+              :class="role.permissions.includes(perm.key) ? 'badge badge-active' : 'badge'"
+              :onclick="togglePerm(role, perm.key, !role.permissions.includes(perm.key))"
+              :text="perm.action"></button>
+          </span>
         </span>
       </div>
     </div>
@@ -45,29 +45,29 @@ title: Roles & Permissions
   <div class="modal">
     <div class="modal-header">
       <h2>New Role</h2>
-      <button class="modal-close" :onclick="closeModal">&times;</button>
+      <button class="modal-close" type="button" aria-label="Close dialog" :onclick="closeModal" :html="icon('close')"></button>
     </div>
     <form class="modal-body" :onsubmit.prevent="createRole">
       <div class="form-row">
         <div class="field">
           <label for="r-name">Name</label>
-          <input id="r-name" type="text" :value="newRole.name" :oninput="e => newRole.name = e.target.value" placeholder="e.g. Pujari" required>
+          <input id="r-name" type="text" :value="newRole.name" placeholder="e.g. Pujari" required>
         </div>
         <div class="field">
           <label for="r-desc">Description</label>
-          <input id="r-desc" type="text" :value="newRole.description" :oninput="e => newRole.description = e.target.value" placeholder="Brief description">
+          <input id="r-desc" type="text" :value="newRole.description" placeholder="Brief description">
         </div>
       </div>
       <div class="perm-grid">
         <div :each="group in permGroups" class="perm-row">
           <span class="perm-scope" :text="group.label"></span>
           <span class="perm-actions">
-            <label :each="perm in group.perms" class="perm-check">
-              <input type="checkbox"
-                :checked="newRole.permissions.includes(perm.key)"
-                :onchange="e => toggleNewPerm(perm.key, e.target.checked)">
-              <span :text="perm.action"></span>
-            </label>
+            <span :each="perm in group.perms" class="perm-check">
+              <button type="button"
+                :class="newRole.permissions.includes(perm.key) ? 'badge badge-active' : 'badge'"
+                :onclick="toggleNewPerm(perm.key, !newRole.permissions.includes(perm.key))"
+                :text="perm.action"></button>
+            </span>
           </span>
         </div>
       </div>

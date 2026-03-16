@@ -198,7 +198,12 @@
           </button>
           <div class="recent-exp-list finance-exp-list" :class="{'finance-exp-list-open': isExpMonthOpen(g.key), 'finance-exp-list-loading': isExpMonthOpen(g.key) && isExpMonthLoading(g.key), 'finance-exp-list-fx': expMonthFxKey === g.key}" :aria-hidden="isExpMonthOpen(g.key) ? 'false' : 'true'">
             <div :if="isExpMonthOpen(g.key) && isExpMonthLoading(g.key)" class="finance-exp-list-loader dim"><span class="load-spinner"></span><span>Loading…</span></div>
-            {% include finance/recent-expense-row.html each="x in g.items" row_class="finance-exp-item" show_expense_no=true show_actions=true %}
+            <expense-row :each="x in g.items" class="finance-exp-item" :x="x" :search="expSearch" showno
+              :canapprove="expenseCanQuickApprove(x)" :approvedbyme="expenseApprovedByMe(x)"
+              :canpay="expenseCanQuickPay(x)" :needsdoc="expenseNeedsDocument?.(x)" :busy="expenseActionBusy(x)"
+              :onview="e => viewExpense(e.detail)" :onapprove="e => expenseQuickApprove(e.detail)"
+              :onpay="e => expenseQuickPay(e.detail)" :onattach="e => attachExpense(e.detail)">
+            </expense-row>
           </div>
         </div>
       </div>
@@ -415,9 +420,64 @@
 
 <script type="module">
   import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth, hl } from '../../lib/app.js'
+  import sprae from '../../lib/sprae.js'
+  import { icon, actionIcon, statusIcon, methodIcon, activityIcon } from '../../lib/icons.js'
   import { api, BASE } from '../../lib/api.js'
-  import { actionIcon, statusIcon } from '../../lib/icons.js'
+
   import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, AMT_MAX, catCls, catHex, catBgHex, fmtStatus, fmtDate, changedAt, parseMemberNames } from '../../lib/finance.js'
+
+  // CE processor: inject shared utilities, mount template, spray
+  const _ctx = { fmtAmt, fmtCat, fmtStatus, fmtDate, catCls, hl, statusIcon, icon, methodIcon, activityIcon, apiBase: BASE, approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print') }
+  import { DefineElement, define } from '../../lib/define-element.js'
+  // CE processor: mount template + sprae with shared utilities
+  DefineElement.processor = (root, state) => {
+    if (root.template) {
+      root.replaceChildren()
+      root.appendChild(root.template.content.cloneNode(true))
+    }
+    return sprae(root, { ..._ctx, ...state, el: root })
+  }
+  // Register expense-row CE programmatically (no <define-element> in HTML)
+  {
+    let t = document.createElement('template')
+    t.innerHTML = `<div class="recent-exp-item row-link" :onclick="e => el.dispatchEvent(new CustomEvent('view', {detail: x, bubbles: true}))">
+      <span class="recent-exp-icon-col"><span class="status-icon" :class="'status-' + (x.status || 'submitted')" :html="statusIcon(x.status || 'submitted')"></span></span>
+      <div class="recent-exp-main">
+        <div class="recent-exp-info">
+          <div class="recent-exp-title-row"><div class="recent-exp-title"><span :html="hl(x?.payee || '\\u2014', search || '')"></span><span :if="showno && x.expense_no" class="recent-exp-title-sub dim" :text="'#' + x.expense_no"></span></div></div>
+          <div class="recent-exp-meta-row"><span class="recent-exp-status-text" :class="'status-' + (x.status || 'submitted')" :text="fmtStatus(x?.status || 'submitted')"></span><span class="recent-exp-time" :text="fmtDate(x?.updated_at || x?.created_at || x?.expense_date)"></span></div>
+        </div>
+        <div :if="x.attachments?.length" class="row-attachments">
+          <img :each="a in (x.attachments || []).slice(0, 4)" :if="a.mime_type?.startsWith('image/')" class="row-attach-thumb" :src="apiBase + '/' + a.file_path" :alt="a.original_name">
+          <span :each="a in (x.attachments || []).slice(0, 4)" :if="!a.mime_type?.startsWith('image/')" class="row-attach-file" :title="a.original_name" :html="icon('attach')"></span>
+          <span :if="(x.attachments || []).length > 4" class="row-attach-more" :text="'+' + (x.attachments.length - 4)"></span>
+        </div>
+      </div>
+      <span class="recent-exp-actions" :onclick.stop="">
+        <button :if="canapprove" type="button" class="btn btn-sm btn-outline" aria-label="Quick approve expense" :onclick.stop="e => el.dispatchEvent(new CustomEvent('approve', {detail: x, bubbles: true}))" :html="approveIcon + ' Approve'"></button>
+        <span :if="approvedbyme" class="dim" style="font-size:var(--f-sm)">&#x2713; Approved</span>
+        <button :if="canpay" type="button" class="btn btn-sm btn-outline btn-ok-outline" aria-label="Mark as paid" :disabled="!x.attachments?.length" :onclick.stop="e => el.dispatchEvent(new CustomEvent('pay', {detail: x, bubbles: true}))" :html="payIcon + ' Paid'"></button>
+        <button :if="needsdoc" type="button" class="btn btn-sm btn-outline" aria-label="Attach document" :onclick.stop="e => el.dispatchEvent(new CustomEvent('attach', {detail: x, bubbles: true}))" :html="icon('attach') + ' Attach'"></button>
+        <span :if="busy" class="btn btn-sm btn-outline" style="pointer-events:none;color:var(--c-text-dim)">&hellip;</span>
+      </span>
+      <div class="recent-exp-cat">
+        <span :if="x.attachments?.length" class="recent-exp-attach" :title="x.attachments.length + ' document' + (x.attachments.length > 1 ? 's' : '')"><span class="recent-exp-attach-icon" :html="icon('attach')"></span><span :if="x.attachments.length > 1" class="recent-exp-attach-count" :text="x.attachments.length"></span></span>
+        <span class="badge" :class="catCls(x.category || 'other')" :text="fmtCat(x.category || 'other')"></span>
+      </div>
+      <div class="recent-exp-amount"><div class="recent-exp-value stat-err" :text="'-$' + fmtAmt(x.amount || 0)"></div></div>
+    </div>`
+    let el = document.createElement('expense-row')
+    el.setAttribute('x', '')
+    el.setAttribute('search', '')
+    el.setAttribute('showno', 'false')
+    el.setAttribute('canapprove', 'false')
+    el.setAttribute('approvedbyme', 'false')
+    el.setAttribute('canpay', 'false')
+    el.setAttribute('needsdoc', 'false')
+    el.setAttribute('busy', 'false')
+    el.appendChild(t)
+    define(el)
+  }
   import { formDefaults, bindForm, expIsEditable, expEditPolicy as getExpEditPolicy, expGetAttachments, buildExpTimeline } from '../../lib/form.js'
 
   const MY_USER_ID = auth.user?.id || auth.user?.user_id || (() => {

@@ -97,7 +97,7 @@ test.describe('e2e: viewer restrictions', () => {
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('button:has-text("+ Expense")')).toBeVisible()
     await expect(page.locator('button:has-text("+ Income")')).not.toBeVisible()
-    const row = page.locator('.finance-exp-item').first()
+    const row = page.locator('expense-row .recent-exp-item').first()
     if (await row.isVisible().catch(() => false)) {
       await row.hover()
       await expect(page.locator('[aria-label="Quick approve expense"]')).toHaveCount(0)
@@ -259,11 +259,11 @@ test.describe('e2e: viewer submits → approver approves', () => {
 
     await approverPage.goto('/app/finance/?tab=expenses#expenses')
     await approverPage.locator('.card-tab-group').waitFor()
-    await expect(approverPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(approverPage.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
     await approverPage.fill('.filter-search', `E2E-Viewer-${ts}`)
     await approverPage.waitForTimeout(500)
-    const row = approverPage.locator('.finance-exp-item').first()
+    const row = approverPage.locator('expense-row .recent-exp-item').first()
     await expect(row).toBeVisible()
 
     await row.hover()
@@ -299,8 +299,8 @@ test.describe('e2e: expenses', () => {
   test('expenses tab loads real data', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
-    expect(await page.locator('.finance-exp-item').count()).toBeGreaterThan(0)
+    await expect(page.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    expect(await page.locator('expense-row').count()).toBeGreaterThan(0)
   })
 
   test('create expense via UI → verify in API', async ({ page }) => {
@@ -326,9 +326,9 @@ test.describe('e2e: expenses', () => {
   test('expense row opens edit modal with real data', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
-    await page.locator('.finance-exp-item').first().click()
+    await page.locator('expense-row .recent-exp-item').first().click()
     await page.locator('.modal').waitFor()
     await expect(page.locator('.modal')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
@@ -337,13 +337,13 @@ test.describe('e2e: expenses', () => {
   test('search filters expenses', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
-    const allCards = await page.locator('.finance-exp-item').count()
+    const allCards = await page.locator('expense-row .recent-exp-item').count()
     await page.fill('.filter-search', 'Metro')
     await page.waitForTimeout(500)
 
-    const filteredCards = await page.locator('.finance-exp-item').count()
+    const filteredCards = await page.locator('expense-row .recent-exp-item').count()
     expect(filteredCards).toBeLessThanOrEqual(allCards)
   })
 
@@ -607,11 +607,11 @@ test.describe('e2e: approve → pay flow', () => {
     // Treasurer opens finance, searches, quick approves (second approval → approved)
     await treasurerPage.goto('/app/finance/?tab=expenses#expenses')
     await treasurerPage.locator('.card-tab-group').waitFor()
-    await expect(treasurerPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(treasurerPage.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
     await treasurerPage.fill('.filter-search', `E2E-QAP-${ts}`)
     await treasurerPage.waitForTimeout(500)
-    const row = treasurerPage.locator('.finance-exp-item').first()
+    const row = treasurerPage.locator('expense-row .recent-exp-item').first()
     await expect(row).toBeVisible()
 
     // Quick approve
@@ -666,11 +666,11 @@ test.describe('e2e: approve → pay flow', () => {
     // Treasurer opens finance and clicks the expense row to open modal
     await treasurerPage.goto('/app/finance/?tab=expenses#expenses')
     await treasurerPage.locator('.card-tab-group').waitFor()
-    await expect(treasurerPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(treasurerPage.locator('expense-row .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
     await treasurerPage.fill('.filter-search', `E2E-MAP-${ts}`)
     await treasurerPage.waitForTimeout(500)
-    const row = treasurerPage.locator('.finance-exp-item').first()
+    const row = treasurerPage.locator('expense-row .recent-exp-item').first()
     await expect(row).toBeVisible()
     await row.click()
 

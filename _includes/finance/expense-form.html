@@ -105,7 +105,7 @@
             <div :if="can('expenses:approve')" class="field autocomplete">
               <label>Payee</label>
               <div style="position:relative">
-                <input id="exp-vendor" type="text" :value="expForm.payee"
+                <input id="exp-vendor" type="text" autocomplete="off" :value="expForm.payee"
                 :onfocus="e => filterExpensePayees(expForm.payee)"
                 :oninput="e => { expForm.member_id = null; filterExpensePayees(e.target.value) }"
                 :onblur="e => { memberHits = [] }"
@@ -115,24 +115,24 @@
                   :onclick="clearExpMember()">&times;</button>
               </div>
               <div :if="memberHits.length" class="autocomplete-list">
-                <div class="autocomplete-item" :each="m in memberHits" :onmousedown.prevent="selectExpMember(m)" :text="m.name"></div>
+                <div class="autocomplete-item" :each="m in memberHits" :onmousedown="e => { e.preventDefault(); queueMicrotask(() => selectExpMember(m)) }" :text="m.name"></div>
               </div>
             </div>
             <div class="field">
               <label>Category</label>
-              <select id="exp-cat" :value="expForm.category" :onchange="e => markDirty(`category`)" :disabled="expEditPolicy.lockedAll">
+              <select id="exp-cat" :value="expForm.category" :change="v => { expForm.category = v; markDirty('category') }" :disabled="expEditPolicy.lockedAll">
                 <option value="" disabled hidden :selected="!(expForm.category || '')">Select…</option>
                 {% include partials/expense-category-options.html %}
               </select>
             </div>
             <div class="field">
               <label>Date</label>
-              <input id="exp-date" type="date" :value="expForm.expense_date" :oninput="e => markDirty(`date`)" :disabled="expEditPolicy.dateLocked" :placeholder="'Defaults to today'">
+              <input id="exp-date" type="date" :value="expForm.expense_date" :change="v => { expForm.expense_date = v; markDirty('date') }" :disabled="expEditPolicy.dateLocked" :placeholder="'Defaults to today'">
             </div>
           </div>
           <div class="field">
             <label>Note</label>
-            <textarea id="exp-desc" rows="1" style="field-sizing:content;resize:none" :value="expForm.note" :oninput="e => markDirty(`note`)" placeholder="Optional…" :disabled="expEditPolicy.lockedAll"></textarea>
+            <textarea id="exp-desc" rows="1" style="field-sizing:content;resize:none" :value="expForm.note" :change="v => { expForm.note = v; markDirty('note') }" placeholder="Optional…" :disabled="expEditPolicy.lockedAll"></textarea>
           </div>
 
           <div :if="receipts.some(r => r.duplicate)" class="form-warn">Possible duplicate — a receipt was previously uploaded for another expense</div>
@@ -175,17 +175,17 @@
                   </div>
                   <div :if="detailExp?.status === 'submitted' && can('expenses:approve') && expRejecting" class="activity-followup-actions activity-followup-actions-inline activity-followup-actions-reject-inline">
                     <span class="activity-inline-input-wrap">
-                      <input class="activity-inline-input" type="text" :value="actionNote" placeholder="Reason">
+                      <input class="activity-inline-input" type="text" :value="actionNote" :change="v => actionNote = v" placeholder="Reason">
                       <button class="activity-inline-clear" aria-label="Cancel reject" title="Cancel reject" :onclick="cancelExpenseReject()">×</button>
                     </span>
                     <button class="btn btn-danger btn-sm" :class="{'btn-loading': actioning}" :onclick="rejectExp()">Send</button>
                   </div>
                   <div :if="detailExp?.status === 'approved' && can('expenses:approve')" class="activity-followup-actions activity-followup-actions-inline">
-                    <select :value="payMethod" :onchange="e => payMethod = e.target.value" class="input input-sm" style="width:9rem">
+                    <select :value="payMethod" :change="v => payMethod = v" class="input input-sm" style="width:9rem">
                       <option value="">Method</option>
                       <option :each="m in expMethods" :value="m" :text="fmt(m)"></option>
                     </select>
-                    <input type="text" :value="payRef" :oninput="e => payRef = e.target.value" placeholder="Reference" class="input input-sm" style="width:10rem">
+                    <input type="text" :value="payRef" :change="v => payRef = v" placeholder="Reference" class="input input-sm" style="width:10rem">
                     <button class="btn btn-primary btn-sm" :class="{'btn-loading': actioning}" :onclick="payExp()">Paid</button>
                   </div>
                   <div :if="detailExp?.status === 'paid' && can('expenses:approve')" class="activity-followup-actions activity-followup-actions-inline">

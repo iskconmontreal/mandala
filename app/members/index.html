@@ -15,8 +15,8 @@
 <div class="filter-bar">
   <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Member</button>
   <input class="filter-search" type="search" placeholder="Search name, email or phone…"
-    :value="search" :oninput.debounce-150="e => { page = 1; load() }">
-  <select :value="filterRole" :onchange="e => { page = 1; load() }" style="width:auto">
+    :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1; load() }">
+  <select :value="filterRole" :change="v => { filterRole = v; page = 1; load() }" style="width:auto">
     <option value="">All roles</option>
     <option :each="r in roles" :value="r" :text="r"></option>
   </select>

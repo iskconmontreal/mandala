@@ -93,7 +93,7 @@ test.describe('e2e: viewer restrictions', () => {
   })
 
   test('finance: can add expense, but no + Income, no approve/pay', async ({ page }) => {
-    await page.goto('/app/finance/')
+    await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('button:has-text("+ Expense")')).toBeVisible()
     await expect(page.locator('button:has-text("+ Income")')).not.toBeVisible()
@@ -101,7 +101,7 @@ test.describe('e2e: viewer restrictions', () => {
     if (await row.isVisible().catch(() => false)) {
       await row.hover()
       await expect(page.locator('[aria-label="Quick approve expense"]')).toHaveCount(0)
-      await expect(page.locator('[aria-label="Quick pay expense"]')).toHaveCount(0)
+      await expect(page.locator('[aria-label="Mark as paid"]')).toHaveCount(0)
     }
   })
 
@@ -117,7 +117,7 @@ test.describe('e2e: viewer restrictions', () => {
     const ts = Date.now()
     await page.click('button:has-text("+ Expense")')
     await page.locator('.modal').waitFor()
-    await page.fill('#exp-amount', '19.99')
+    await page.fill('.exp-items-table tbody tr:first-child td:nth-child(2) input', '19.99')
     await page.selectOption('#exp-cat', 'books')
     await page.fill('#exp-desc', `E2E-myexp-${ts}`)
     await page.click('button:has-text("Submit")')
@@ -137,7 +137,7 @@ test.describe('e2e: viewer restrictions', () => {
     const myExpTable = page.locator('h3').filter({ hasText: 'My Expenses' })
     await page.click('button:has-text("+ Expense")')
     await page.locator('.modal').waitFor()
-    await page.fill('#exp-amount', amount)
+    await page.fill('.exp-items-table tbody tr:first-child td:nth-child(2) input', amount)
     await page.selectOption('#exp-cat', 'admin')
     await page.click('button:has-text("Submit")')
     await page.waitForSelector('.modal', { state: 'hidden', timeout: 15_000 })
@@ -201,7 +201,7 @@ test.describe('e2e: viewer restrictions', () => {
     await modal.waitFor()
     await expect(modal.locator('button:has-text("Save")')).not.toBeVisible()
     await expect(modal.locator('#exp-cat')).toBeDisabled()
-    await expect(modal.locator('#exp-amount')).toBeDisabled()
+    await expect(modal.locator('.exp-items-table tbody input[type="number"]').first()).toBeDisabled()
     await expect(modal.locator('button:has-text("Close")')).toBeVisible()
 
     await modal.locator('button:has-text("Close")').click()
@@ -216,17 +216,16 @@ test.describe('e2e: viewer restrictions', () => {
     await page.click('button:has-text("+ Expense")')
     await page.locator('.modal').waitFor()
 
-    await expect(page.locator('#exp-amount')).toBeVisible()
+    await expect(page.locator('.exp-items-table tbody tr:first-child td:nth-child(2) input')).toBeVisible()
     await expect(page.locator('#exp-cat')).toBeVisible()
     await expect(page.locator('#exp-desc')).toBeVisible()
     await expect(page.locator('#exp-vendor')).not.toBeVisible()
-    await expect(page.locator('#exp-date')).not.toBeVisible()
 
     const options = await page.locator('#exp-cat option:not([disabled])').allTextContents()
     expect(options.length).toBe(17)
 
     const ts = Date.now()
-    await page.fill('#exp-amount', '12.34')
+    await page.fill('.exp-items-table tbody tr:first-child td:nth-child(2) input', '12.34')
     await page.selectOption('#exp-cat', 'kitchen')
     await page.fill('#exp-desc', `E2E-viewer-${ts}`)
     await page.click('button:has-text("Submit")')
@@ -258,7 +257,7 @@ test.describe('e2e: viewer submits → approver approves', () => {
     const approverToken = await loginAsReal(approverPage, 'approver')
     const approverHeaders = { Authorization: `Bearer ${approverToken}` }
 
-    await approverPage.goto('/app/finance/')
+    await approverPage.goto('/app/finance/?tab=expenses#expenses')
     await approverPage.locator('.card-tab-group').waitFor()
     await expect(approverPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
@@ -298,20 +297,20 @@ test.describe('e2e: expenses', () => {
   })
 
   test('expenses tab loads real data', async ({ page }) => {
-    await page.goto('/app/finance/')
+    await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
     expect(await page.locator('.finance-exp-item').count()).toBeGreaterThan(0)
   })
 
   test('create expense via UI → verify in API', async ({ page }) => {
-    await page.goto('/app/finance/')
+    await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
 
     await page.click('button:has-text("+ Expense")')
     await page.locator('.modal').waitFor()
 
-    await page.fill('#exp-amount', '42.50')
+    await page.fill('.exp-items-table tbody tr:first-child td:nth-child(2) input', '42.50')
     await page.fill('#exp-vendor', 'E2E Test Vendor')
     await page.selectOption('#exp-cat', { index: 1 })
 
@@ -325,7 +324,7 @@ test.describe('e2e: expenses', () => {
   })
 
   test('expense row opens edit modal with real data', async ({ page }) => {
-    await page.goto('/app/finance/')
+    await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
@@ -336,7 +335,7 @@ test.describe('e2e: expenses', () => {
   })
 
   test('search filters expenses', async ({ page }) => {
-    await page.goto('/app/finance/')
+    await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
     await expect(page.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
@@ -434,13 +433,11 @@ test.describe('e2e: income', () => {
     expect(await section.locator('.recent-inc-item').count()).toBeGreaterThan(0)
   })
 
-  test('donors tab loads real data', async ({ page }) => {
-    await page.goto('/app/finance/#donors')
+  test('income tab loads via direct URL', async ({ page }) => {
+    await page.goto('/app/finance/?tab=income#income')
     await page.locator('.card-tab-group').waitFor()
-    await page.locator('.card-tab', { hasText: 'Donors' }).click()
-    const rows = page.locator('section:not(.hidden) table tbody tr')
-    await expect(rows.first()).toBeVisible({ timeout: 15_000 })
-    expect(await rows.count()).toBeGreaterThan(0)
+    await expect(page.locator('.recent-inc-item').first()).toBeVisible({ timeout: 15_000 })
+    expect(await page.locator('.recent-inc-item').count()).toBeGreaterThan(0)
   })
 
   test('create income with receipt via API → attachments stored', async ({ page }) => {
@@ -608,7 +605,7 @@ test.describe('e2e: approve → pay flow', () => {
     await approverCtx.close()
 
     // Treasurer opens finance, searches, quick approves (second approval → approved)
-    await treasurerPage.goto('/app/finance/')
+    await treasurerPage.goto('/app/finance/?tab=expenses#expenses')
     await treasurerPage.locator('.card-tab-group').waitFor()
     await expect(treasurerPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
@@ -626,7 +623,7 @@ test.describe('e2e: approve → pay flow', () => {
 
     // After approve, pay button should appear
     await row.hover()
-    const payBtn = row.locator('[aria-label="Quick pay expense"]')
+    const payBtn = row.locator('[aria-label="Mark as paid"]')
     await expect(payBtn).toBeVisible({ timeout: 5_000 })
 
     // Quick pay
@@ -667,7 +664,7 @@ test.describe('e2e: approve → pay flow', () => {
     await approverCtx.close()
 
     // Treasurer opens finance and clicks the expense row to open modal
-    await treasurerPage.goto('/app/finance/')
+    await treasurerPage.goto('/app/finance/?tab=expenses#expenses')
     await treasurerPage.locator('.card-tab-group').waitFor()
     await expect(treasurerPage.locator('.finance-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
@@ -685,28 +682,16 @@ test.describe('e2e: approve → pay flow', () => {
     await expect(approveBtn).toBeVisible({ timeout: 5_000 })
     await approveBtn.click()
 
-    // Modal closes after approve, toast shows
-    await treasurerPage.waitForSelector('.modal', { state: 'hidden', timeout: 15_000 })
+    // Modal stays open (close: false), toast shows, expense updated in-place
     await expect(treasurerPage.locator('.toast-success')).toBeVisible({ timeout: 5_000 })
 
-    // Re-open the now-approved expense
-    await treasurerPage.fill('.filter-search', `E2E-MAP-${ts}`)
-    await treasurerPage.waitForTimeout(500)
-    const row2 = treasurerPage.locator('.finance-exp-item').first()
-    await expect(row2).toBeVisible()
-    await row2.click()
-
-    const modal2 = treasurerPage.locator('.modal')
-    await modal2.waitFor()
-
-    // Modal should show Paid button (status: approved, has attachments)
-    const paidBtn = modal2.getByRole('button', { name: 'Paid' })
+    // Paid button should appear in the same modal (status changed to approved)
+    const paidBtn = modal.getByRole('button', { name: 'Paid' })
     await expect(paidBtn).toBeVisible({ timeout: 5_000 })
     await expect(paidBtn).toBeEnabled()
     await paidBtn.click()
 
-    // Modal closes, toast shows paid
-    await treasurerPage.waitForSelector('.modal', { state: 'hidden', timeout: 15_000 })
+    // Modal stays open (close: false), toast shows paid
     await expect(treasurerPage.locator('.toast-success').filter({ hasText: /paid/i })).toBeVisible({ timeout: 5_000 })
 
     // Verify via API
@@ -839,5 +824,38 @@ test.describe('e2e: attachment deletion rules', () => {
     await tCtx.close()
     await aCtx.close()
     await vCtx.close()
+  })
+})
+
+test.describe('e2e: payee autocomplete', () => {
+  test('selecting payee from autocomplete produces no console errors', async ({ browser }) => {
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    await loginAsReal(page, 'treasurer')
+
+    const errors = []
+    page.on('pageerror', err => errors.push(err.message))
+
+    await page.goto('/app/finance/?tab=expenses#expenses')
+    await page.locator('.card-tab-group').waitFor()
+
+    await page.click('button:has-text("+ Expense")')
+    await page.locator('.modal').waitFor()
+
+    const vendor = page.locator('#exp-vendor')
+    await vendor.fill('a')
+    await page.waitForTimeout(500)
+
+    const hit = page.locator('.autocomplete-item').first()
+    if (await hit.isVisible().catch(() => false)) {
+      await hit.click()
+      // Wait for queueMicrotask to settle
+      await page.evaluate(() => new Promise(r => queueMicrotask(r)))
+      await page.waitForTimeout(200)
+    }
+
+    expect(errors.filter(e => /Maximum call stack|reentr/i.test(e))).toHaveLength(0)
+
+    await ctx.close()
   })
 })

@@ -160,11 +160,11 @@
           <div class="form-row">
             <div class="field">
               <label for="p-name">Name</label>
-              <input id="p-name" type="text" :value="f.name" required placeholder="Full name">
+              <input id="p-name" type="text" :value="f.name" :change="v => f.name = v" required placeholder="Full name">
             </div>
             <div class="field">
               <label for="p-spiritual">Spiritual Name</label>
-              <input id="p-spiritual" type="text" :value="f.spiritual_name" placeholder="Initiated name">
+              <input id="p-spiritual" type="text" :value="f.spiritual_name" :change="v => f.spiritual_name = v" placeholder="Initiated name">
             </div>
           </div>
         </div>
@@ -177,16 +177,16 @@
       <div class="form-row">
         <div class="field">
           <label for="p-email">Email</label>
-          <input id="p-email" type="email" :value="f.email" placeholder="email@example.com">
+          <input id="p-email" type="email" :value="f.email" :change="v => f.email = v" placeholder="email@example.com">
         </div>
         <div class="field">
           <label for="p-phone">Phone</label>
-          <input id="p-phone" type="tel" :value="f.phone" placeholder="514-000-0000">
+          <input id="p-phone" type="tel" :value="f.phone" :change="v => f.phone = v" placeholder="514-000-0000">
         </div>
       </div>
       <div class="field">
         <label for="p-address">Address</label>
-        <textarea id="p-address" :value="f.address" placeholder="For tax receipts" rows="2"></textarea>
+        <textarea id="p-address" :value="f.address" :change="v => f.address = v" placeholder="For tax receipts" rows="2"></textarea>
       </div>
     </div>
 
@@ -196,46 +196,46 @@
       <div class="form-row">
         <div class="field">
           <label for="p-guru">Diksa Guru</label>
-          <input id="p-guru" type="text" :value="f.diksa_guru" placeholder="Initiating spiritual master">
+          <input id="p-guru" type="text" :value="f.diksa_guru" :change="v => f.diksa_guru = v" placeholder="Initiating spiritual master">
         </div>
         <div class="field">
           <label for="p-guide">Guiding Devotee</label>
-          <input id="p-guide" type="text" :value="f.guiding_devotee" placeholder="Siksa guru / mentor">
+          <input id="p-guide" type="text" :value="f.guiding_devotee" :change="v => f.guiding_devotee = v" placeholder="Siksa guru / mentor">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label for="p-rounds">Japa Rounds</label>
-          <input id="p-rounds" type="number" :value="f.rounds" placeholder="16" min="0">
+          <input id="p-rounds" type="number" :value="f.rounds" :change="v => f.rounds = v" placeholder="16" min="0">
         </div>
         <div class="field">
           <label for="p-rounds-yr">Chanting for (years)</label>
-          <input id="p-rounds-yr" type="number" :value="f.rounds_years" min="0">
+          <input id="p-rounds-yr" type="number" :value="f.rounds_years" :change="v => f.rounds_years = v" min="0">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label for="p-regs-yr">4 Regs for (years)</label>
-          <input id="p-regs-yr" type="number" :value="f.four_regs_years" min="0">
+          <input id="p-regs-yr" type="number" :value="f.four_regs_years" :change="v => f.four_regs_years = v" min="0">
         </div>
         <div class="field">
           <label for="p-kc-yr">Years in KC</label>
-          <input id="p-kc-yr" type="number" :value="f.kc_years" min="0">
+          <input id="p-kc-yr" type="number" :value="f.kc_years" :change="v => f.kc_years = v" min="0">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label for="p-temple">Temple</label>
-          <input id="p-temple" type="text" :value="f.temple" placeholder="ISKCON Montreal">
+          <input id="p-temple" type="text" :value="f.temple" :change="v => f.temple = v" placeholder="ISKCON Montreal">
         </div>
       </div>
       <div class="form-row">
         <div class="field" style="display:flex; align-items:center; gap:var(--s-sm); min-height:2.5rem">
-          <input id="p-lives" type="checkbox" :checked="f.lives_in_temple" style="width:auto">
+          <input id="p-lives" type="checkbox" :value="f.lives_in_temple" :change="v => f.lives_in_temple = v" style="width:auto">
           <label for="p-lives" style="margin:0">Lives in temple</label>
         </div>
         <div class="field" style="display:flex; align-items:center; gap:var(--s-sm); min-height:2.5rem">
-          <input id="p-nama" type="checkbox" :checked="f.namahatta" style="width:auto">
+          <input id="p-nama" type="checkbox" :value="f.namahatta" :change="v => f.namahatta = v" style="width:auto">
           <label for="p-nama" style="margin:0">Namahatta member</label>
         </div>
       </div>
@@ -247,11 +247,11 @@
       <div class="form-row">
         <div class="field">
           <label for="p-dob">Date of Birth</label>
-          <input id="p-dob" type="date" :value="f.dob">
+          <input id="p-dob" type="date" :value="f.dob" :change="v => f.dob = v">
         </div>
         <div class="field">
           <label for="p-gender">Gender</label>
-          <select id="p-gender" :value="f.gender">
+          <select id="p-gender" :value="f.gender" :change="v => f.gender = v">
             <option value="">—</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
@@ -261,17 +261,17 @@
       <div class="form-row">
         <div class="field">
           <label for="p-nat">Nationality</label>
-          <input id="p-nat" type="text" :value="f.nationality">
+          <input id="p-nat" type="text" :value="f.nationality" :change="v => f.nationality = v">
         </div>
         <div class="field">
           <label for="p-occ">Occupation</label>
-          <input id="p-occ" type="text" :value="f.occupation">
+          <input id="p-occ" type="text" :value="f.occupation" :change="v => f.occupation = v">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label for="p-marriage">Marriage Status</label>
-          <select id="p-marriage" :value="f.marriage_status">
+          <select id="p-marriage" :value="f.marriage_status" :change="v => f.marriage_status = v">
             <option value="">—</option>
             <option value="Single">Single</option>
             <option value="Married">Married</option>
@@ -280,16 +280,16 @@
         </div>
         <div class="field">
           <label for="p-spouse">Spouse</label>
-          <input id="p-spouse" type="text" :value="f.spouse" placeholder="Name; KC status">
+          <input id="p-spouse" type="text" :value="f.spouse" :change="v => f.spouse = v" placeholder="Name; KC status">
         </div>
       </div>
       <div class="field">
         <label for="p-children">Children</label>
-        <input id="p-children" type="text" :value="f.children" placeholder="Names and ages">
+        <input id="p-children" type="text" :value="f.children" :change="v => f.children = v" placeholder="Names and ages">
       </div>
       <div class="field">
         <label for="p-notes">Notes</label>
-        <textarea id="p-notes" :value="f.notes" rows="2" placeholder="Anything else…"></textarea>
+        <textarea id="p-notes" :value="f.notes" :change="v => f.notes = v" rows="2" placeholder="Anything else…"></textarea>
       </div>
     </div>
 

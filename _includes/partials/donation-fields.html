@@ -4,7 +4,7 @@
 <div class="field autocomplete">
   <label>Donor</label>
   <div style="position:relative">
-    <input id="don-donor" type="text" :value="memberQuery"
+    <input id="don-donor" type="text" autocomplete="off" :value="memberQuery"
       :onfocus="e => filterDonors(memberQuery)"
       :oninput="e => { donForm.member_id = null; filterDonors(e.target.value) }"
       :onblur="e => { memberHits = [] }"
@@ -15,7 +15,7 @@
       :onclick="clearDonor()">&times;</button>
   </div>
   <div :if="memberHits.length" class="autocomplete-list">
-    <div class="autocomplete-item" :each="m in memberHits" :onmousedown.prevent="selectDonor(m)" :text="m.name"></div>
+    <div class="autocomplete-item" :each="m in memberHits" :onmousedown="e => { e.preventDefault(); queueMicrotask(() => selectDonor(m)) }" :text="m.name"></div>
   </div>
 </div>
 <div class="form-row">
@@ -33,7 +33,7 @@
   </div>
   <div class="field">
     <label for="don-amount">Amount ($)</label>
-    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" placeholder="0.00" required>
+    <input id="don-amount" type="text" inputmode="decimal" pattern="[0-9]*\.?[0-9]*" :value="donForm.amount" :change="v => donForm.amount = v" placeholder="0.00" required>
   </div>
   <div class="field">
     <label for="don-method">Method</label>
@@ -53,7 +53,7 @@
 <div class="field">
   <label for="don-note">Note</label>
   <textarea id="don-note" rows="1" style="field-sizing:content;resize:none"
-    :value="donForm.note"
+    :value="donForm.note" :change="v => donForm.note = v"
     placeholder="Optional…"></textarea>
 </div>
 
@@ -74,7 +74,7 @@
   </div>
   <div class="field">
     <label for="don-date">Date</label>
-    <input id="don-date" type="date" :value="donForm.date_received">
+    <input id="don-date" type="date" :value="donForm.date_received" :change="v => donForm.date_received = v">
   </div>
 </div>
 

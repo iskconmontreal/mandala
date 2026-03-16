@@ -11,6 +11,7 @@ const CREDS = {
   treasurer: { email: 'treasurer@test.local', password: 'test123' },
   approver:  { email: 'approver@test.local',  password: 'test123' },
   viewer:    { email: 'viewer@test.local' },
+  member:    { email: 'sevaka@test.local' },
   sevaka:    { email: 'sevaka@test.local' },
 }
 

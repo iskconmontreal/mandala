@@ -39,41 +39,41 @@
         <div class="form-row">
           <div class="field">
             <label for="org-name">Organization name</label>
-            <input id="org-name" type="text" :value="form.org_name" placeholder="ISKCON Montreal">
+            <input id="org-name" type="text" :value="form.org_name" :change="v => form.org_name = v" placeholder="ISKCON Montreal">
           </div>
           <div class="field">
             <label for="org-charity-bn">Charity BN</label>
-            <input id="org-charity-bn" type="text" :value="form.charity_bn" placeholder="123456789RR0001">
+            <input id="org-charity-bn" type="text" :value="form.charity_bn" :change="v => form.charity_bn = v" placeholder="123456789RR0001">
           </div>
         </div>
         <div class="form-row">
           <div class="field" style="flex:2 1 20rem">
             <label for="org-address">Address</label>
-            <input id="org-address" type="text" :value="form.org_address" placeholder="1626 Bd Pie-IX">
+            <input id="org-address" type="text" :value="form.org_address" :change="v => form.org_address = v" placeholder="1626 Bd Pie-IX">
           </div>
           <div class="field">
             <label for="org-city">City</label>
-            <input id="org-city" type="text" :value="form.org_city" placeholder="Montreal">
+            <input id="org-city" type="text" :value="form.org_city" :change="v => form.org_city = v" placeholder="Montreal">
           </div>
         </div>
         <div class="form-row">
           <div class="field">
             <label for="org-province">Province</label>
-            <input id="org-province" type="text" :value="form.org_province" placeholder="QC">
+            <input id="org-province" type="text" :value="form.org_province" :change="v => form.org_province = v" placeholder="QC">
           </div>
           <div class="field">
             <label for="org-postal">Postal code</label>
-            <input id="org-postal" type="text" :value="form.org_postal" placeholder="H1V 2C5">
+            <input id="org-postal" type="text" :value="form.org_postal" :change="v => form.org_postal = v" placeholder="H1V 2C5">
           </div>
           <div class="field">
             <label for="org-country">Country</label>
-            <input id="org-country" type="text" :value="form.org_country" placeholder="Canada">
+            <input id="org-country" type="text" :value="form.org_country" :change="v => form.org_country = v" placeholder="Canada">
           </div>
         </div>
         <div class="form-row">
           <div class="field">
             <label for="org-logo-url">Logo URL</label>
-            <input id="org-logo-url" type="url" :value="form.org_logo_url" :oninput="e => logoBroken = false" placeholder="https://…">
+            <input id="org-logo-url" type="url" :value="form.org_logo_url" :change="v => { form.org_logo_url = v; logoBroken = false }" placeholder="https://…">
           </div>
         </div>
       </div>
@@ -94,7 +94,7 @@
           <div class="dim" style="font-size:var(--f-sm)" :text="thresholdExplain"></div>
           <div class="field" style="margin-top:var(--s-sm)">
             <label for="org-threshold" class="sr-only">Auto-approval threshold</label>
-            <input id="org-threshold" type="number" min="0" step="0.01" inputmode="decimal" :value="form.approval_threshold_input" placeholder="0.00">
+            <input id="org-threshold" type="number" min="0" step="0.01" inputmode="decimal" :value="form.approval_threshold_input" :change="v => form.approval_threshold_input = v" placeholder="0.00">
           </div>
         </div>
         <div class="org-rule-card">
@@ -103,7 +103,7 @@
           <div class="dim" style="font-size:var(--f-sm)" :text="approvalExplain"></div>
           <div class="field" style="margin-top:var(--s-sm)">
             <label for="org-required-approvals" class="sr-only">Required approvals</label>
-            <input id="org-required-approvals" type="number" min="1" max="10" step="1" inputmode="numeric" :value="form.required_approvals" placeholder="1">
+            <input id="org-required-approvals" type="number" min="1" max="10" step="1" inputmode="numeric" :value="form.required_approvals" :change="v => form.required_approvals = v" placeholder="1">
           </div>
         </div>
       </div>

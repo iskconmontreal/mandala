@@ -51,11 +51,11 @@ title: Roles & Permissions
       <div class="form-row">
         <div class="field">
           <label for="r-name">Name</label>
-          <input id="r-name" type="text" :value="newRole.name" placeholder="e.g. Pujari" required>
+          <input id="r-name" type="text" :value="newRole.name" :change="v => newRole.name = v" placeholder="e.g. Pujari" required>
         </div>
         <div class="field">
           <label for="r-desc">Description</label>
-          <input id="r-desc" type="text" :value="newRole.description" placeholder="Brief description">
+          <input id="r-desc" type="text" :value="newRole.description" :change="v => newRole.description = v" placeholder="Brief description">
         </div>
       </div>
       <div class="perm-grid">

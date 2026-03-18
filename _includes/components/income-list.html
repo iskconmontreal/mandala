@@ -1,0 +1,64 @@
+<define-element>
+  <income-list years:array loading:boolean="false" error:string="" search:string="" hasmore:boolean="false" empty:boolean="false" nomatch:boolean="false">
+    <style>:host { display: contents; }</style>
+    <template>
+      <div :if="error" class="login-error" :text="error" style="margin:var(--s-md)"></div>
+      <div :if="loading" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
+      <div :if="empty" class="dim" style="text-align:center;padding:var(--s-xl)">No income yet</div>
+      <div :if="nomatch" class="dim" style="text-align:center;padding:var(--s-lg)">No income matches filters</div>
+      <div :each="yr in years" class="finance-year-section">
+        <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
+        <div class="finance-year-months">
+          <div :each="g in yr.items" :class="{'finance-month-wrap-open': _open[g.key]}">
+            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': _open[g.key]}" :aria-expanded="_open[g.key] ? 'true' : 'false'" :onclick="e => _toggle(g.key)">
+              <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
+              <span class="exp-group-heading">
+                <span class="exp-group-label">
+                  <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>
+                  <span class="finance-month-label-mobile" :text="fmtMonth(g.key)"></span>
+                </span>
+                <span :if="g.count" class="exp-group-count" :text="g.count"></span>
+              </span>
+              <span :if="g.total" class="exp-group-total" :text="'$' + fmtAmt(g.total)"></span>
+            </button>
+            <div class="recent-inc-list finance-exp-list finance-inc-list-group" :class="{'finance-exp-list-open': _open[g.key]}" :aria-hidden="_open[g.key] ? 'false' : 'true'">
+              <div :each="d in g.items" class="recent-inc-item row-link" :onclick="e => _emit('view', d)">
+                <span class="recent-inc-icon-col" :class="'recent-inc-icon-' + (d.method || 'cash')">
+                  <span class="recent-inc-icon" :html="methodIcon(d.method || 'cash')"></span>
+                </span>
+                <div class="recent-inc-main">
+                  <div class="recent-inc-info">
+                    <div class="recent-inc-title-row">
+                      <div style="display:flex;align-items:baseline;gap:var(--s-xs);flex-wrap:wrap">
+                        <div class="recent-inc-title" :html="hl(d.source_name || d.member_name || 'Anonymous', search || '')"></div>
+                        <span :if="d.id" class="recent-inc-title-sub dim" :text="'#' + d.id"></span>
+                      </div>
+                    </div>
+                    <div class="recent-inc-subtitle">
+                      <span class="recent-inc-method" :class="'recent-inc-method-' + (d.method || 'cash')" :text="d.method || 'cash'"></span>
+                      <span class="recent-inc-time" :text="fmtDate(d.updated_at || d.created_at || d.date_received)"></span>
+                    </div>
+                  </div>
+                  <div :if="d.attachments?.length" class="row-attachments">
+                    <img :each="a in (d.attachments || []).slice(0, 4)" :if="a.mime_type?.startsWith('image/')" class="row-attach-thumb" :src="apiBase + '/' + a.file_path" :alt="a.original_name">
+                    <span :each="a in (d.attachments || []).slice(0, 4)" :if="!a.mime_type?.startsWith('image/')" class="row-attach-file" :title="a.original_name" :html="icon('attach')"></span>
+                  </div>
+                </div>
+                <span class="recent-inc-actions" :onclick.stop="">
+                  <button type="button" class="btn btn-sm btn-outline" aria-label="Print receipt" :onclick.stop="e => _emit('print', d)" :html="printIcon + ' Print'"></button>
+                </span>
+                <div class="recent-inc-type">
+                  <span class="badge" :class="catCls((d.type || 'donation') === 'donation' ? (d.category || 'general') : (d.type || 'other'))" :text="fmtCat((d.type || 'donation') === 'donation' ? (d.category || 'general') : (d.type || 'other'))"></span>
+                </div>
+                <div class="recent-inc-amount">
+                  <div class="recent-inc-value stat-ok" :text="'+$' + fmtAmt(d.amount || 0)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div :if="hasmore" class="scroll-sentinel"><span class="load-spinner"></span></div>
+    </template>
+  </income-list>
+</define-element>

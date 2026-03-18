@@ -274,47 +274,14 @@
       <button class="btn btn-primary filter-bar-create" :onclick="openDonForm()">+ Income</button>
     </div>
   </div>
-  <div class="finance-inc-list-shell">
-    <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
-    <div :if="donations.length">
-      <div :each="yr in donRenderYearGroups" class="finance-year-section">
-        <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
-        <div class="finance-year-months">
-          <div :each="g in yr.items" :class="{'finance-month-wrap-open': isDonMonthOpen(g.key), 'finance-month-wrap-divider': isDonMonthDividerVisible(g.key)}">
-            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': isDonMonthOpen(g.key)}" :aria-expanded="isDonMonthOpen(g.key) ? 'true' : 'false'" :data-month-key="g.key" :onclick="e => toggleDonMonthFromEvent(e)">
-              <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
-              <span class="exp-group-heading">
-                <span class="exp-group-label">
-                  <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>
-                  <span class="finance-month-label-mobile" :text="fmtMonth(g.key)"></span>
-                </span>
-                <span :if="donMonthHasVisibleData(g.key)" class="exp-group-count" :text="g.count"></span>
-              </span>
-              <span :if="donMonthBreakdown(g.key).length" class="exp-group-breakdown" :title="donMonthBreakdownTooltip(g.key)" :aria-label="donMonthBreakdownTooltip(g.key)">
-                <span :each="seg in donMonthBreakdown(g.key)" class="exp-group-breakdown-seg" :style="expBreakdownSegStyle(seg)" :title="donMonthBreakdownSegmentTooltip(seg)" :aria-label="donMonthBreakdownSegmentTooltip(seg)"></span>
-              </span>
-              <span :if="!donMonthBreakdown(g.key).length"></span>
-              <span :if="donMonthHasVisibleData(g.key)" class="exp-group-total" :text="'$' + fmtAmt(g.total)"></span>
-            </button>
-            <div class="recent-inc-list finance-exp-list finance-inc-list-group" :class="{'finance-exp-list-open': isDonMonthOpen(g.key), 'finance-exp-list-fx': donMonthFxKey === g.key}" :aria-hidden="isDonMonthOpen(g.key) ? 'false' : 'true'">
-              <div :each="d in g.items" style="display:contents">
-                {% include finance/recent-income-row.html row_class="finance-inc-item" onclick="editDonation(d)" search="donSearch" show_id=true show_actions=true %}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div :if="!donations.length && !loading" style="text-align:center;padding:var(--s-xl)">
-      <div class="dim" style="margin-bottom:var(--s-sm)">No income yet</div>
-      <button class="btn btn-primary btn-sm" :onclick="openDonForm()">+ Record first income</button>
-    </div>
-    <div :if="donations.length && !donFiltered.length && !loading" class="dim" style="text-align:center;padding:var(--s-lg)">No income matches filters</div>
-    <div :if="loading" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
-    <div :if="donHasMore" class="scroll-sentinel">
-      <span class="load-spinner"></span>
-    </div>
-  </div>
+  <income-list
+    :years="donRenderYearGroups" :search="donSearch" :loading="loading" :error="loadErr"
+    :hasmore="donHasMore"
+    :empty="!donations.length && !loading"
+    :nomatch="donations.length && !donFiltered.length && !loading"
+    :onview="e => editDonation(e.detail)"
+    :onprint="e => printDonation(e.detail)">
+  </income-list>
 
 </section>
 
@@ -386,6 +353,7 @@
 
 <script src="../../lib/define-element.js"></script>
 {% include components/expense-list.html %}
+{% include components/income-list.html %}
 
 {% include finance/expense-form.html %}
 {% include finance/donation-form.html %}
@@ -407,7 +375,7 @@
     let _open = {}
     let s = sprae(root, {
       fmtAmt, fmtCat, fmtStatus, fmtDate, fmtMonthShort, fmtMonth, catCls, hl, statusIcon, icon,
-      apiBase: BASE, approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'),
+      apiBase: BASE, methodIcon, approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print'),
       _open, _toggle: key => s._open = { ...s._open, [key]: !s._open[key] },
       _emit: (name, detail) => state.host.dispatchEvent(new CustomEvent(name, { detail, bubbles: true })),
       ...state

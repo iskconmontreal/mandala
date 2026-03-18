@@ -54,7 +54,9 @@ const SETUP = `rm -rf ${DIR} && mkdir -p ${DIR} && ${BUILD} && cd ${DIR} && ${EN
 
 export default defineConfig({
   testDir: 'tests',
-  testMatch: /e2e\.spec/,
+  testMatch: /e2e.*\.spec/,
+  fullyParallel: true,
+  workers: 4,
   timeout: 60_000,
   use: { baseURL: 'http://localhost:4000' },
   webServer: [

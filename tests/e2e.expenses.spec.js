@@ -12,8 +12,8 @@ test.describe('e2e: expenses', () => {
   test('expenses tab loads real data', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
-    expect(await page.locator('.recent-exp-item').count()).toBeGreaterThan(0)
+    await expect(page.locator('expense-list .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    expect(await page.locator('expense-list .recent-exp-item').count()).toBeGreaterThan(0)
   })
 
   test('create expense via UI → verify in API', async ({ page }) => {
@@ -39,9 +39,9 @@ test.describe('e2e: expenses', () => {
   test('expense row opens edit modal with real data', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('expense-list .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
-    await page.locator('.recent-exp-item').first().click()
+    await page.locator('expense-list .recent-exp-item').first().click()
     await page.locator('.modal').waitFor()
     await expect(page.locator('.modal')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Edit Expense' })).toBeVisible()
@@ -50,13 +50,13 @@ test.describe('e2e: expenses', () => {
   test('search filters expenses', async ({ page }) => {
     await page.goto('/app/finance/?tab=expenses#expenses')
     await page.locator('.card-tab-group').waitFor()
-    await expect(page.locator('.recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.locator('expense-list .recent-exp-item').first()).toBeVisible({ timeout: 15_000 })
 
-    const allCards = await page.locator('.recent-exp-item').count()
+    const allCards = await page.locator('expense-list .recent-exp-item').count()
     await page.fill('.filter-search', 'Metro')
     await page.waitForTimeout(500)
 
-    const filteredCards = await page.locator('.recent-exp-item').count()
+    const filteredCards = await page.locator('expense-list .recent-exp-item').count()
     expect(filteredCards).toBeLessThanOrEqual(allCards)
   })
 

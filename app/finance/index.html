@@ -172,41 +172,13 @@
   </div>
 
   <!-- List view -->
-  <div :if="expView === 'list'" :class="{'finance-exp-list-shell-refreshing': expRefreshing}">
-    <div :if="loadErr" class="login-error" :text="loadErr" style="margin-bottom:var(--s-sm)"></div>
-    <div :if="loading && !expenses.length" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
-    <div :if="expSearchLoading" class="dim" style="text-align:center;padding:var(--s-lg)"><span class="load-spinner"></span></div>
-    <div :if="!loading && !expRefreshing && !expSearchLoading && !expenses.length && !expSearch" class="dim" style="text-align:center;padding:var(--s-xl)">No expenses yet</div>
-    <div :if="!loading && !expRefreshing && !expSearchLoading && !expFiltered.length && (expenses.length || expSearch)" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</div>
-    <div :each="yr in expYearGroups" class="finance-year-section">
-      <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
-      <div class="finance-year-months">
-        <div :each="g in yr.items" :class="{'finance-month-wrap-open': isExpMonthOpen(g.key), 'finance-month-wrap-divider': isExpMonthDividerVisible(g.key)}">
-          <button type="button" class="exp-group-header" :class="{'exp-group-header-open': isExpMonthOpen(g.key)}" :aria-expanded="isExpMonthOpen(g.key) ? 'true' : 'false'" :data-month-key="g.key" :onpointerdown="e => primeExpMonthFromEvent(e)" :onclick="e => toggleExpMonthFromEvent(e)">
-            <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
-            <span class="exp-group-heading">
-              <span class="exp-group-label">
-              <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>
-              <span class="finance-month-label-mobile" :text="fmtMonth(g.key)"></span>
-              </span>
-              <span :if="expMonthHasVisibleData(g.key)" class="exp-group-count" :text="g.count"></span>
-            </span>
-            <span :if="expMonthBreakdown(g.key).length && !hasExpMetaFilterState" class="exp-group-breakdown" :title="expMonthBreakdownTooltip(g.key)" :aria-label="expMonthBreakdownTooltip(g.key)">
-              <span :each="seg in expMonthBreakdown(g.key)" class="exp-group-breakdown-seg" :style="expBreakdownSegStyle(seg)" :title="expMonthBreakdownSegmentTooltip(seg)" :aria-label="expMonthBreakdownSegmentTooltip(seg)"></span>
-            </span>
-            <span :if="expMonthHasVisibleData(g.key)" class="exp-group-total" :text="'$' + fmtAmt(g.total)"></span>
-          </button>
-          <div class="recent-exp-list finance-exp-list" :class="{'finance-exp-list-open': isExpMonthOpen(g.key), 'finance-exp-list-loading': isExpMonthOpen(g.key) && isExpMonthLoading(g.key), 'finance-exp-list-fx': expMonthFxKey === g.key}" :aria-hidden="isExpMonthOpen(g.key) ? 'false' : 'true'">
-            <div :if="isExpMonthOpen(g.key) && isExpMonthLoading(g.key)" class="finance-exp-list-loader dim"><span class="load-spinner"></span><span>Loading…</span></div>
-            {% include finance/recent-expense-row.html each="x in g.items" row_class="finance-exp-item" show_expense_no=true show_actions=true %}
-          </div>
-        </div>
-      </div>
-    </div>
-    <div :if="expHasMore" class="scroll-sentinel" :ref="el => observe(el, () => expPage++)">
-      <span class="load-spinner"></span>
-    </div>
-  </div>
+  <expense-list :if="expView === 'list'" :class="{'finance-exp-list-shell-refreshing': expRefreshing}"
+    :years="expYearGroups" :search="expSearch" :loading="loading" :error="loadErr"
+    :hasmore="expHasMore" :refreshing="expRefreshing" :searchloading="expSearchLoading"
+    :empty="!loading && !expRefreshing && !expSearchLoading && !expenses.length && !expSearch"
+    :nomatch="!loading && !expRefreshing && !expSearchLoading && !expFiltered.length && (expenses.length || expSearch)"
+    :onview="e => viewExpense(e.detail)">
+  </expense-list>
 
 </section>
 
@@ -395,7 +367,7 @@
             <div class="recent-exp-list finance-exp-list finance-net-list" :class="{'finance-exp-list-open': isNetMonthOpen(g.key)}" :aria-hidden="isNetMonthOpen(g.key) ? 'false' : 'true'">
               <div :each="tx in g.items" style="display:contents">
                 <div :if="tx._isExp" style="display:contents" :scope="{x: tx}">
-                  {% include finance/recent-expense-row.html row_class="finance-net-item" show_expense_no=true %}
+                  {% include finance/recent-expense-row.html row_class="finance-net-item" show_expense_no=true show_actions=true %}
                 </div>
                 <div :if="!tx._isExp" style="display:contents" :scope="{d: tx}">
                   {% include finance/recent-income-row.html row_class="finance-net-item" onclick="editDonation(d)" show_id=true %}
@@ -410,6 +382,9 @@
 
 </section>
 
+<script src="../../lib/define-element.js"></script>
+{% include components/expense-list.html %}
+
 {% include finance/expense-form.html %}
 {% include finance/donation-form.html %}
 
@@ -420,8 +395,17 @@
   import { api, BASE } from '../../lib/api.js'
 
   import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, AMT_MAX, catCls, catHex, catBgHex, fmtStatus, fmtDate, changedAt, parseMemberNames } from '../../lib/finance.js'
-
   import { formDefaults, bindForm, expIsEditable, expEditPolicy as getExpEditPolicy, expGetAttachments, buildExpTimeline } from '../../lib/form.js'
+
+  // CE processor + registration (must be before init() so CEs are defined when sprae processes DOM)
+  const fmtMonthShort = k => { if (!k?.includes('-')) return 'Undated'; const [y, m] = k.split('-'); return new Date(+y, +m - 1).toLocaleString('default', { month: 'long' }) }
+  const fmtMonth = k => { if (!k?.includes('-')) return 'Undated'; const [y, m] = k.split('-'); return new Date(+y, +m - 1).toLocaleString('default', { month: 'long', year: 'numeric' }) }
+  customElements.get('define-element').processor = (root, state) => {
+    if (root.template) root.appendChild(root.template.content.cloneNode(true))
+    let s = sprae(root, { fmtAmt, fmtCat, fmtStatus, fmtDate, fmtMonthShort, fmtMonth, catCls, hl, statusIcon, icon, apiBase: BASE, ...state })
+    state.host.onpropchange = (k, v) => s[k] = v
+    return s
+  }
 
   const MY_USER_ID = auth.user?.id || auth.user?.user_id || (() => {
     try { return JSON.parse(atob(auth.token.split('.')[1])).user_id || null } catch { return null }

@@ -1,28 +1,17 @@
 <define-element>
-  <expense-list years:array loading:boolean="false" error:string="" search:string="" hasmore:boolean="false" empty:boolean="false" nomatch:boolean="false" refreshing:boolean="false" searchloading:boolean="false">
-    <style>:host {display: contents;}</style>
+  <expense-list years:array loading:boolean="false" error:string="" search:string="" hasmore:boolean="false" empty:boolean="false" nomatch:boolean="false">
+    <style>:host { display: contents; }</style>
     <template>
       <div :if="error" class="login-error" :text="error" style="margin-bottom:var(--s-sm)"></div>
       <div :if="loading && !years.length" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
-      <div :if="searchloading" class="dim" style="text-align:center;padding:var(--s-lg)"><span class="load-spinner"></span></div>
       <div :if="empty" class="dim" style="text-align:center;padding:var(--s-xl)">No expenses yet</div>
       <div :if="nomatch" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</div>
       <div :each="yr in years" class="finance-year-section">
         <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
         <div class="finance-year-months">
-          <div :each="g in yr.items" :class="{'finance-month-wrap-open': _open[g.key]}">
-            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': _open[g.key]}" :aria-expanded="_open[g.key] ? 'true' : 'false'" :onclick="e => _toggle(g.key)">
-              <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
-              <span class="exp-group-heading">
-                <span class="exp-group-label">
-                  <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>
-                  <span class="finance-month-label-mobile" :text="fmtMonth(g.key)"></span>
-                </span>
-                <span :if="g.count" class="exp-group-count" :text="g.count"></span>
-              </span>
-              <span :if="g.total" class="exp-group-total" :text="'$' + fmtAmt(g.total)"></span>
-            </button>
-            <div class="recent-exp-list finance-exp-list" :class="{'finance-exp-list-open': _open[g.key]}" :aria-hidden="_open[g.key] ? 'false' : 'true'">
+          <div :each="g in yr.items">
+            <button type="button" class="exp-group-header" :text="fmtMonthShort(g.key) + ' (' + g.count + ') $' + fmtAmt(g.total)"></button>
+            <div class="recent-exp-list finance-exp-list finance-exp-list-open">
               <div :each="x in g.items" class="recent-exp-item row-link" :onclick="e => host.dispatchEvent(new CustomEvent('view', {detail: x, bubbles: true}))">
                 <span class="recent-exp-icon-col">
                   <span class="status-icon" :class="'status-' + (x.status || 'submitted')" :html="statusIcon(x.status || 'submitted')"></span>
@@ -31,7 +20,7 @@
                   <div class="recent-exp-info">
                     <div class="recent-exp-title-row">
                       <div class="recent-exp-title">
-                        <span :html="hl(x.payee || '\u2014', search)"></span>
+                        <span :html="hl(x.payee || '\u2014', search || '')"></span>
                         <span :if="x.expense_no" class="recent-exp-title-sub dim" :text="'#' + x.expense_no"></span>
                       </div>
                     </div>
@@ -40,17 +29,8 @@
                       <span class="recent-exp-time" :text="fmtDate(x.updated_at || x.created_at || x.expense_date)"></span>
                     </div>
                   </div>
-                  <div :if="x.attachments?.length" class="row-attachments">
-                    <img :each="a in (x.attachments || []).slice(0, 4)" :if="a.mime_type?.startsWith('image/')" class="row-attach-thumb" :src="apiBase + '/' + a.file_path" :alt="a.original_name">
-                    <span :each="a in (x.attachments || []).slice(0, 4)" :if="!a.mime_type?.startsWith('image/')" class="row-attach-file" :title="a.original_name" :html="icon('attach')"></span>
-                    <span :if="(x.attachments || []).length > 4" class="row-attach-more" :text="'+' + (x.attachments.length - 4)"></span>
-                  </div>
                 </div>
                 <div class="recent-exp-cat">
-                  <span :if="x.attachments?.length" class="recent-exp-attach" :title="x.attachments.length + ' document' + (x.attachments.length > 1 ? 's' : '')">
-                    <span class="recent-exp-attach-icon" :html="icon('attach')"></span>
-                    <span :if="x.attachments.length > 1" class="recent-exp-attach-count" :text="x.attachments.length"></span>
-                  </span>
                   <span class="badge" :class="catCls(x.category || 'other')" :text="fmtCat(x.category || 'other')"></span>
                 </div>
                 <div class="recent-exp-amount">
@@ -61,24 +41,6 @@
           </div>
         </div>
       </div>
-      <div :if="hasmore" class="scroll-sentinel"><span class="load-spinner"></span></div>
     </template>
-    <script>
-      // Component-local state: which months are open
-      // Default: first month of each year is open
-      this._open = {}
-      this._toggle = (key) => {
-        this.state._open = { ...this.state._open, [key]: !this.state._open[key] }
-      }
-      // Auto-open first month when years data arrives
-      this.onattributechanged = ({ attributeName }) => {
-        if (attributeName === 'years' && this.state?.years?.length) {
-          let first = this.state.years[0]?.items?.[0]?.key
-          if (first && !Object.keys(this.state._open).length) {
-            this.state._open = { [first]: true }
-          }
-        }
-      }
-    </script>
   </expense-list>
 </define-element>

@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign In — Mandala</title>
+    <title>Sign In — Mandir</title>
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/login.css">
@@ -47,7 +47,7 @@
           <form class="login-form" :if="step === 'email' && !offline" :onsubmit.prevent="submit">
             <div class="field">
               <label for="email">Email</label>
-              <input id="email" type="email" placeholder="name@example.com" :value="email" required autofocus autocomplete="email">
+              <input id="email" type="email" placeholder="name@example.com" :value="email" :change="email = this.value" required autofocus autocomplete="email">
             </div>
             <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Continue</button>
           </form>
@@ -55,7 +55,7 @@
           <form class="login-form" :if="step === 'password'" :onsubmit.prevent="submitPassword">
             <div class="field field-password" :scope="{showPw: false}">
               <label for="password">Password</label>
-              <input id="password" :type="showPw ? 'text' : 'password'" placeholder="" :value="password" required autofocus autocomplete="current-password">
+              <input id="password" :type="showPw ? 'text' : 'password'" placeholder="" :value="password" :change="password = this.value" required autofocus autocomplete="current-password">
               <button type="button" class="toggle-pw" :onclick="showPw = !showPw" :html="showPw ? icons.eye_off : icons.eye" aria-label="Toggle password visibility"></button>
             </div>
             <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Sign In</button>
@@ -64,7 +64,7 @@
           <form class="login-form" :if="step === 'otp'" :onsubmit.prevent="verify">
             <div class="field">
               <label for="otp">Verification code</label>
-              <input id="otp" class="otp-input" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" :value="otp" required autofocus autocomplete="one-time-code">
+              <input id="otp" class="otp-input" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" :value="otp" :change="otp = this.value" required autofocus autocomplete="one-time-code">
             </div>
             <button type="submit" class="btn btn-primary btn-block" :class="{'btn-loading': loading}">Verify</button>
             <div class="otp-meta">

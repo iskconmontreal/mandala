@@ -21,7 +21,7 @@
         <div class="login-brand-text">
           <p>— Śrīla Prabhupāda:</p>
           <div class="quotes-carousel">
-            <figure class="quote" :each="(q, i) in quotes" :class="{active: i === qi}">
+            <figure class="quote" :each="(q, i) in quotes" :class="{active: i === qi}" :onclick="qi = (qi+1) % quotes.length">
               <blockquote :text="q.text"></blockquote>
               <figcaption><a :href="q.url" :text="q.source" target="_blank" rel="noopener"></a></figcaption>
             </figure>
@@ -31,7 +31,7 @@
 
       <!-- Right: sign-in form -->
       <div class="login-form-panel">
-        <div class="login-form-wrap" :scope="state">
+        <div class="login-form-wrap">
 
           <button :if="step !== 'email'" type="button" class="btn-link login-back" :onclick="goBack">
             <span :html="icons.chevron_left"></span>
@@ -145,10 +145,13 @@
         { text: "This movement is meant for training men to become reliable and responsible.", source: "Letter to Karandhara — Bombay, 22 December 1972", url: "https://vedabase.io/en/library/letters/letter-to-karandhara-54/#bb133206" },
       ]
 
-      const state = sprae(document.body, {
-        icons: ICONS,
+      const carousel = sprae(document.querySelector('.quotes-carousel'), {
         quotes: welcomeQuotes,
         qi: Math.floor(Math.random() * welcomeQuotes.length),
+      })
+
+      const state = sprae(document.querySelector('.login-form-wrap'), {
+        icons: ICONS,
 
         step: 'email',
         email: '',
@@ -169,8 +172,8 @@
           state.loading = false
           state.err = null
           state.offline = null
-          state.quotes = welcomeQuotes
-          state.qi = 0
+          carousel.quotes = welcomeQuotes
+          carousel.qi = 0
         },
 
         startOtpTimer() {
@@ -212,8 +215,8 @@
             state.loading = false
             if (res.step === 'password_required') {
               state.step = 'password'
-              state.quotes = managerQuotes
-              state.qi = 0
+              carousel.quotes = managerQuotes
+              carousel.qi = 0
             } else if (res.step === 'otp_required') {
               state.step = 'otp'
               state.startOtpTimer()
@@ -273,7 +276,7 @@
       })
 
       setInterval(() => {
-        state.qi = (state.qi + 1) % state.quotes.length
+        carousel.qi = (carousel.qi + 1) % carousel.quotes.length
       }, 5000)
 
       fetch(`${BASE}/api/health`).then(r => r.json()).then(d => {

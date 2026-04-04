@@ -1581,7 +1581,7 @@ preloads:
         api.getDonorsSummary({ year: curYear, limit: 500 }),
       ])
       const nextExpMeta = monthMetaMap(summary.exp_months || [])
-      const nextIncMeta = incomeMonthMetaMap(summary.inc_months || [])
+      const nextIncMeta = incomeMonthMetaMap(summary.don_months || [])
       const visibleExpKeys = openExpKeys.filter(key => s.expMonthKeys.includes(key))
       const [expEntries, donEntries] = await Promise.all([
         Promise.all((visibleExpKeys.length ? visibleExpKeys : []).map(async key => [key, await fetchExpenseMonthItems(key)])),

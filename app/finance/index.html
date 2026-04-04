@@ -147,10 +147,10 @@ preloads:
     </div>
   </div>
   <income-list
-    :years="donRenderYearGroups" :mopen="donMonthOpen" :mfresh="donMonthFresh" :search="donSearch" :loading="loading" :error="loadErr"
+    :years="donRenderYearGroups" :mopen="donMonthOpen" :mloading="donMonthLoading" :mfresh="donMonthFresh" :search="donSearch" :loading="loading" :error="loadErr"
     :hasmore="donHasMore"
-    :empty="!donations.length && !loading"
-    :nomatch="donations.length && !donFiltered.length && !loading"
+    :empty="!donations.length && !Object.keys(donMonthMeta).length && !loading"
+    :nomatch="(donations.length || Object.keys(donMonthMeta).length) && !donFiltered.length && !loading"
     :onview.delay-0="e => openDonDetail(e.detail)"
     :onprint="e => printDonation(e.detail)"
     :ontoggle.delay-0="e => toggleDonMonth(e.detail)">
@@ -520,6 +520,11 @@ preloads:
     expSearchResults: null, expSearchLoading: false,
     expMonthOpen: monthOpenState(expenseMonthKeys),
     expMonthFresh: '',
+    donMonthMeta: {},
+    donMonthItems: {},
+    donMonthLoaded: {},
+    donMonthLoading: {},
+    donRangeLoaded: false,
     donMonthOpen: monthOpenState(defaultMonthKeys),
     donMonthFresh: '',
     actionAmt: '',
@@ -931,16 +936,26 @@ preloads:
       return monthKeysWithData(defaultMonthKeys, this.donations, incomeMonthKey)
     },
     get donGrouped() {
+      const hasMeta = Object.keys(this.donMonthMeta).length > 0
+      if (this.hasDonFilterState || this.donSortBy) {
+        return buildMonthGroups({
+          keys: this.donMonthKeys,
+          itemsByKey: monthItemMap(this.donMonthKeys, this.donSorted, incomeMonthKey),
+        })
+      }
       return buildMonthGroups({
         keys: this.donMonthKeys,
-        itemsByKey: monthItemMap(this.donMonthKeys, this.donSorted, incomeMonthKey),
+        itemsByKey: this.donMonthItems,
+        metaByKey: this.donMonthMeta,
+        sortItems: sortIncome,
+        useMeta: hasMeta,
       })
     },
     get donVisibleMonthKeys() {
       return this.donGrouped.filter(group => group.count || group.total).map(group => group.key)
     },
     get donYearGroups() {
-      const months = this.donGrouped.filter(g => g.count > 0 || g.total > 0 || this.isDonMonthOpen(g.key))
+      const months = this.donGrouped.filter(g => g.count > 0 || g.total > 0 || this.isDonMonthOpen(g.key) || this.isDonMonthLoading(g.key))
       const years = groupMonthsByYear(months)
       for (const yr of years) for (const g of yr.items) {
         g.breakdown = this.donMonthBreakdown(g.key).map(seg => ({
@@ -952,7 +967,8 @@ preloads:
       return years.filter(yr => yr.items.length > 0)
     },
     get donRenderYearGroups() {
-      return this.donFiltered.length ? this.donYearGroups : []
+      const hasMeta = Object.keys(this.donMonthMeta).length > 0
+      return (this.donations.length || hasMeta) ? this.donYearGroups : []
     },
     donMonthBuckets(key) {
       return [...Object.entries((this.donGrouped.find(group => group.key === key)?.items || []).reduce((map, item) => {
@@ -997,11 +1013,15 @@ preloads:
     donMonthBreakdownSegmentTooltip(seg) {
       return `${seg.isOther ? 'Everything else' : fmtCat(seg.category)} · $${fmtAmt(seg.total || 0)}`
     },
-    get donHasMore() {
-      return this.donations.length < this.donTotal
-    },
+    get donHasMore() { return false },
     isDonMonthOpen(key) {
       return !!this.donMonthOpen[key]
+    },
+    isDonMonthLoaded(key) {
+      return !!this.donMonthLoaded[key]
+    },
+    isDonMonthLoading(key) {
+      return !!this.donMonthLoading[key]
     },
     isDonMonthDividerVisible(key) {
       const idx = this.donMonthKeys.indexOf(key)
@@ -1012,10 +1032,12 @@ preloads:
     donMonthHasVisibleData(key) {
       return this.donVisibleMonthKeys.includes(key)
     },
-    toggleDonMonth(key) {
+    async toggleDonMonth(key) {
       const next = !this.isDonMonthOpen(key)
       this.donMonthOpen = { ...this.donMonthOpen, [key]: next }
-      if (next) {
+      if (next && !this.isDonMonthLoaded(key)) {
+        await loadIncomeMonth(key)
+      } else if (next) {
         this.donMonthFresh = key
         clearTimeout(donFreshTimer)
         donFreshTimer = setTimeout(() => { if (this.donMonthFresh === key) this.donMonthFresh = '' }, 400)
@@ -1115,6 +1137,7 @@ preloads:
       s.activeTab = tab
       writeUrl(s, 'pushState')
       if (tab === 'transactions' && !s.expRangeLoaded) loadExpenseRange()
+      if (tab === 'transactions' && !s.donRangeLoaded) loadIncomeRange()
     },
 
     _hoverCat: null,
@@ -1353,19 +1376,6 @@ preloads:
     expSearchTimer = setTimeout(() => runExpSearch(q), 450)
   }
 
-  async function loadRemaining(fn, params, key, totalKey) {
-    let page = 2
-    while (s[key].length < s[totalKey]) {
-      try {
-        const r = await fn({ ...params, limit: BATCH, page })
-        const items = r.items || []
-        if (!items.length) break
-        s[key] = [...s[key], ...items]
-        page++
-      } catch { break }
-    }
-  }
-
   function syncLoadedExpenses() {
     s.expenses = s.expMonthKeys.flatMap(key => s.expMonthItems[key] || [])
   }
@@ -1472,37 +1482,127 @@ preloads:
     })
   }
 
+  function incomeMonthMetaMap(items) {
+    const map = Object.fromEntries(defaultMonthKeys.map(key => [key, { count: 0, total: 0, categories: [] }]))
+    for (const item of items || []) map[item.month] = { count: item.count || 0, total: item.total || 0, categories: item.categories || [] }
+    return map
+  }
+
+  function syncLoadedIncome() {
+    s.donations = Object.values(s.donMonthItems).flat()
+  }
+
+  const donMonthPrimeReq = {}
+
+  async function fetchIncomeMonthItems(key) {
+    const params = monthRange(key)
+    let page = 1, items = [], total = 0
+    while (true) {
+      const res = await api.getIncome({ ...params, limit: BATCH, page })
+      const chunk = res.items || []
+      total = res.total ?? (items.length + chunk.length)
+      items = items.concat(chunk)
+      if (!chunk.length || items.length >= total) break
+      page++
+    }
+    return items
+  }
+
+  async function loadIncomeMonth(key) {
+    if (s.donMonthLoaded[key] || s.donMonthLoading[key]) return
+    s.donMonthLoading = { ...s.donMonthLoading, [key]: true }
+    try {
+      const items = await (donMonthPrimeReq[key] || fetchIncomeMonthItems(key))
+      const scrollY = window.scrollY
+      batch(() => {
+        s.donMonthFresh = key
+        s.donMonthItems = { ...s.donMonthItems, [key]: items }
+        s.donMonthLoaded = { ...s.donMonthLoaded, [key]: true }
+        s.donMonthLoading = { ...s.donMonthLoading, [key]: false }
+        syncLoadedIncome()
+      })
+      window.scrollTo(0, scrollY)
+      clearTimeout(donFreshTimer)
+      donFreshTimer = setTimeout(() => { if (s.donMonthFresh === key) s.donMonthFresh = '' }, 400)
+    } catch {
+      s.donMonthLoading = { ...s.donMonthLoading, [key]: false }
+    } finally {
+      delete donMonthPrimeReq[key]
+    }
+  }
+
+  async function loadIncomeRange() {
+    if (s.donRangeLoaded) return
+    const params = { dateFrom: `${years[years.length - 1]}-01-01`, dateTo: `${curYear}-12-31`, limit: BATCH, page: 1 }
+    let res = await api.getIncome(params)
+    let items = res.items || []
+    let total = res.total ?? items.length
+    let page = 2
+    while (items.length < total) {
+      const next = await api.getIncome({ ...params, page })
+      const chunk = next.items || []
+      if (!chunk.length) break
+      items = items.concat(chunk)
+      total = next.total ?? total
+      page++
+    }
+    const nextItems = {}
+    for (const key of defaultMonthKeys) nextItems[key] = []
+    for (const item of items) {
+      const key = incomeMonthKey(item)
+      if (!nextItems[key]) nextItems[key] = []
+      nextItems[key].push(item)
+    }
+    batch(() => {
+      s.donMonthItems = nextItems
+      s.donMonthLoaded = Object.fromEntries(defaultMonthKeys.map(key => [key, true]))
+      s.donRangeLoaded = true
+      syncLoadedIncome()
+      refreshIncomeStats()
+      refreshDonMonthOpen()
+      refreshNetMonthOpen()
+    })
+  }
+
   async function loadAll() {
     const hasVisibleExpenses = !!(s.expenses.length || Object.keys(s.expMonthItems || {}).some(key => (s.expMonthItems[key] || []).length))
     s.loading = !hasVisibleExpenses
     s.expRefreshing = hasVisibleExpenses
     s.loadErr = null
     s.expPage = 1; s.donPage = 1; s.donorPage = 1
-    const dateP = { dateFrom: `${curYear - 2}-01-01`, dateTo: `${curYear}-12-31` }
     const nextExpMonthOpen = monthOpenState(s.expMonthKeys, s.expMonthOpen)
-    const openMonthKeys = Object.entries(nextExpMonthOpen).filter(([, open]) => open).map(([key]) => key)
+    const openExpKeys = Object.entries(nextExpMonthOpen).filter(([, open]) => open).map(([key]) => key)
+    const nextDonMonthOpen = monthOpenState(defaultMonthKeys, s.donMonthOpen)
+    const openDonKeys = Object.entries(nextDonMonthOpen).filter(([, open]) => open).map(([key]) => key)
     try {
-      const [inc, mem, summary, donors] = await Promise.all([
-        api.getIncome({ ...dateP, limit: BATCH, page: 1 }),
+      const [mem, summary, donors] = await Promise.all([
         api.getMembers({ limit: 500 }),
         api.getFinanceSummary({ year: curYear }),
         api.getDonorsSummary({ year: curYear, limit: 500 }),
       ])
-      const nextMonthMeta = monthMetaMap(summary.exp_months || [])
-      const nextOpenKeys = openMonthKeys.filter(key => s.expMonthKeys.includes(key))
-      const visibleOpenKeys = nextOpenKeys.length ? nextOpenKeys : []
-      const nextMonthEntries = await Promise.all(visibleOpenKeys.map(async key => [key, await fetchExpenseMonthItems(key)]))
-      const nextMonthItems = Object.fromEntries(nextMonthEntries)
+      const nextExpMeta = monthMetaMap(summary.exp_months || [])
+      const nextIncMeta = incomeMonthMetaMap(summary.inc_months || [])
+      const visibleExpKeys = openExpKeys.filter(key => s.expMonthKeys.includes(key))
+      const [expEntries, donEntries] = await Promise.all([
+        Promise.all((visibleExpKeys.length ? visibleExpKeys : []).map(async key => [key, await fetchExpenseMonthItems(key)])),
+        Promise.all(openDonKeys.map(async key => [key, await fetchIncomeMonthItems(key)])),
+      ])
+      const nextExpMonthItems = Object.fromEntries(expEntries)
+      const nextDonMonthItems = Object.fromEntries(donEntries)
       batch(() => {
-        s.donations = inc.items || []
-        s.donTotal = inc.total ?? s.donations.length
-        s.expMonthMeta = nextMonthMeta
-        s.expMonthItems = nextMonthItems
-        s.expMonthLoaded = Object.fromEntries(visibleOpenKeys.map(key => [key, true]))
+        s.expMonthMeta = nextExpMeta
+        s.expMonthItems = nextExpMonthItems
+        s.expMonthLoaded = Object.fromEntries(visibleExpKeys.map(key => [key, true]))
         s.expMonthLoading = {}
         s.expRangeLoaded = false
         s.expMonthOpen = nextExpMonthOpen
         s.expTotal = 0
+        s.donMonthMeta = nextIncMeta
+        s.donMonthItems = nextDonMonthItems
+        s.donMonthLoaded = Object.fromEntries(openDonKeys.map(key => [key, true]))
+        s.donMonthLoading = {}
+        s.donRangeLoaded = false
+        s.donMonthOpen = nextDonMonthOpen
         s.expMonth = summary.exp_month || 0
         s.expPrevMonth = summary.exp_prev_month || 0
         s.donorsMonth = summary.donors_month || 0
@@ -1513,6 +1613,7 @@ preloads:
         s.memberNames = names
         s.userNames = unames
         syncLoadedExpenses()
+        syncLoadedIncome()
         refreshExpMonthOpen()
         refreshDonMonthOpen()
         refreshNetMonthOpen()
@@ -1525,13 +1626,6 @@ preloads:
       s.loading = false
       s.expRefreshing = false
     }
-    loadRemaining(api.getIncome, dateP, 'donations', 'donTotal').then(() => {
-      batch(() => {
-        refreshIncomeStats()
-        refreshDonMonthOpen()
-        refreshNetMonthOpen()
-      })
-    })
   }
 
   s.loadAll = loadAll
@@ -1616,5 +1710,8 @@ preloads:
   window.addEventListener('popstate', applyUrlStateFromLocation)
 
   if (s.expSearch) scheduleExpSearch(s.expSearch)
-  loadAll().then(() => { if (s.activeTab === 'transactions' && !s.expRangeLoaded) loadExpenseRange() })
+  loadAll().then(() => {
+    if (s.activeTab === 'transactions' && !s.expRangeLoaded) loadExpenseRange()
+    if (s.activeTab === 'transactions' && !s.donRangeLoaded) loadIncomeRange()
+  })
 </script>

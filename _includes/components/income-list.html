@@ -1,5 +1,5 @@
 <define-element>
-  <income-list years:array mopen:object mfresh:string="" loading:boolean="false" error:string="" search:string="" hasmore:boolean="false" empty:boolean="false" nomatch:boolean="false">
+  <income-list years:array mopen:object mloading:object mfresh:string="" loading:boolean="false" error:string="" search:string="" hasmore:boolean="false" empty:boolean="false" nomatch:boolean="false">
     <style>:host { display: contents; }</style>
     <template>
       <div :if="error" class="login-error" :text="error" style="margin:var(--s-md)"></div>
@@ -10,8 +10,9 @@
         <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
         <div class="finance-year-months">
           <div :each="(g, gi) in yr.items" :class="{'finance-month-wrap-open': mopen[g.key], 'finance-month-wrap-divider': gi > 0}">
-            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !g.count}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!g.count" :onclick="e => g.count && _toggle(g.key)">
-              <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
+            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !g.count && !mloading?.[g.key]}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!g.count && !mloading?.[g.key]" :onclick="e => (g.count || mloading?.[g.key]) && _toggle(g.key)">
+              <span :if="mloading?.[g.key]" class="load-spinner" style="width:1rem;height:1rem"></span>
+              <span :if="!mloading?.[g.key]" class="exp-group-chevron" :html="icon('chevron_down')"></span>
               <span class="exp-group-heading">
                 <span class="exp-group-label">
                   <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>

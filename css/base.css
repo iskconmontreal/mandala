@@ -244,6 +244,13 @@ th:last-child, td:last-child { padding-right: 0; }
   font-size: var(--f-sm);
 }
 
+/* Icon-only button — square, no text label */
+.btn-icon {
+  padding: var(--s-xs);
+  line-height: 1;
+  min-width: 0;
+}
+
 /* Link button */
 .btn-link {
   background: none;

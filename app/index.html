@@ -151,7 +151,7 @@ preloads:
 </expense-form>
 
 <donation-form :show="showDonForm" :detail="donFormDetail"
-  :membernames="memberNames" :usernames="userNames" :myuserid="MY_USER_ID"
+  :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { showDonForm = false; refreshDashboard() }"
   :oncancel="() => { showDonForm = false }"
   :onprint="e => printDonation(e.detail)">
@@ -239,7 +239,7 @@ preloads:
     if (!hasFin) return
     const [exp, inc] = await Promise.all([
       auth.can('expenses:view') ? api.getExpenses({ limit: 8, sortBy: 'updated_at', sortDesc: 'true' }).catch(() => ({ items: [] })) : { items: [] },
-      auth.can('income:view') ? api.getIncome({ limit: 8, sortBy: 'updated_at', sortDesc: 'true', dateFrom: monthStart, dateTo: monthEnd }).catch(() => ({ items: [] })) : { items: [] },
+      auth.can('income:view') ? api.getIncome({ limit: 8, sortBy: 'updated_at', sortDesc: 'true' }).catch(() => ({ items: [] })) : { items: [] },
     ])
     s.recentExpenses = exp.items || []
     s.recentIncome = (inc.items || []).filter(d => (d?.type || 'income') === 'donation')
@@ -287,8 +287,8 @@ preloads:
     if (_membersLoaded) return
     try {
       const res = await api.getMembers({ limit: 500 })
-      const { names, unames } = parseMemberNames(res.items || [])
-      s.memberNames = names; s.userNames = unames
+      const { names, unames, emails } = parseMemberNames(res.items || [])
+      s.memberNames = names; s.userNames = unames; s.memberEmails = emails
       _membersLoaded = true
     } catch {}
   }

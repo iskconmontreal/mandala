@@ -147,12 +147,13 @@ preloads:
     </div>
   </div>
   <income-list
-    :years="donRenderYearGroups" :mopen="donMonthOpen" :mloading="donMonthLoading" :mfresh="donMonthFresh" :search="donSearch" :loading="loading" :error="loadErr"
+    :years="donRenderYearGroups" :mopen="donMonthOpen" :mloading="donMonthLoading" :mfresh="donMonthFresh" :search="donSearch" :loading="loading" :error="loadErr" :memberemails="memberEmails" :emailsending="emailSending"
     :hasmore="donHasMore"
     :empty="!donations.length && !Object.keys(donMonthMeta).length && !loading"
     :nomatch="(donations.length || Object.keys(donMonthMeta).length) && !donFiltered.length && !loading"
     :onview.delay-0="e => openDonDetail(e.detail)"
     :onprint="e => printDonation(e.detail)"
+    :onemail="e => emailDonationReceipt(e.detail)"
     :ontoggle.delay-0="e => toggleDonMonth(e.detail)">
   </income-list>
 
@@ -217,13 +218,13 @@ preloads:
 </expense-form>
 
 <donation-form :show="showDonCreateForm"
-  :isfinance="true" :membernames="memberNames" :usernames="userNames" :myuserid="MY_USER_ID"
+  :isfinance="true" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { closeDonCreate(); freshId = e.detail?.id || null; if (freshId) setTimeout(() => freshId = null, 5000); loadAll() }"
   :oncancel="() => { closeDonCreate() }">
 </donation-form>
 
 <donation-form :show="showDonDetailForm" :detail="donFormDetail"
-  :isfinance="true" :membernames="memberNames" :usernames="userNames" :myuserid="MY_USER_ID"
+  :isfinance="true" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { closeDonDetail(); freshId = e.detail?.id || null; if (freshId) setTimeout(() => freshId = null, 5000); loadAll() }"
   :oncancel="() => { closeDonDetail() }"
   :onprint="e => printDonation(e.detail)">
@@ -246,7 +247,7 @@ preloads:
     apiBase: BASE, api,
     EXP_CATS, EXP_METHODS, DON_METHODS, INCOME_TYPES,
     EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName,
-    approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print'),
+    approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print'), emailIcon: actionIcon('email'),
   }, {
     extras: {
       _emit: (name, detail) => {}, // placeholder — overridden per-instance below
@@ -491,6 +492,7 @@ preloads:
     hl, observe, statusIcon, catCls, catHex, catBgHex, changedAt,
     editIcon: actionIcon('edit'),
     printIcon: actionIcon('print'),
+    emailIcon: actionIcon('email'),
     approveIcon: actionIcon('approve'),
     rejectIcon: actionIcon('reject'),
     payIcon: actionIcon('pay'),
@@ -527,6 +529,7 @@ preloads:
     donRangeLoaded: false,
     donMonthOpen: monthOpenState(defaultMonthKeys),
     donMonthFresh: '',
+    emailSending: {},
     actionAmt: '',
     freshId: null,
     isFresh(id) { return id && id === this.freshId },
@@ -1320,6 +1323,18 @@ preloads:
   }
 
   s.printDonation = createPrintDonation(s.memberNames)
+  s.emailDonationReceipt = donation => {
+    if (!donation?.id) return
+    s.emailSending = { ...s.emailSending, [donation.id]: true }
+    api.post(`/api/income/${donation.id}/notify`, {})
+      .then(() => toast('Receipt emailed', 'success'))
+      .catch(e => toast(e.message || 'Email failed'))
+      .finally(() => {
+        const next = { ...s.emailSending }
+        delete next[donation.id]
+        s.emailSending = next
+      })
+  }
 
   function refreshIncomeStats() {
     const { cur, prev } = monthKeys(s.year)
@@ -1582,10 +1597,23 @@ preloads:
       ])
       const nextExpMeta = monthMetaMap(summary.exp_months || [])
       const nextIncMeta = incomeMonthMetaMap(summary.don_months || [])
-      const visibleExpKeys = openExpKeys.filter(key => s.expMonthKeys.includes(key))
+      // Recompute which months to pre-fetch based on actual meta, not just pre-load open state.
+      // current/prev month might have no data (e.g. new year) — find the first month with data.
+      const expMetaKeys = s.expMonthKeys.filter(k => { const m = nextExpMeta[k]; return m && (m.count > 0 || m.total > 0) })
+      const firstExpKey = expMetaKeys[0]
+      const visibleExpKeys = [...new Set([
+        ...openExpKeys.filter(key => s.expMonthKeys.includes(key) && nextExpMeta[key]?.count > 0),
+        ...(firstExpKey && !openExpKeys.includes(firstExpKey) ? [firstExpKey] : []),
+      ])]
+      const donMetaKeys = defaultMonthKeys.filter(k => { const m = nextIncMeta[k]; return m && (m.count > 0 || m.total > 0) })
+      const firstDonKey = donMetaKeys[0]
+      const visibleDonKeys = [...new Set([
+        ...openDonKeys.filter(k => nextIncMeta[k]?.count > 0),
+        ...(firstDonKey && !openDonKeys.includes(firstDonKey) ? [firstDonKey] : []),
+      ])]
       const [expEntries, donEntries] = await Promise.all([
-        Promise.all((visibleExpKeys.length ? visibleExpKeys : []).map(async key => [key, await fetchExpenseMonthItems(key)])),
-        Promise.all(openDonKeys.map(async key => [key, await fetchIncomeMonthItems(key)])),
+        Promise.all(visibleExpKeys.map(async key => [key, await fetchExpenseMonthItems(key)])),
+        Promise.all(visibleDonKeys.map(async key => [key, await fetchIncomeMonthItems(key)])),
       ])
       const nextExpMonthItems = Object.fromEntries(expEntries)
       const nextDonMonthItems = Object.fromEntries(donEntries)
@@ -1595,13 +1623,17 @@ preloads:
         s.expMonthLoaded = Object.fromEntries(visibleExpKeys.map(key => [key, true]))
         s.expMonthLoading = {}
         s.expRangeLoaded = false
+        // Ensure first data month is open (current/prev may have no data)
+        if (firstExpKey) nextExpMonthOpen[firstExpKey] = true
         s.expMonthOpen = nextExpMonthOpen
         s.expTotal = 0
         s.donMonthMeta = nextIncMeta
         s.donMonthItems = nextDonMonthItems
-        s.donMonthLoaded = Object.fromEntries(openDonKeys.map(key => [key, true]))
+        s.donMonthLoaded = Object.fromEntries(visibleDonKeys.map(key => [key, true]))
         s.donMonthLoading = {}
         s.donRangeLoaded = false
+        // Ensure first data month is open
+        if (firstDonKey) nextDonMonthOpen[firstDonKey] = true
         s.donMonthOpen = nextDonMonthOpen
         s.expMonth = summary.exp_month || 0
         s.expPrevMonth = summary.exp_prev_month || 0
@@ -1609,9 +1641,10 @@ preloads:
         s.donorsPrevMonth = summary.donors_prev_month || 0
         s.donorRows = (donors.items || []).map(d => ({ ...d, lastDate: d.last_date }))
         s.donorTotal = donors.total || 0
-        const { names, unames } = parseMemberNames(mem.items || [])
+        const { names, unames, emails } = parseMemberNames(mem.items || [])
         s.memberNames = names
         s.userNames = unames
+        s.memberEmails = emails
         syncLoadedExpenses()
         syncLoadedIncome()
         refreshExpMonthOpen()

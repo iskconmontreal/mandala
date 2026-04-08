@@ -1,5 +1,5 @@
 <define-element>
-  <donation-form show:boolean="false" detail:object mode:string="create" membernames:object usernames:object myuserid:number isfinance:boolean="false">
+  <donation-form show:boolean="false" detail:object mode:string="create" membernames:object memberemails:object usernames:object myuserid:number isfinance:boolean="false">
     <style>:host { display: contents; }</style>
     <template>
 
@@ -33,7 +33,10 @@
                 :onclick="clearDonor()">&times;</button>
             </div>
             <div :if="memberHits.length" class="autocomplete-list">
-              <div class="autocomplete-item" :each="m in memberHits" :onmousedown="e => { e.preventDefault(); queueMicrotask(() => selectDonor(m)) }" :text="m.name"></div>
+              <div class="autocomplete-item" :each="m in memberHits" :onmousedown="e => { e.preventDefault(); queueMicrotask(() => selectDonor(m)) }">
+                <span :text="m.name"></span>
+                <span :if="m.email" class="dim" style="font-size:var(--f-sm);margin-left:auto" :text="m.email"></span>
+              </div>
             </div>
           </div>
 
@@ -57,9 +60,9 @@
             <div class="field">
               <label for="don-method">Method</label>
               <select id="don-method" :oninput="e => donForm.method = e.target.value" :onchange="e => donForm.method = e.target.value">
+                <option value="e-transfer" :selected="donForm.method === 'e-transfer'" :text="fmtCat('e-transfer')"></option>
                 <option value="cash" :selected="donForm.method === 'cash'" :text="fmtCat('cash')"></option>
                 <option value="cheque" :selected="donForm.method === 'cheque'" :text="fmtCat('cheque')"></option>
-                <option value="e-transfer" :selected="donForm.method === 'e-transfer'" :text="fmtCat('e-transfer')"></option>
                 <option value="card" :selected="donForm.method === 'card'" :text="fmtCat('card')"></option>
                 <option value="direct-deposit" :selected="donForm.method === 'direct-deposit'" :text="fmtCat('direct-deposit')"></option>
                 <option value="bank-deposit" :selected="donForm.method === 'bank-deposit'" :text="fmtCat('bank-deposit')"></option>
@@ -70,10 +73,16 @@
             </div>
           </div>
 
-          <div class="field">
-            <label for="don-note">Note</label>
-            <textarea id="don-note" rows="1" style="field-sizing:content;resize:none"
-              :value="donForm.note" :change="v => donForm.note = v" placeholder="Optional…"></textarea>
+          <div class="form-row">
+            <div class="field">
+              <label for="don-ref">Reference</label>
+              <input id="don-ref" type="text" :value="donForm.reference" :change="v => donForm.reference = v" placeholder="e.g. e-transfer #">
+            </div>
+            <div class="field" style="flex:2">
+              <label for="don-note">Note</label>
+              <textarea id="don-note" rows="1" style="field-sizing:content;resize:none"
+                :value="donForm.note" :change="v => donForm.note = v" placeholder="Optional…"></textarea>
+            </div>
           </div>
 
           <div class="form-row">
@@ -138,6 +147,7 @@
         <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); align-items:center; flex-wrap:wrap">
           <button :if="editId && !delConfirm" type="button" class="btn btn-danger" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
           <button :if="editId && !delConfirm" type="button" class="btn btn-secondary" :onclick="printDonation()">Print</button>
+          <button :if="editId && !delConfirm && donorEmail" type="button" class="btn btn-secondary" :class="{'btn-loading': emailSending}" :onclick="emailReceipt()" :title="'Send receipt to ' + donorEmail">Email</button>
           <span :if="editId && delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
           <button :if="editId && delConfirm" type="button" class="btn btn-danger" :class="{'btn-loading': deleting}" :onclick="delDonation()">Yes</button>
           <button :if="editId && delConfirm" type="button" class="btn btn-outline" :onclick="delConfirm = false">No</button>
@@ -153,7 +163,7 @@
     </template>
     <script>
       // --- Internal state ---
-      this.donForm = { type: 'donation', amount: '', method: 'cash', category: 'general', date_received: new Date().toISOString().slice(0,10), note: '', member_id: null, attachment: null }
+      this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: new Date().toISOString().slice(0,10), note: '', reference: '', member_id: null, attachment: null }
       this.memberHits = []
       this.memberQuery = ''
       this.editId = null
@@ -166,6 +176,8 @@
       this.receiptName = ''
       this.delConfirm = false
       this.deleting = false
+      this.emailSending = false
+      this.donorEmail = ''
 
       var _formSession = 0, _today = new Date().toISOString().slice(0,10), AMT_MAX = 99999999
 
@@ -179,10 +191,10 @@
 
       this._resetForm = function() {
         _formSession++
-        this.donForm = { type: 'donation', amount: '', method: 'cash', category: 'general', date_received: _today, note: '', member_id: null, attachment: null }
+        this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: _today, note: '', reference: '', member_id: null, attachment: null }
         this.memberHits = []; this.memberQuery = ''; this.editId = null; this.detailDon = null; this.donHistory = []
         this.donSaving = false; this.addErr = null; this.extracting = false; this.receiptPreview = ''; this.receiptName = ''
-        this.delConfirm = false; this.deleting = false
+        this.delConfirm = false; this.deleting = false; this.emailSending = false; this.donorEmail = ''
       }
 
       this._close = function() { try { this._resetForm() } catch(_) {} this.emit('cancel') }
@@ -199,10 +211,12 @@
           category: d.category || 'general',
           date_received: (d.date_received || '').slice(0, 10),
           note: d.note || '',
+          reference: d.reference || '',
           member_id: d.member_id || null,
           attachment: null,
         }
         self.memberQuery = d.member_id ? ((self.membernames || {})[d.member_id] || d.source_name || '') : (d.source_name || '')
+        self.donorEmail = d.member_id ? ((self.memberemails || {})[d.member_id] || '') : ''
         self.donHistory = self._metaEntries(d)
         self._syncControls()
       }
@@ -225,7 +239,7 @@
           var date = root.querySelector('#don-date')
           if (donor) donor.value = self.memberQuery || ''
           if (type) type.value = self.donForm.type || 'donation'
-          if (method) method.value = self.donForm.method || 'cash'
+          if (method) method.value = self.donForm.method || 'e-transfer'
           if (cat) cat.value = self.donForm.category || 'general'
           if (date) date.value = self.donForm.date_received || _today
         }, 50)
@@ -255,11 +269,13 @@
       // --- Autocomplete ---
       this.filterDonors = function(q) {
         this.memberQuery = q
-        var allMembers = Object.entries(this.membernames || {}).map(function(e) { return { id: +e[0], name: e[1] } })
-        this.memberHits = (q ? allMembers.filter(function(m) { return m.name.toLowerCase().includes(q.toLowerCase()) }) : allMembers).slice(0, 5)
+        var emails = this.memberemails || {}
+        var allMembers = Object.entries(this.membernames || {}).map(function(e) { return { id: +e[0], name: e[1], email: emails[e[0]] || '' } })
+        var lq = (q || '').toLowerCase()
+        this.memberHits = (q ? allMembers.filter(function(m) { return m.name.toLowerCase().includes(lq) || m.email.toLowerCase().includes(lq) }) : allMembers).slice(0, 8)
       }
-      this.selectDonor = function(m) { this.donForm.member_id = m.id; this.memberQuery = m.name; this.memberHits = [] }
-      this.clearDonor = function() { this.donForm.member_id = null; this.memberQuery = ''; this.memberHits = [] }
+      this.selectDonor = function(m) { this.donForm.member_id = m.id; this.memberQuery = m.name; this.donorEmail = m.email || ''; this.memberHits = [] }
+      this.clearDonor = function() { this.donForm.member_id = null; this.memberQuery = ''; this.donorEmail = ''; this.memberHits = [] }
 
       // --- File scanning ---
       this.scanFile = function(file) {
@@ -317,6 +333,7 @@
         if ((f.type || 'donation') === 'donation' && f.category) data.category = f.category
         if (f.date_received) data.date_received = f.date_received
         if (f.note) data.note = f.note
+        if (f.reference) data.reference = f.reference
         if (f.member_id) data.member_id = f.member_id
         if (!f.member_id && self.memberQuery?.trim()) data.source_name = self.memberQuery.trim()
         if (!f.member_id && (self.memberQuery?.trim() || self.detailDon?.member_id)) data.member_id = null
@@ -341,8 +358,18 @@
         .finally(function() { self.deleting = false })
       }
 
-      // --- Print ---
+      // --- Print / Email ---
       this.printDonation = function() { this.emit('print', this.detailDon) }
+
+      this.emailReceipt = function() {
+        var self = this
+        if (!self.editId || self.emailSending) return
+        self.emailSending = true
+        self.api.post('/api/income/' + self.editId + '/notify', {}).then(function() {
+          self.toast('Receipt emailed', 'success')
+        }).catch(function(e) { self.toast(e.message || 'Email failed') })
+        .finally(function() { self.emailSending = false })
+      }
     </script>
   </donation-form>
 </define-element>

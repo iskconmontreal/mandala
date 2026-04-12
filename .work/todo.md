@@ -1,43 +1,60 @@
 
 
-## Componentize
-
-### Phase 1 — Form Modals (biggest win: ~85 props removed, reused on 2 pages)
-* [ ] `expense-form-modal` CE — extract from expense-form.html + form.js state
-* [ ] `donation-form-modal` CE — extract from donation-form.html + form.js state
-
-### Phase 2 — Filter Bars (finance page: ~30 props removed)
-* [ ] `expense-filter-bar` CE — search, category tags, status, amount range, dates
-* [ ] `income-filter-bar` CE — search, method, type, amount range, dates
-
-### Phase 3 — Members Page (~60 props removed)
-* [ ] `member-table` CE — sortable columns, pagination, row click
-* [ ] `member-detail-modal` CE — photo, contact, role, devices, permissions
-* [ ] `member-edit-modal` CE — edit form with photo upload
-
-### Phase 4 — Remaining Pages (assessed: low value, skipped)
-Profile, organization, and roles pages are small, self-contained, with zero cross-page reuse. CE extraction adds boilerplate without meaningful benefit.
-
-### Done
-* [x] `expense-list` CE (finance page — year/month grouped list)
-* [x] `income-list` CE (finance page — year/month grouped list)
-* [x] `transaction-list` CE (finance page — mixed list with net)
-* [x] `recent-expenses` CE (dashboard — flat list with reporter/status)
-* [x] `recent-donations` CE (dashboard — flat list with source/method)
-* [x] `my-expense-table` CE (dashboard — simple table with totals)
-* [x] `expense-form` CE (full expense modal — used on dashboard + finance)
-* [x] `donation-form` CE (full donation modal — used on dashboard + finance)
-* [x] `expense-filter-bar` CE (expense filter UI — finance page)
-* [x] `income-filter-bar` CE (income filter UI — finance page)
-* [x] `member-edit-form` CE (member add/edit modal — members page)
-* [x] `member-detail` CE (member detail + roles modal — members page)
-
 
 ## Backlog
+
+* [x] Finances: Add expense > click anywhere > closes modal - should not (add test regression)
+* [x] Finances: Add expense > attach doc > cancel closes modal - should not.
+* [ ] Finances: doesn't show photos: I have created expense #E-2026-0616 with 4 photos, but frontend doesn't show them in preview: https://api.iskconmontreal.ca/uploads/finance/2026/2026-04-12-3.webp 404
+* [ ] Finances: when we add new photos, it autoscans and creates new rows, but when we delete created rows and then add more photos after - it recreates the deleted rows.
+* [ ] Finances: we should show "Paid" status selector when admin or treasurer is adding the expense - but it should check attached pictures first. initiated expenses can be set directly to target status.
+* [ ] Finances: protect images from external access by auth cookie
+
+* [ ] Members: Updating role displays it two roles in the list, until refresh
+* [ ] Members: we need mask for entering phone number to format nicely
+* [ ] Members: joined: might be automatic, or joined what? The system? Who cares
+* [ ] Members: Photo - should be first
+* [ ] Members: hovering mouse outside of modal closes it: should not
+* [ ] Members: status - makes person disabled - he is not passed away!
+* [ ] Members: status - meaning leaving status, not just status
+* [ ] Members: children - likely must be linked to other members, not enough
+* [ ] Members: make spiritual details, personal details tabs
+* [ ] Members: chanting / years in KC / 4 regs year is the same, no?
+* [ ] Members: likely need initiation date,
+* [ ] Members: print recommendation letter
+* [ ] Members: marriage status should be divorced available
+* [ ] Members: Guru - we should track the list (after)
+* [ ] Members: Spiritual/personal details can be shown in info (tabs?) as well
+* [ ] Members: need to add double or single initiated
+
+* [ ] Server: please pull goloka
 
 * [x] improve add receipt/transaction form
 
 * [ ] reorganize finances page
+  * [ ] finance tabs IA pass: keep Transactions; replace Expenses/Income tabs with Donors + Reports
+  * [ ] add Donors tab shell (top donors, recurring donors, YTD totals, last donation, quick open)
+  * [ ] add Reports tab shell (month close summary, category P&L, export preset links)
+  * [ ] move existing expense/income filter logic under Transactions type filter only
+  * [ ] remove duplicate Expenses/Income tab-level state once parity is confirmed
+  * [ ] QA: desktop + mobile + deep-link query params continue to work
+
+* [ ] donor creation flow (progressive)
+  * [x] keep donor autocomplete for existing members
+  * [x] when typed donor has no selected member, show inline "Create donor" action
+  * [x] create minimal donor member inline (name required, email recommended, address optional)
+  * [x] auto-link new member_id to current income form after creation
+  * [x] add "Anonymous donor" explicit toggle for non-receiptable cash entries
+  * [x] warn when issuing/previewing receipt without email/address on donor profile
+  * [ ] QA: create donor -> save income -> open donor in members -> invite flow
+
+* [ ] invite email reliability + correctness
+  * [ ] backend default `FRONTEND_URL` should be `https://iskconmontreal.github.io/mandir`
+  * [ ] invite target should use `/login.html` (not `/app/login`)
+  * [ ] switch invite mail to multipart (text + html) with CTA button
+  * [ ] include ISKCON Montreal logo (PNG) in email header
+  * [ ] add polite fallback plain link below button for strict mail clients
+  * [ ] validate SPF/DKIM/DMARC for sender domain to reduce spam placement
 
 * [ ] better home page
 * [ ] 1-image → multiple receipts OCR segmentation (complex, skip for now)
@@ -130,6 +147,38 @@ Profile, organization, and roles pages are small, self-contained, with zero cros
 * [ ] Tracking spiritual results to please Guru
 
 ## Archive
+
+* [x] Componentize
+
+### Phase 1 — Form Modals (biggest win: ~85 props removed, reused on 2 pages)
+* [x] `expense-form-modal` CE — extracted as `expense-form` from expense-form.html + form.js state
+* [x] `donation-form-modal` CE — extracted as `donation-form` from donation-form.html + form.js state
+
+### Phase 2 — Filter Bars (finance page: ~30 props removed)
+* [x] `expense-filter-bar` CE — search, category tags, status, amount range, dates
+* [x] `income-filter-bar` CE — search, method, type, amount range, dates
+
+### Phase 3 — Members Page (~60 props removed)
+* [ ] `member-table` CE — sortable columns, pagination, row click
+* [x] `member-detail-modal` CE — extracted as `member-detail` (photo, contact, role, devices, permissions)
+* [x] `member-edit-modal` CE — extracted as `member-edit-form` (edit form with photo upload)
+
+### Phase 4 — Remaining Pages (assessed: low value, skipped)
+Profile, organization, and roles pages are small, self-contained, with zero cross-page reuse. CE extraction adds boilerplate without meaningful benefit.
+
+### Done
+* [x] `expense-list` CE (finance page — year/month grouped list)
+* [x] `income-list` CE (finance page — year/month grouped list)
+* [x] `transaction-list` CE (finance page — mixed list with net)
+* [x] `recent-expenses` CE (dashboard — flat list with reporter/status)
+* [x] `recent-donations` CE (dashboard — flat list with source/method)
+* [x] `my-expense-table` CE (dashboard — simple table with totals)
+* [x] `expense-form` CE (full expense modal — used on dashboard + finance)
+* [x] `donation-form` CE (full donation modal — used on dashboard + finance)
+* [x] `expense-filter-bar` CE (expense filter UI — finance page)
+* [x] `income-filter-bar` CE (income filter UI — finance page)
+* [x] `member-edit-form` CE (member add/edit modal — members page)
+* [x] `member-detail` CE (member detail + roles modal — members page)
 
 * [x] Add `gst`, `pst` (uint32, cents) and `batch_id` (UUID, nullable, indexed) to `Expense` struct + DB migration (`002_batch.sql`)
 * [x] Populate gst/pst from `Attachment.extracted_data.taxes` (TPS/TVQ) on expense create/promote

@@ -14,12 +14,12 @@ import {
 
 // ── normTab ──
 describe('normTab', () => {
-  it('maps donations → income', () => expect(normTab('donations')).toBe('income'))
+  it('maps donations → donors', () => expect(normTab('donations')).toBe('donors'))
   it('maps net → transactions', () => expect(normTab('net')).toBe('transactions'))
   it('passes valid tabs through', () => {
     expect(normTab('transactions')).toBe('transactions')
-    expect(normTab('expenses')).toBe('expenses')
-    expect(normTab('income')).toBe('income')
+    expect(normTab('donors')).toBe('donors')
+    expect(normTab('reports')).toBe('reports')
   })
   it('defaults invalid to transactions', () => expect(normTab('bogus')).toBe('transactions'))
   it('defaults empty to transactions', () => expect(normTab('')).toBe('transactions'))

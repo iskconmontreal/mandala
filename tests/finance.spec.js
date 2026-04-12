@@ -17,14 +17,14 @@ test.describe('finance section', () => {
 
   test.afterEach(() => { expect(errors).toEqual([]) })
 
-  test('shows three tabs: Transactions, Expenses, Income', async ({ page }) => {
+  test('shows three tabs: Transactions, Reports, Donors', async ({ page }) => {
     await mockFinance(page)
     await openFinance(page)
     const tabs = page.getByTestId('tab-group').locator('.card-tab')
     await expect(tabs).toHaveCount(3)
     await expect(tabs.nth(0).locator('.stat-label')).toHaveText('Transactions')
-    await expect(tabs.nth(1).locator('.stat-label')).toHaveText('Expenses')
-    await expect(tabs.nth(2).locator('.stat-label')).toHaveText('Income')
+    await expect(tabs.nth(1).locator('.stat-label')).toHaveText('Reports')
+    await expect(tabs.nth(2).locator('.stat-label')).toHaveText('Donors')
   })
 
 
@@ -63,6 +63,30 @@ test.describe('finance section', () => {
     expect(expenses[0].payee).toBe('Hydro Quebec')
     expect(expenses[0].amount).toBe(14250)
     expect(expenses[0].category).toBe('kitchen')
+  })
+
+  test('add expense: click backdrop → modal stays open (regression)', async ({ page }) => {
+    await mockFinance(page)
+    await openFinance(page)
+    await page.click('button:has-text("+ Expense")')
+    await page.locator('#exp-amount').waitFor({ state: 'attached', timeout: 5000 })
+    await page.fill('#exp-vendor', 'Test Vendor')
+    // Click the overlay area (outside modal content)
+    await page.locator('.modal-overlay').click({ position: { x: 5, y: 5 }, force: true })
+    await expect(page.locator('.modal-overlay')).toBeVisible()
+    await expect(page.locator('#exp-vendor')).toHaveValue('Test Vendor')
+  })
+
+  test('add expense: click backdrop → donation modal stays open (regression)', async ({ page }) => {
+    await mockFinance(page)
+    await openFinance(page, 'donations')
+    await page.click('button:has-text("+ Income")')
+    await page.locator('#don-amount').waitFor({ timeout: 5000 })
+    await page.fill('#don-amount', '50.00')
+    // Click the overlay area (outside modal content)
+    await page.locator('.modal-overlay').click({ position: { x: 5, y: 5 }, force: true })
+    await expect(page.locator('.modal-overlay')).toBeVisible()
+    await expect(page.locator('#don-amount')).toHaveValue('50.00')
   })
 
   test('add donation: fill fields → save → appears in donations list', async ({ page }) => {

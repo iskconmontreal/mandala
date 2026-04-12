@@ -4,16 +4,28 @@
     <template>
 
 <!-- Modal -->
-<div :if="show" class="modal-overlay" data-testid="expense-modal" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; _close() }">
-  <div class="modal modal-expense" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; _close() }">
+<div :if="show" class="modal-overlay" data-testid="expense-modal" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; if (cameraActive) { closeCamera(); return }; _close() }">
+  <div class="modal modal-expense">
     <div class="expense-media-pane" :if="!detailExp || _attachments().length || receipts.length || (expMode === 'edit')"
       :ondragover="e => e.preventDefault()"
       :ondrop="e => { e.preventDefault(); addReceipts(e.dataTransfer.files) }">
 
-      <div :class="{'hidden': _attachments().length || receipts.length}" class="expense-media-empty"
-        :onclick="() => { filePickerOpen = true; _root().querySelector('#exp-receipt-input')?.click() }">
-        <div class="scan-icon"><span :html="icon('file_plus')"></span></div>
-        <div class="expense-media-empty-title">Attach documents</div>
+      <div :class="{'hidden': _attachments().length || receipts.length}" class="expense-media-empty">
+        <div class="expense-media-empty-hint">Drop files here</div>
+        <div class="expense-media-empty-actions">
+          <button type="button" class="expense-media-btn" :onclick="() => { filePickerOpen = true; _root().querySelector('#exp-receipt-input')?.click() }" :html="icon('file_plus') + ' Attach documents'"></button>
+          <button type="button" class="expense-media-btn expense-media-btn-camera" :onclick="openCamera()" :html="icon('camera') + ' Take photo'"></button>
+        </div>
+      </div>
+
+      <!-- Camera viewfinder -->
+      <div :if="cameraActive" class="camera-viewfinder">
+        <video id="exp-camera-video" autoplay playsinline class="camera-video"></video>
+        <div :if="cameraErr" class="camera-err" :text="cameraErr"></div>
+        <div class="camera-controls">
+          <button type="button" class="btn btn-outline camera-cancel" :onclick="closeCamera()">Cancel</button>
+          <button type="button" class="camera-shutter" :onclick="capturePhoto()" :disabled="!!cameraErr" aria-label="Take photo"></button>
+        </div>
       </div>
 
       <div :class="{'hidden': !_attachments().length && !receipts.length}" class="receipt-carousel">
@@ -21,7 +33,7 @@
           <div :each="(item, i) in _receiptItems()" class="receipt-thumb receipt-thumb-gallery"
             :class="{ 'receipt-extracting': item.kind === 'queued' && item.value.extracting, 'receipt-error': item.kind === 'queued' && item.value.err, 'receipt-duplicate': item.kind === 'queued' && item.value.duplicate }"
             :onclick="e => { if (e.target.closest('.receipt-remove')) return; if (item.kind === 'saved') { return item.value.mime_type?.startsWith('image/') ? (lightboxSrc = apiBase + '/' + item.value.file_path) : window.open(apiBase + '/' + item.value.file_path, '_blank') } if (item.value.preview) lightboxSrc = item.value.preview }">
-            <img :if="item.kind === 'saved' && item.value.mime_type?.startsWith('image/')" :src="apiBase + '/' + item.value.file_path" :alt="item.value.original_name">
+            <img :if="item.kind === 'saved' && item.value.mime_type?.startsWith('image/')" :src="apiBase + '/' + item.value.file_path" crossorigin="use-credentials" :alt="item.value.original_name">
             <img :if="item.kind === 'queued' && item.value.preview" :src="item.value.preview">
             <div :if="item.kind === 'saved' && !item.value.mime_type?.startsWith('image/')" class="receipt-placeholder">
               <span class="receipt-placeholder-icon" :html="icon('file')"></span>
@@ -50,13 +62,19 @@
           <button type="button" class="receipt-dot" :each="(_, i) in _receiptItems()" :class="{'receipt-dot-active': i === (expReceiptSlide || 0)}" :onclick="_jumpSlide(i)"></button>
         </div>
       </div>
-      <button :class="{'hidden': !_attachments().length && !receipts.length}" type="button" class="receipt-add receipt-add-gallery"
-        :onclick="() => { filePickerOpen = true; _root().querySelector('#exp-receipt-input')?.click() }">
-        + Add more
-      </button>
+      <div :class="{'hidden': !_attachments().length && !receipts.length}" class="receipt-add-row">
+        <button type="button" class="expense-media-btn"
+          :onclick="() => { filePickerOpen = true; _root().querySelector('#exp-receipt-input')?.click() }"
+          :html="icon('file_plus') + ' Add more'">
+        </button>
+        <button type="button" class="expense-media-btn expense-media-btn-camera"
+          :onclick="openCamera()"
+          :html="icon('camera') + ' Take photo'">
+        </button>
+      </div>
       <input id="exp-receipt-input" type="file" accept="image/*,.pdf" multiple style="display:none"
         :onchange="e => { filePickerOpen = false; addReceipts(e.target.files); e.target.value = '' }"
-        :oncancel="() => filePickerOpen = false">
+        :oncancel="e => { e.stopPropagation(); filePickerOpen = false }">
     </div>
 
     <div class="expense-content-pane">
@@ -116,7 +134,7 @@
               <label>Category</label>
               <select id="exp-cat" :value="expForm.category" :change="v => { expForm.category = v; markDirty('category') }" :disabled="_policy().lockedAll">
                 <option value="" disabled hidden :selected="!(expForm.category || '')">Select…</option>
-                <option value="admin">Admin</option><option value="annadana">Annadana</option><option value="bhoga">Bhoga</option><option value="book_distribution">Book Distribution</option><option value="books">Books</option><option value="building_fund">Building Fund</option><option value="deity">Deity</option><option value="deity_worship">Deity Worship</option><option value="equipment">Equipment</option><option value="events">Events</option><option value="festival">Festival</option><option value="flowers">Flowers</option><option value="general">General</option><option value="insurance">Insurance</option><option value="kitchen">Kitchen</option><option value="maintenance">Maintenance</option><option value="renovation">Renovation</option><option value="rent">Rent</option><option value="salary">Salary</option><option value="sunday_feast">Sunday Feast</option><option value="travel">Travel</option><option value="utilities">Utilities</option><option value="vehicle">Vehicle</option><option value="other">Other</option>
+                <option :each="c in EXP_CATS" :value="c" :text="fmtCat(c)" :selected="expForm.category === c"></option>
               </select>
             </div>
             <div class="field">
@@ -127,6 +145,17 @@
           <div class="field">
             <label>Note</label>
             <textarea id="exp-desc" rows="1" style="field-sizing:content;resize:none" :value="expForm.note" :change="v => { expForm.note = v; markDirty('note') }" placeholder="Optional…" :disabled="_policy().lockedAll"></textarea>
+          </div>
+
+          <div :if="!editId && canapprove" class="form-row">
+            <div class="field">
+              <label>Status</label>
+              <select :value="expStatus" :change="v => expStatus = v">
+                <option value="submitted">Submitted (needs approval)</option>
+                <option value="paid" :disabled="!receipts.length && !_attachments().length">Paid (log completed expense)</option>
+              </select>
+              <span :if="expStatus === 'paid' && !receipts.length && !_attachments().length" class="dim" style="font-size:var(--f-sm)">Attach receipt to log as paid</span>
+            </div>
           </div>
 
           <div :if="receipts.some(r => r.duplicate)" class="form-warn">Possible duplicate — a receipt was previously uploaded for another expense</div>
@@ -192,7 +221,7 @@
           </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); align-items:center; flex-wrap:wrap">
+        <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); align-items:center; flex-wrap:wrap; margin-top:auto; padding-top:var(--s-md)">
           <button :if="editId && expMode === 'edit' && !delConfirm && detailExp?.status !== 'closed' && (detailExp?.status === 'submitted' || isadmin)" type="button" class="btn btn-outline" style="margin-right:auto" :onclick="delConfirm = true">Delete</button>
           <span :if="delConfirm" class="dim" style="font-size:var(--f-sm); margin-right:auto; align-self:center">Delete permanently?</span>
           <button :if="delConfirm" type="button" class="btn btn-danger" :class="{'btn-loading': deleting}" :onclick="delExpense()">Yes</button>
@@ -211,7 +240,7 @@
 
 <!-- Lightbox -->
 <div :if="lightboxSrc" class="lightbox" :onclick="lightboxSrc = ''" :onkeydown.esc.document="lightboxSrc = ''">
-  <img :src="lightboxSrc">
+  <img :src="lightboxSrc" crossorigin="use-credentials">
   <button class="lightbox-close" :onclick="lightboxSrc = ''" :html="icon('close')"></button>
 </div>
 
@@ -245,9 +274,15 @@
       this.expHistory = []
       this.expTimelineExpanded = false
       this.expCats = []
+      this.expStatus = 'submitted'
+
+      // --- Camera state ---
+      this.cameraActive = false
+      this.cameraErr = null
+      var _cameraStream = null
 
       // --- Private counters ---
-      var _pendingExtracts = 0, _formSession = 0, _receiptUid = 0, _dirtyFields = new Set(), _opened = false
+      var _pendingExtracts = 0, _formSession = 0, _receiptUid = 0, _dirtyFields = new Set(), _opened = false, _dismissedRids = new Set()
 
       // --- Helpers ---
       this._root = function() { return this.host || document }
@@ -318,9 +353,45 @@
         if (child) child.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
       }
 
+      // --- Camera ---
+      this.openCamera = function() {
+        var self = this
+        self.cameraErr = null
+        self.cameraActive = true
+        if (!navigator.mediaDevices?.getUserMedia) { self.cameraErr = 'Camera not supported in this browser'; return }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1080 }, height: { ideal: 1920 } } })
+          .then(function(stream) {
+            _cameraStream = stream
+            var video = self._root().querySelector('#exp-camera-video')
+            if (video) { video.srcObject = stream }
+          })
+          .catch(function(err) {
+            self.cameraErr = err.name === 'NotAllowedError' ? 'Camera access denied' : 'Could not access camera'
+          })
+      }
+      this.capturePhoto = function() {
+        var self = this
+        var video = self._root().querySelector('#exp-camera-video')
+        if (!video || !video.videoWidth) return
+        var canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        canvas.toBlob(function(blob) {
+          if (!blob) return
+          var file = new File([blob], 'photo-' + Date.now() + '.jpg', { type: 'image/jpeg' })
+          self.addReceipts([file])
+          self.closeCamera()
+        }, 'image/jpeg', 0.92)
+      }
+      this.closeCamera = function() {
+        this.cameraActive = false; this.cameraErr = null
+        if (_cameraStream) { _cameraStream.getTracks().forEach(function(t) { t.stop() }); _cameraStream = null }
+      }
+
       // --- Form lifecycle ---
       this._resetForm = function() {
-        _formSession++; _pendingExtracts = 0; _dirtyFields.clear()
+        _formSession++; _pendingExtracts = 0; _dirtyFields.clear(); _dismissedRids.clear()
+        this.closeCamera()
         this.receipts = []; this.expReceiptSlide = 0; this.lightboxSrc = ''; this.filePickerOpen = false
         this.editId = null; this.expMode = 'create'; this.addErr = null; this.detailExp = null
         this.memberQuery = ''; this.memberHits = []; this.vendorHits = []; this.expFull = false
@@ -330,6 +401,7 @@
         this.expForm = { payee: '', amount: '', category: '', expense_date: '', note: '', member_id: null, gst: '', pst: '', items: [{ desc: '', amount: '', gst: '', pst: '' }] }
         this.expHistory = []; this.expTimelineExpanded = false
         this.expCats = this.EXP_CATS.slice(); this.expMethods = this.EXP_METHODS.slice()
+        this.expStatus = 'submitted'
       }
       this._close = function() {
         if (this.detailExp && this.expMode === 'edit') {
@@ -465,6 +537,8 @@
       this.addExpItem = function() { this.expForm.items = this.expForm.items.concat([{ desc: '', amount: '', gst: '', pst: '' }]); this.expDirty = true }
       this.removeExpItem = function(i) {
         if (this.expForm.items.length <= 1) return
+        var removed = this.expForm.items[i]
+        if (removed && removed._rid) _dismissedRids.add(removed._rid)
         this.expForm.items = this.expForm.items.filter(function(_, idx) { return idx !== i })
         this.syncItemTotals(); this.expDirty = true
       }
@@ -531,7 +605,7 @@
           var r = self.receipts[ri]; if (!r.data) continue
           var d = r.data
           if (d.date) { var dt = new Date(d.date); if (!isNaN(dt) && (!earliest || dt < earliest)) earliest = dt }
-          if (items.find(function(it) { return it._rid === r._uid })) continue
+          if (items.find(function(it) { return it._rid === r._uid }) || _dismissedRids.has(r._uid)) continue
           var amt = parseFloat(d.amount) || 0
           var newItem = { _rid: r._uid, _aid: r.attachment?.id || null, desc: d.vendor || d.description || '', amount: amt ? amt.toFixed(2) : '', gst: parseTax(d.taxes?.TPS) ? parseTax(d.taxes?.TPS).toFixed(2) : '', pst: parseTax(d.taxes?.TVQ) ? parseTax(d.taxes?.TVQ).toFixed(2) : '' }
           if (items.length === 1 && !items[0]._rid && !items[0].desc && !(parseFloat(items[0].amount) > 0)) items[0] = newItem
@@ -559,6 +633,7 @@
         var memberName = f.member_id ? ((self.membernames || {})[f.member_id] || self.memberQuery || f.payee || '') : ''
         var keepMember = !!f.member_id && (!payeeVal || payeeVal === memberName)
         var data = { amount: self.toCents(f.amount), gst: self.toCents(f.gst || '0'), pst: self.toCents(f.pst || '0') }
+        if (!self.editId && self.canapprove && self.expStatus === 'paid') data.status = 'paid'
         var items = (f.items || []).filter(function(it) { return it.desc || parseFloat(it.amount) > 0 }).map(function(it) { var o = {}; for (var k in it) if (k !== '_rid') o[k] = it[k]; return o })
         if (items.length) data.details = { items: items }
         if (payeeVal) data.payee = payeeVal

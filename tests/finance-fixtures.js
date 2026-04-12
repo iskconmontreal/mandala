@@ -130,7 +130,15 @@ export function mockFinance(page, { donations = [], expenses = [], members = [],
       return route.fulfill({ json: { items, total: items.length } })
     }
 
-    if (path === '/api/members') return route.fulfill({ json: { items: members, total: members.length } })
+    if (path === '/api/members') {
+      if (method === 'POST') {
+        const body = route.request().postDataJSON()
+        const newMember = { id: members.length + 100, data: { name: body.name, email: body.email } }
+        members.push(newMember)
+        return route.fulfill({ json: newMember })
+      }
+      return route.fulfill({ json: { items: members, total: members.length } })
+    }
     if (path === '/api/finance/summary' && method === 'GET') return route.fulfill({ json: summarizeExpenses(expenses, donations) })
     if (path === '/api/donors/summary' && method === 'GET') return route.fulfill({ json: { items: [], total: 0 } })
     if (path.startsWith('/api/expenses/') && method === 'DELETE') {
@@ -175,11 +183,13 @@ export function mockFinance(page, { donations = [], expenses = [], members = [],
 }
 
 // ── Navigation ──
-export async function openFinance(page, tab = 'expenses') {
-  if (tab === 'donations') tab = 'income'
+export async function openFinance(page, tab = 'transactions') {
+  if (tab === 'donations' || tab === 'income') tab = 'donors'
+  if (tab === 'expenses') tab = 'transactions'
+  if (tab === 'net') tab = 'transactions'
   await page.goto(`/app/finance/#${tab}`)
   await page.getByTestId('tab-group').waitFor()
-  if (tab === 'expenses') {
+  if (tab === 'transactions') {
     await page.getByTestId('expense-item').first().waitFor({ timeout: 10000 }).catch(() => {})
   }
 }

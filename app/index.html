@@ -152,7 +152,7 @@ preloads:
 </expense-form>
 
 <donation-form :show="showDonForm" :detail="donFormDetail"
-  :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
+  :cancreate="can('members:create')" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { showDonForm = false; refreshDashboard() }"
   :oncancel="() => { showDonForm = false }"
   :onprint="e => printDonation(e.detail)">

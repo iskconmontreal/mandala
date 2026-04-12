@@ -1,10 +1,10 @@
 <define-element>
-  <donation-form show:boolean="false" detail:object mode:string="create" membernames:object memberemails:object usernames:object myuserid:number isfinance:boolean="false">
+  <donation-form show:boolean="false" detail:object mode:string="create" membernames:object memberemails:object usernames:object myuserid:number isfinance:boolean="false" cancreate:boolean="false">
     <style>:host { display: contents; }</style>
     <template>
 
 <div :if="show" class="modal-overlay" data-testid="income-modal" :onkeydown.esc.document="e => { _close() }">
-  <div class="modal" :onclick.outside="e => { _close() }">
+  <div class="modal">
     <div class="modal-header">
       <h2 style="display:flex;align-items:center;gap:var(--s-sm)">
         <span :text="detailDon ? (isfinance ? 'Edit Income' : 'Edit donation') : (isfinance ? 'Add Income' : 'Add donation')"></span>
@@ -17,26 +17,50 @@
         <form id="don-form" :onsubmit.prevent="saveDonation" style="display:flex;flex-direction:column;gap:var(--s-md)">
 
           <input id="don-receipt-input" type="file" accept="image/*,.pdf" style="display:none"
-            :onchange="e => { scanFile(e.target.files[0]); e.target.value = '' }">
+            :onchange="e => { scanFile(e.target.files[0]); e.target.value = '' }"
+            :oncancel="e => e.stopPropagation()">
 
           <div class="field autocomplete">
             <label>Donor</label>
             <div style="position:relative">
               <input id="don-donor" type="text" autocomplete="off" :value="memberQuery"
-                :onfocus="e => filterDonors(memberQuery)"
+                :disabled="donForm.anonymous"
+                :onfocus="e => { if (!donForm.anonymous) filterDonors(memberQuery) }"
                 :oninput="ev => { donForm.member_id = null; filterDonors(ev.target.value) }"
-                :onblur="e => { memberHits = [] }"
+                :onblur="e => { memberHits = []; _donorOpen = false }"
                 :style="donForm.member_id ? 'padding-right:2rem' : ''"
                 placeholder="Anonymous">
-              <button :if="donForm.member_id" type="button" class="btn-link"
+              <button :if="donForm.member_id && !donForm.anonymous" type="button" class="btn-link"
                 style="position:absolute;right:.5rem;top:50%;transform:translateY(-50%)"
                 :onclick="clearDonor()">&times;</button>
             </div>
-            <div :if="memberHits.length" class="autocomplete-list">
+            <label :if="!editId" style="display:flex;align-items:center;gap:.4em;font-size:var(--f-sm);cursor:pointer;color:var(--c-dim);margin-top:.25rem;user-select:none">
+              <input type="checkbox" :checked="donForm.anonymous" :onchange="e => { donForm.anonymous = e.target.checked; if (e.target.checked) { clearDonor(); memberHits = []; creatingDonor = false } }">
+              Anonymous donor
+            </label>
+            <div :if="!donForm.anonymous && memberHits.length" class="autocomplete-list" :onmouseleave="memberHits = []">
               <div class="autocomplete-item" :each="m in memberHits" :onmousedown="e => { e.preventDefault(); queueMicrotask(() => selectDonor(m)) }">
                 <span :text="m.name"></span>
                 <span :if="m.email" class="dim" style="font-size:var(--f-sm);margin-left:auto" :text="m.email"></span>
               </div>
+              <div :if="cancreate && memberQuery.length >= 2 && !donForm.member_id" class="autocomplete-item" style="color:var(--c-accent);border-top:1px solid var(--c-border)" :onmousedown="e => { e.preventDefault(); creatingDonor = true; memberHits = [] }">
+                <span :html="icon('add')"></span>
+                <span :text="'Create \u201c' + memberQuery.trim() + '\u201d'"></span>
+              </div>
+            </div>
+            <div :if="!donForm.anonymous && !creatingDonor && cancreate && memberQuery.length >= 2 && !donForm.member_id && !memberHits.length && _donorOpen" class="autocomplete-list" :onmouseleave="_donorOpen = false">
+              <div class="autocomplete-item" style="color:var(--c-accent)" :onmousedown="e => { e.preventDefault(); creatingDonor = true; _donorOpen = false }">
+                <span :html="icon('add')"></span>
+                <span :text="'Create \u201c' + memberQuery.trim() + '\u201d'"></span>
+              </div>
+            </div>
+            <div :if="!donForm.anonymous && creatingDonor" style="display:flex;gap:var(--s-sm);margin-top:.35rem;align-items:center">
+              <input type="email" :value="newDonorEmail" :oninput="e => newDonorEmail = e.target.value" placeholder="Email (optional)" style="flex:1;min-width:0">
+              <button type="button" class="btn btn-primary" style="white-space:nowrap" :class="{'btn-loading': savingDonor}" :onmousedown="e => { e.preventDefault(); confirmCreateDonor() }">Create</button>
+              <button type="button" class="btn btn-outline" :onmousedown="e => { e.preventDefault(); cancelCreateDonor() }">Cancel</button>
+            </div>
+            <div :if="donForm.member_id && !donorEmail" class="dim" style="font-size:var(--f-sm);margin-top:.3rem">
+              No email on donor profile — receipt cannot be emailed
             </div>
           </div>
 
@@ -89,15 +113,7 @@
             <div class="field">
               <label for="don-cat">Category</label>
               <select id="don-cat" :disabled="donForm.type !== 'donation'" :oninput="e => donForm.category = e.target.value" :onchange="e => donForm.category = e.target.value">
-                <option value="general" :selected="donForm.category === 'general'" :text="fmtCat('general')"></option>
-                <option value="sunday_feast" :selected="donForm.category === 'sunday_feast'" :text="fmtCat('sunday_feast')"></option>
-                <option value="book_distribution" :selected="donForm.category === 'book_distribution'" :text="fmtCat('book_distribution')"></option>
-                <option value="deity_worship" :selected="donForm.category === 'deity_worship'" :text="fmtCat('deity_worship')"></option>
-                <option value="building_fund" :selected="donForm.category === 'building_fund'" :text="fmtCat('building_fund')"></option>
-                <option value="annadana" :selected="donForm.category === 'annadana'" :text="fmtCat('annadana')"></option>
-                <option value="festival" :selected="donForm.category === 'festival'" :text="fmtCat('festival')"></option>
-                <option value="events" :selected="donForm.category === 'events'" :text="fmtCat('events')"></option>
-                <option value="other" :selected="donForm.category === 'other'" :text="fmtCat('other')"></option>
+                <option :each="c in EXP_CATS" :value="c" :text="fmtCat(c)" :selected="donForm.category === c"></option>
               </select>
             </div>
             <div class="field">
@@ -163,7 +179,7 @@
     </template>
     <script>
       // --- Internal state ---
-      this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: new Date().toISOString().slice(0,10), note: '', reference: '', member_id: null, attachment: null }
+      this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: new Date().toISOString().slice(0,10), note: '', reference: '', member_id: null, attachment: null, anonymous: false }
       this.memberHits = []
       this.memberQuery = ''
       this.editId = null
@@ -178,6 +194,10 @@
       this.deleting = false
       this.emailSending = false
       this.donorEmail = ''
+      this.creatingDonor = false
+      this.newDonorEmail = ''
+      this.savingDonor = false
+      this._donorOpen = false
 
       var _formSession = 0, _today = new Date().toISOString().slice(0,10), AMT_MAX = 99999999
 
@@ -191,10 +211,11 @@
 
       this._resetForm = function() {
         _formSession++
-        this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: _today, note: '', reference: '', member_id: null, attachment: null }
+        this.donForm = { type: 'donation', amount: '', method: 'e-transfer', category: 'general', date_received: _today, note: '', reference: '', member_id: null, attachment: null, anonymous: false }
         this.memberHits = []; this.memberQuery = ''; this.editId = null; this.detailDon = null; this.donHistory = []
         this.donSaving = false; this.addErr = null; this.extracting = false; this.receiptPreview = ''; this.receiptName = ''
         this.delConfirm = false; this.deleting = false; this.emailSending = false; this.donorEmail = ''
+        this.creatingDonor = false; this.newDonorEmail = ''; this.savingDonor = false; this._donorOpen = false
       }
 
       this._close = function() { try { this._resetForm() } catch(_) {} this.emit('cancel') }
@@ -273,9 +294,31 @@
         var allMembers = Object.entries(this.membernames || {}).map(function(e) { return { id: +e[0], name: e[1], email: emails[e[0]] || '' } })
         var lq = (q || '').toLowerCase()
         this.memberHits = (q ? allMembers.filter(function(m) { return m.name.toLowerCase().includes(lq) || m.email.toLowerCase().includes(lq) }) : allMembers).slice(0, 8)
+        this._donorOpen = q.length >= 2
       }
-      this.selectDonor = function(m) { this.donForm.member_id = m.id; this.memberQuery = m.name; this.donorEmail = m.email || ''; this.memberHits = [] }
+      this.selectDonor = function(m) { this.donForm.member_id = m.id; this.memberQuery = m.name; this.donorEmail = m.email || ''; this.memberHits = []; this.creatingDonor = false; this.newDonorEmail = '' }
       this.clearDonor = function() { this.donForm.member_id = null; this.memberQuery = ''; this.donorEmail = ''; this.memberHits = [] }
+
+      this.cancelCreateDonor = function() { this.creatingDonor = false; this.newDonorEmail = '' }
+      this.confirmCreateDonor = function() {
+        var self = this
+        var name = (self.memberQuery || '').trim()
+        if (!name) return
+        var data = { name: name, roles: [8] }
+        var email = (self.newDonorEmail || '').trim()
+        if (email) data.email = email
+        self.savingDonor = true; self.addErr = null
+        self.api.createMember(data)
+          .then(function(result) {
+            var resolvedEmail = (result.data && result.data.email) || email || ''
+            // add to local lookup so re-typing the name finds them immediately
+            if (self.membernames) self.membernames[result.id] = name
+            if (self.memberemails && resolvedEmail) self.memberemails[result.id] = resolvedEmail
+            self.selectDonor({ id: result.id, name: name, email: resolvedEmail })
+          })
+          .catch(function(e) { self.addErr = e.message || 'Failed to create donor' })
+          .finally(function() { self.savingDonor = false })
+      }
 
       // --- File scanning ---
       this.scanFile = function(file) {
@@ -334,9 +377,9 @@
         if (f.date_received) data.date_received = f.date_received
         if (f.note) data.note = f.note
         if (f.reference) data.reference = f.reference
-        if (f.member_id) data.member_id = f.member_id
-        if (!f.member_id && self.memberQuery?.trim()) data.source_name = self.memberQuery.trim()
-        if (!f.member_id && (self.memberQuery?.trim() || self.detailDon?.member_id)) data.member_id = null
+        if (!f.anonymous && f.member_id) data.member_id = f.member_id
+        if (!f.anonymous && !f.member_id && self.memberQuery?.trim()) data.source_name = self.memberQuery.trim()
+        if (!f.anonymous && !f.member_id && (self.memberQuery?.trim() || self.detailDon?.member_id)) data.member_id = null
         var promise = self.editId
           ? ((f.type || 'donation') === 'donation' ? self.api.updateDonation(self.editId, data) : self.api.updateIncome(self.editId, data))
           : ((f.type || 'donation') === 'donation' ? self.api.createDonation(data) : self.api.createIncome(data))

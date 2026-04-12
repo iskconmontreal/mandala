@@ -17,146 +17,109 @@ preloads:
     <div class="stat-value"><span :class="net > 0 ? 'stat-ok' : net < 0 ? 'stat-err' : ''" :text="(net >= 0 ? '+' : '\u2212') + '$' + fmtAmt(Math.abs(net))"></span></div>
     <div class="stat-sub dim"><span :if="netTrend.dir" class="trend-arrow" :class="netTrend.cls" :html="trendIcon(netTrend.dir)"></span><span :text="netTrend.num"></span><span :text="netTrend.label"></span></div>
   </div>
-  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'expenses'}"
-    :onclick="e => { switchTab('expenses'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
-    <div class="stat-label">Expenses</div>
+  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'reports'}"
+    :onclick="e => { switchTab('reports'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
+    <div class="stat-label">Reports</div>
     <div class="stat-value"><span :text="'$' + fmtAmt(expMonth)"></span></div>
     <div class="stat-sub dim"><span :if="trend(expMonth, expPrevMonth, true).dir" class="trend-arrow" :class="trend(expMonth, expPrevMonth, true).cls" :html="trendIcon(trend(expMonth, expPrevMonth, true).dir)"></span><span :text="trend(expMonth, expPrevMonth, true).num"></span><span :text="trend(expMonth, expPrevMonth, true).label"></span></div>
   </div>
-  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'income'}"
-    :onclick="e => { switchTab('income'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
-    <div class="stat-label">Income</div>
-    <div class="stat-value"><span :text="'$' + fmtAmt(incMonth)"></span></div>
-    <div class="stat-sub dim"><span :if="trend(incMonth, incPrevMonth).dir" class="trend-arrow" :class="trend(incMonth, incPrevMonth).cls" :html="trendIcon(trend(incMonth, incPrevMonth).dir)"></span><span :text="trend(incMonth, incPrevMonth).num"></span><span :text="trend(incMonth, incPrevMonth).label"></span></div>
+  <div class="card-tab" :class="{['card-tab-active']: activeTab === 'donors'}"
+    :onclick="e => { switchTab('donors'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
+    <div class="stat-label">Donors</div>
+    <div class="stat-value"><span :text="donorsMonth + (donorsMonth === 1 ? ' donor' : ' donors')"></span></div>
+    <div class="stat-sub dim"><span :if="trendDiff(donorsMonth, donorsPrevMonth).dir" class="trend-arrow" :class="trendDiff(donorsMonth, donorsPrevMonth).cls" :html="trendIcon(trendDiff(donorsMonth, donorsPrevMonth).dir)"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).num"></span><span :text="trendDiff(donorsMonth, donorsPrevMonth).label"></span></div>
   </div>
 </div>
 
-<!-- ===== EXPENSES TAB ===== -->
-<section :class="{'hidden': activeTab !== 'expenses'}" :scope="{showExport: false}">
-
+<!-- ===== REPORTS TAB ===== -->
+<section :class="{'hidden': activeTab !== 'reports'}" :scope="{showExport: false}">
   <div class="filter-bar">
-    <expense-filter-bar :search="expSearch" :filtercats="expFilterCats" :filterstatus="expFilterStatus"
-      :amtmin="expAmtMin" :amtmax="expAmtMax" :amtlo="expAmtLo" :amthi="expAmtHi" :amtceil="expAmtCeil" :amthist="expAmtHist"
-      :datefrom="expDateFrom" :dateto="expDateTo" :cats="expCats" :resultcount="expFiltered.length"
-      :onchange="e => { if (!e.detail) return; patchState({ expSearch: e.detail.search ?? expSearch, expFilterCats: e.detail.filtercats ?? expFilterCats, expFilterStatus: e.detail.filterstatus ?? expFilterStatus, expAmtMin: e.detail.amtmin ?? expAmtMin, expAmtMax: e.detail.amtmax ?? expAmtMax, expDateFrom: e.detail.datefrom ?? expDateFrom, expDateTo: e.detail.dateto ?? expDateTo, expPage: 1 }) }">
-    </expense-filter-bar>
+    <div style="flex:1"></div>
     <div class="filter-bar-actions">
       <div style="position:relative">
-        <button class="btn btn-outline btn-export" :onclick="showExport = !showExport" :onclick.outside="showExport = false">Export</button>
+        <button class="btn btn-outline btn-export" :onclick="showExport = !showExport" :onclick.outside="showExport = false">Export P&L</button>
         <div :if="showExport" class="quick-add" style="right:0;left:auto">
           <a class="quick-add-item" :onclick="exportCSV(); showExport = false">CSV</a>
           <a class="quick-add-item" :onclick="printTable(); showExport = false">Print / PDF</a>
         </div>
       </div>
-      <button class="btn btn-primary filter-bar-create" :onclick="showExpForm = true; expFormDetail = null; expFormMode = 'create'">+ Expense</button>
-    </div>
-    <div class="seg-group" hidden>
-      <span class="seg" :class="{'seg-active': expView === 'list'}" :onclick="setExpView('list')" title="List view" style="display:flex;align-items:center">
-        <span :html="icon('view_list')"></span>
-      </span>
-      <span class="seg" :class="{'seg-active': expView === 'table'}" :onclick="setExpView('table')" title="Table view" style="display:flex;align-items:center">
-        <span :html="icon('view_grid')"></span>
-      </span>
     </div>
   </div>
 
-  <!-- Table view -->
-  <div class="card" :if="expView === 'table'">
+  <div class="card" style="padding:var(--s-lg)">
+    <h3 style="margin-bottom:var(--s-md)">Monthly Summary (<span :text="year"></span>)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th style="text-align:right">Income</th>
+            <th style="text-align:right">Expenses</th>
+            <th style="text-align:right">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :each="g in netGrouped" class="row-link" :onclick="e => { patchState({ activeTab: 'transactions', netSearch: '', netDateFrom: g.key + '-01', netDateTo: g.key + '-31' }) }">
+            <td :text="fmtMonthShort(g.key)"></td>
+            <td style="text-align:right; color:var(--c-ok)" :text="'+$' + fmtAmt(g.incTotal)"></td>
+            <td style="text-align:right; color:var(--c-err)" :text="'−$' + fmtAmt(g.expTotal)"></td>
+            <td style="text-align:right">
+              <strong :text="(g.net >= 0 ? '+$' : '−$') + fmtAmt(Math.abs(g.net))"></strong>
+            </td>
+          </tr>
+          <tr :if="!netGrouped.length && !loading">
+            <td colspan="4" class="dim" style="text-align:center;padding:var(--s-xl)">No data for this year.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== DONORS TAB ===== -->
+<section :class="{'hidden': activeTab !== 'donors'}" :scope="{showExport: false}">
+  <div class="filter-bar">
+    <div class="search-wrap" style="max-width:300px">
+      <span class="search-icon" :html="icon('search')"></span>
+      <input type="search" :value="donorSearch" :oninput="e => patchState({ donorSearch: e.target.value })" placeholder="Search donors…">
+    </div>
+    <div class="filter-bar-actions">
+      <button class="btn btn-primary filter-bar-create" :onclick="openDonCreate()">+ Income</button>
+    </div>
+  </div>
+
+  <div class="card">
     <div :if="loadErr" class="login-error" :text="loadErr" style="margin:var(--s-md)"></div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th :each="c in expCols" class="th-sort th-drag" :class="_sortCls('exp', c.key)"
-              :onclick="_toggleSort('exp', c.key)" :text="c.label"
-              :style="c.right ? 'text-align:right' : ''"
-              draggable="true"
-              :ondragstart="e => { _dragCol = c.key; e.dataTransfer.effectAllowed = 'move' }"
-              :ondragover.prevent="e => e.currentTarget.classList.add('drag-over')"
-              :ondragleave="e => e.currentTarget.classList.remove('drag-over')"
-              :ondrop="e => { e.currentTarget.classList.remove('drag-over'); _reorderExpCol(c.key) }"></th>
-            <th :if="can('expenses:approve')" style="width:5.5rem"></th>
+            <th>Donor</th>
+            <th style="text-align:center">Donations</th>
+            <th style="text-align:right">YTD Total</th>
+            <th style="text-align:right">Last Donation</th>
           </tr>
         </thead>
         <tbody>
-          <tr :each="x in expPaged" class="row-link" :onclick="setTimeout(() => { showExpForm = true; expFormDetail = x; expFormMode = ((x.status || 'submitted') === 'submitted' || can('expenses:approve')) ? 'edit' : 'view' })">
-            <td :each="c in expCols" :html="_expCell(x, c.key)" :style="c.right ? 'text-align:right' : ''"></td>
-            <td :if="can('expenses:approve')" class="quick-actions" :onclick.stop="">
-              <button :if="x.status === 'submitted' && !myApprovals[x.id]" class="btn-quick btn-quick-reject" :onclick="rejectExpense(x)">Reject</button>
-              <button :if="x.status === 'submitted' && !myApprovals[x.id]" class="btn-quick btn-quick-approve" :class="{'btn-loading': quickLoading[x.id]}" :onclick="quickApprove(x)">Approve</button>
-              <span :if="x.status === 'submitted' && myApprovals[x.id]" class="dim" style="font-size:var(--f-sm)" title="You approved this — awaiting co-approval">✓ Approved</span>
-              <button :if="x.status === 'approved'" class="btn-quick btn-quick-approve" :class="{'btn-loading': quickLoading[x.id]}" :onclick="quickPay(x)">Paid</button>
-              <button :if="x.status === 'paid' && x.attachment_count" class="btn-quick btn-quick-approve" :class="{'btn-loading': quickLoading[x.id]}" :onclick="quickClose(x)">Close</button>
-              <button :if="x.status === 'paid' && !x.attachment_count" class="btn-quick" :onclick="attachExpense(x)" title="Attach receipt to close">Attach receipt</button>
+          <tr :each="d in donorRowsFiltered" class="row-link" :onclick="e => { patchState({ activeTab: 'transactions', netFilterType: 'income', netSearch: d.name }) }">
+            <td>
+              <strong :text="d.name"></strong>
+              <div class="dim" style="font-size:var(--f-sm)" :text="memberEmails[d.member_id] || ''"></div>
             </td>
+            <td style="text-align:center" :text="d.count"></td>
+            <td style="text-align:right" :text="'$' + fmtAmt(d.total)"></td>
+            <td style="text-align:right" :text="fmtDate(d.lastDate || d.last_date)"></td>
           </tr>
-          <tr :if="!expenses.length && !loading && !expSearch">
-            <td colspan="6" style="text-align:center;padding:var(--s-xl)">
-              <div class="dim" style="margin-bottom:var(--s-sm)">No expenses yet</div>
-            </td>
+          <tr :if="!donorRowsFiltered.length && !loading">
+            <td colspan="4" class="dim" style="text-align:center;padding:var(--s-xl)">No donors found.</td>
           </tr>
-          <tr :if="!expSearchLoading && !expFiltered.length && (expenses.length || expSearch) && !loading">
-            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">No expenses match filters</td>
-          </tr>
-          <tr :if="loading || expSearchLoading">
-            <td colspan="6" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
+          <tr :if="loading">
+            <td colspan="4" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div :if="expHasMore" class="scroll-sentinel" :ref="el => observe(el, () => expPage++)">
-      <span class="load-spinner"></span>
-    </div>
   </div>
-
-  <!-- List view -->
-  <expense-list :if="expView === 'list'" :class="{'finance-exp-list-shell-refreshing': expRefreshing}"
-    :years="expYearGroups" :mopen="expMonthOpen" :mloading="expMonthLoading" :mfresh="expMonthFresh" :search="expSearch" :loading="loading" :error="loadErr"
-    :quickloading="quickLoading" :myapprovals="myApprovals"
-    :hasmore="expHasMore" :canapprove="can('expenses:approve')"
-    :empty="!loading && !expRefreshing && !expSearchLoading && !expenses.length && !expSearch"
-    :nomatch="!loading && !expRefreshing && !expSearchLoading && !expFiltered.length && (expenses.length || expSearch)"
-    :onview.delay-0="e => { showExpForm = true; expFormDetail = e.detail; expFormMode = ((e.detail.status || 'submitted') === 'submitted' || can('expenses:approve')) ? 'edit' : 'view' }"
-    :onapprove="e => expenseQuickApprove(e.detail)"
-    :onpay="e => expenseQuickPay(e.detail)"
-    :onprime="e => primeExpMonth(e.detail)"
-    :ontoggle.delay-0="e => toggleExpMonth(e.detail)"
-    :onattach="e => attachExpense(e.detail)">
-  </expense-list>
-
-</section>
-
-<!-- ===== INCOME TAB ===== -->
-<section :class="{'hidden': activeTab !== 'income'}" :scope="{showExport: false}">
-
-  <div class="filter-bar">
-    <income-filter-bar :search="donSearch" :filtermethods="donFilterMethods" :filtertype="donFilterType"
-      :amtmin="donAmtMin" :amtmax="donAmtMax" :amtlo="donAmtLo" :amthi="donAmtHi" :amtceil="donAmtCeil" :amthist="donAmtHist"
-      :datefrom="donDateFrom" :dateto="donDateTo" :methods="donMethods" :resultcount="donFiltered.length"
-      :onchange="e => { if (!e.detail) return; patchState({ donSearch: e.detail.search ?? donSearch, donFilterMethods: e.detail.filtermethods ?? donFilterMethods, donFilterType: e.detail.filtertype ?? donFilterType, donAmtMin: e.detail.amtmin ?? donAmtMin, donAmtMax: e.detail.amtmax ?? donAmtMax, donDateFrom: e.detail.datefrom ?? donDateFrom, donDateTo: e.detail.dateto ?? donDateTo, donPage: 1 }) }">
-    </income-filter-bar>
-    <div class="filter-bar-actions">
-      <div style="position:relative">
-        <button class="btn btn-outline btn-export" :onclick="showExport = !showExport" :onclick.outside="showExport = false">Export</button>
-        <div :if="showExport" class="quick-add" style="right:0;left:auto">
-          <a class="quick-add-item" :onclick="exportCSV(); showExport = false">CSV</a>
-          <a class="quick-add-item" :onclick="printTable(); showExport = false">Print / PDF</a>
-        </div>
-      </div>
-      <button class="btn btn-primary filter-bar-create" :onclick="openDonCreate()">+ Income</button>
-    </div>
-  </div>
-  <income-list
-    :years="donRenderYearGroups" :mopen="donMonthOpen" :mloading="donMonthLoading" :mfresh="donMonthFresh" :search="donSearch" :loading="loading" :error="loadErr" :memberemails="memberEmails" :emailsending="emailSending"
-    :hasmore="donHasMore"
-    :empty="!donations.length && !Object.keys(donMonthMeta).length && !loading"
-    :nomatch="(donations.length || Object.keys(donMonthMeta).length) && !donFiltered.length && !loading"
-    :onview.delay-0="e => openDonDetail(e.detail)"
-    :onprint="e => printDonation(e.detail)"
-    :onemail="e => emailDonationReceipt(e.detail)"
-    :ontoggle.delay-0="e => toggleDonMonth(e.detail)">
-  </income-list>
-
 </section>
 
 <!-- ===== NET TAB (all transactions) ===== -->
@@ -164,9 +127,11 @@ preloads:
 
   <div class="filter-bar">
     <transaction-filter-bar :search="netSearch" :filtertype="netFilterType"
+      :expcats="expCats" :expfiltercats="expFilterCats" :expfilterstatus="expFilterStatus"
+      :incfiltertype="donFilterType" :incfiltermethods="donFilterMethods" :incmethods="incomeMethodOptions"
       :amtmin="netAmtMin" :amtmax="netAmtMax" :amtlo="netAmtLo" :amthi="netAmtHi" :amtceil="netAmtCeil" :amthist="netAmtHist"
       :datefrom="netDateFrom" :dateto="netDateTo" :resultcount="netFilteredCount"
-      :onchange="e => { if (!e.detail) return; patchState({ netSearch: e.detail.search ?? netSearch, netFilterType: e.detail.filtertype ?? netFilterType, netAmtMin: e.detail.amtmin ?? netAmtMin, netAmtMax: e.detail.amtmax ?? netAmtMax, netDateFrom: e.detail.datefrom ?? netDateFrom, netDateTo: e.detail.dateto ?? netDateTo }) }">
+      :onchange="e => { if (!e.detail) return; patchState({ netSearch: e.detail.search ?? netSearch, netFilterType: e.detail.filtertype ?? netFilterType, netAmtMin: e.detail.amtmin ?? netAmtMin, netAmtMax: e.detail.amtmax ?? netAmtMax, netDateFrom: e.detail.datefrom ?? netDateFrom, netDateTo: e.detail.dateto ?? netDateTo, expFilterCats: e.detail.expfiltercats ?? expFilterCats, expFilterStatus: e.detail.expfilterstatus ?? expFilterStatus, donFilterType: e.detail.incfiltertype ?? donFilterType, donFilterMethods: e.detail.incfiltermethods ?? donFilterMethods }) }">
     </transaction-filter-bar>
     <div class="filter-bar-actions">
       <div style="position:relative">
@@ -213,13 +178,13 @@ preloads:
 </expense-form>
 
 <donation-form :show="showDonCreateForm"
-  :isfinance="true" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
+  :isfinance="true" :cancreate="can('members:create')" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { closeDonCreate(); freshId = e.detail?.id || null; if (freshId) setTimeout(() => freshId = null, 5000); loadAll() }"
   :oncancel="() => { closeDonCreate() }">
 </donation-form>
 
 <donation-form :show="showDonDetailForm" :detail="donFormDetail"
-  :isfinance="true" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
+  :isfinance="true" :cancreate="can('members:create')" :membernames="memberNames" :memberemails="memberEmails" :usernames="userNames" :myuserid="MY_USER_ID"
   :onsave="e => { closeDonDetail(); freshId = e.detail?.id || null; if (freshId) setTimeout(() => freshId = null, 5000); loadAll() }"
   :oncancel="() => { closeDonDetail() }"
   :onprint="e => printDonation(e.detail)">
@@ -278,27 +243,17 @@ preloads:
     return {
       activeTab: normTab(url.searchParams.get('tab') || url.hash.slice(1) || 'transactions'),
       year: curYear,
-      expSearch: url.searchParams.get('exp_q') || '',
       expFilterCats: normExpenseCats(url.searchParams.get('exp_cat') || ''),
       expFilterStatus: url.searchParams.get('exp_status') || '',
-      expAmtMin: normAmt(url.searchParams.get('exp_amt_min')),
-      expAmtMax: normAmt(url.searchParams.get('exp_amt_max')),
-      expDateFrom: url.searchParams.get('exp_from') || '',
-      expDateTo: url.searchParams.get('exp_to') || '',
-      donSearch: url.searchParams.get('inc_q') || '',
       donFilterType: normIncomeType(url.searchParams.get('inc_type') || ''),
       donFilterMethods: normIncomeMethods(url.searchParams.get('inc_method') || ''),
-      donAmtMin: normAmt(url.searchParams.get('inc_amt_min')),
-      donAmtMax: normAmt(url.searchParams.get('inc_amt_max')),
-      donDateFrom: url.searchParams.get('inc_from') || '',
-      donDateTo: url.searchParams.get('inc_to') || '',
       donorSearch: url.searchParams.get('donor_q') || '',
-      netSearch: url.searchParams.get('net_q') || '',
-      netFilterType: (['expense', 'income'].includes(url.searchParams.get('net_type')) ? url.searchParams.get('net_type') : ''),
-      netAmtMin: normAmt(url.searchParams.get('net_amt_min')),
-      netAmtMax: normAmt(url.searchParams.get('net_amt_max')),
-      netDateFrom: url.searchParams.get('net_from') || '',
-      netDateTo: url.searchParams.get('net_to') || '',
+      netSearch: url.searchParams.get('net_q') || url.searchParams.get('exp_q') || url.searchParams.get('inc_q') || '',
+      netFilterType: ['expense', 'income'].includes(url.searchParams.get('net_type') || (url.searchParams.get('tab') === 'expenses' || url.hash === '#expenses' ? 'expense' : url.searchParams.get('tab') === 'donations' || url.searchParams.get('tab') === 'income' || url.hash === '#donations' || url.hash === '#income' ? 'income' : '')) ? (url.searchParams.get('net_type') || (url.searchParams.get('tab') === 'expenses' || url.hash === '#expenses' ? 'expense' : url.searchParams.get('tab') === 'donations' || url.searchParams.get('tab') === 'income' || url.hash === '#donations' || url.hash === '#income' ? 'income' : '')) : '',
+      netAmtMin: normAmt(url.searchParams.get('net_amt_min') || url.searchParams.get('exp_amt_min') || url.searchParams.get('inc_amt_min')),
+      netAmtMax: normAmt(url.searchParams.get('net_amt_max') || url.searchParams.get('exp_amt_max') || url.searchParams.get('inc_amt_max')),
+      netDateFrom: url.searchParams.get('net_from') || url.searchParams.get('exp_from') || url.searchParams.get('inc_from') || '',
+      netDateTo: url.searchParams.get('net_to') || url.searchParams.get('exp_to') || url.searchParams.get('inc_to') || '',
     }
   }
   const initUrl = urlState()
@@ -310,20 +265,10 @@ preloads:
     const url = new URL(location.href)
     const params = new URLSearchParams()
     params.set('tab', normTab(state.activeTab || 'transactions'))
-    if (state.expSearch) params.set('exp_q', state.expSearch)
     if (state.expFilterCats?.length) params.set('exp_cat', state.expFilterCats.join(','))
     if (state.expFilterStatus) params.set('exp_status', state.expFilterStatus)
-    if (state.expAmtMin) params.set('exp_amt_min', state.expAmtMin)
-    if (state.expAmtMax) params.set('exp_amt_max', state.expAmtMax)
-    if (state.expDateFrom) params.set('exp_from', state.expDateFrom)
-    if (state.expDateTo) params.set('exp_to', state.expDateTo)
-    if (state.donSearch) params.set('inc_q', state.donSearch)
     if (state.donFilterType) params.set('inc_type', state.donFilterType)
     if (state.donFilterMethods?.length) params.set('inc_method', state.donFilterMethods.join(','))
-    if (state.donAmtMin) params.set('inc_amt_min', state.donAmtMin)
-    if (state.donAmtMax) params.set('inc_amt_max', state.donAmtMax)
-    if (state.donDateFrom) params.set('inc_from', state.donDateFrom)
-    if (state.donDateTo) params.set('inc_to', state.donDateTo)
     if (state.donorSearch) params.set('donor_q', state.donorSearch)
     if (state.netSearch) params.set('net_q', state.netSearch)
     if (state.netFilterType) params.set('net_type', state.netFilterType)
@@ -370,7 +315,7 @@ preloads:
   const s = init({
     ...formDefaults(BASE, MY_USER_ID),
     activeTab: initUrl.activeTab,
-    fmtAmt,
+    fmtAmt, fmtDate,
     hl, observe, statusIcon, catCls, catHex, catBgHex, changedAt,
     editIcon: actionIcon('edit'),
     printIcon: actionIcon('print'),
@@ -468,6 +413,11 @@ preloads:
       this.showDonDetailForm = false
       this.donFormDetail = null
     },
+    get donorRowsFiltered() {
+      const q = (this.donorSearch || '').toLowerCase()
+      if (!q) return this.donorRows
+      return (this.donorRows || []).filter(d => (d.name || '').toLowerCase().includes(q))
+    },
     get incomeMethodCounts() {
       const counts = {}
       for (const r of this.donations) {
@@ -475,7 +425,7 @@ preloads:
         if (!incomeTypeMatch(r, this.donFilterType)) continue
         if (this.donDateFrom && dt < this.donDateFrom) continue
         if (this.donDateTo && dt > this.donDateTo) continue
-        const q = this.donSearch.toLowerCase()
+        const q = (this.donSearch || '').toLowerCase()
         if (q && ![r.note, r.method, r.type, bucketOf(r), sourceOf(r, this.memberNames)].filter(Boolean).join(' ').toLowerCase().includes(q)) continue
         const method = normIncomeMethod(r?.method || 'cash') || 'cash'
         counts[method] = (counts[method] || 0) + 1
@@ -559,11 +509,7 @@ preloads:
 
     trend, trendDiff,
 
-    expSearch: initUrl.expSearch, expFilterCats: initUrl.expFilterCats, expFilterStatus: initUrl.expFilterStatus, expAmtMin: initUrl.expAmtMin, expAmtMax: initUrl.expAmtMax, expDateFrom: initUrl.expDateFrom, expDateTo: initUrl.expDateTo, expPage: 1,
-    get expAmtLo() { return this.expAmtMin || 0 },
-    get expAmtHi() { return this.expAmtMax || this.expAmtCeil },
-    get expAmtCeil() { return Math.ceil(Math.max(AMT_MAX, ...this.expenses.map(r => r.amount || 0)) / 100) },
-    get expAmtHist() { return amtHist(this.expenses, this.expAmtCeil) },
+    expFilterCats: initUrl.expFilterCats, expFilterStatus: initUrl.expFilterStatus,
     expView: 'list',
     expSortBy: 'created_at', expSortDir: 'desc',
     expCols: [
@@ -780,11 +726,7 @@ preloads:
       return arr.slice(0, this.expPage * perPage)
     },
 
-    donSearch: initUrl.donSearch, donFilterType: initUrl.donFilterType, donFilterMethods: initUrl.donFilterMethods, donAmtMin: initUrl.donAmtMin, donAmtMax: initUrl.donAmtMax, donDateFrom: initUrl.donDateFrom, donDateTo: initUrl.donDateTo, donPage: 1, donSortBy: '', donSortDir: 'asc',
-    get donAmtLo() { return this.donAmtMin || 0 },
-    get donAmtHi() { return this.donAmtMax || this.donAmtCeil },
-    get donAmtCeil() { return Math.ceil(Math.max(AMT_MAX, ...this.donations.map(r => r.amount || 0)) / 100) },
-    get donAmtHist() { return amtHist(this.donations, this.donAmtCeil) },
+    donFilterType: initUrl.donFilterType, donFilterMethods: initUrl.donFilterMethods,
     get donFiltered() {
       const q = this.donSearch.toLowerCase()
       return this.donations.filter(r => {
@@ -936,15 +878,25 @@ preloads:
     },
     get netFiltered() {
       const q = this.netSearch?.toLowerCase() || ''
+      const isExpFilter = this.netFilterType === 'expense'
+      const isIncFilter = this.netFilterType === 'income'
       return this.netTransactions.filter(tx => {
         if (this.netAmtMin && (tx.amount || 0) < this.netAmtMin * 100) return false
         if (this.netAmtMax && (tx.amount || 0) > this.netAmtMax * 100) return false
         const dt = (tx._date || '').slice(0, 10)
         if (this.netDateFrom && dt < this.netDateFrom) return false
         if (this.netDateTo && dt > this.netDateTo) return false
-        if (!q) return true
-        if (tx._isExp) return [tx.payee, tx.note, tx.category, tx.expense_no, fmtCat(tx.category)].filter(Boolean).join(' ').toLowerCase().includes(q)
-        return [tx.note, tx.method, tx.type, bucketOf(tx), sourceOf(tx, this.memberNames)].filter(Boolean).join(' ').toLowerCase().includes(q)
+        if (tx._isExp) {
+          if (isExpFilter && this.expFilterStatus && tx.status !== this.expFilterStatus) return false
+          if (isExpFilter && this.expFilterCats.length && !this.expFilterCats.includes(tx.category || 'other')) return false
+          if (!q) return true
+          return [tx.payee, tx.note, tx.category, tx.expense_no, fmtCat(tx.category)].filter(Boolean).join(' ').toLowerCase().includes(q)
+        } else {
+          if (isIncFilter && this.donFilterType && !incomeTypeMatch(tx, this.donFilterType)) return false
+          if (isIncFilter && this.donFilterMethods.length && !incomeMethodMatch(tx, this.donFilterMethods)) return false
+          if (!q) return true
+          return [tx.note, tx.method, tx.type, bucketOf(tx), sourceOf(tx, this.memberNames)].filter(Boolean).join(' ').toLowerCase().includes(q)
+        }
       })
     },
     get netFilteredByType() {

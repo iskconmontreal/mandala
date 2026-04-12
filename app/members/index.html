@@ -201,7 +201,7 @@ preloads:
     const role = roles[0] || ''
     const joined = fmtJoined(d.joined || d.joined_at || d.member_since || c.joined || c.joined_at || c.member_since || c.created_at || d.created_at)
 
-    return { _id: c.id, _public: c.public_id, _user_id: c.user_id, ...d, role: role || d.role || '', roles, joined: joined || d.joined || '', services }
+    return { _id: c.id, _public: c.public_id, _has_photo: !!c.has_photo, _user_id: c.user_id, ...d, role: role || d.role || '', roles, joined: joined || d.joined || '', services }
   }
 
   function userRoles(u) {
@@ -281,7 +281,7 @@ preloads:
       s.detail = m
       s.userDetail = {}
       s.showDetail = true
-      loadPhoto(m._public)
+      loadPhoto(m._has_photo ? m._public : null)
       if (m._user_id && auth.can('users:view')) {
         try { s.userDetail = await api.getUser(m._user_id) }
         catch {}

@@ -1,18 +1,22 @@
 <define-element>
-  <transaction-filter-bar search:string="" filtertype:string="" amtmin:string="" amtmax:string="" amtlo:number amthi:number amtceil:number amthist:array datefrom:string="" dateto:string="" resultcount:number="0">
+  <transaction-filter-bar search:string="" filtertype:string="" expfiltercats:array expfilterstatus:string="" incfiltertype:string="" incfiltermethods:array amtmin:string="" amtmax:string="" amtlo:number amthi:number amtceil:number amthist:array datefrom:string="" dateto:string="" expcats:array incmethods:array resultcount:number="0">
     <style>:host { display: contents; }</style>
     <template>
       <div class="filter-search-wrap" :onclick.outside="panel = false">
         <input class="filter-search filter-search-input" type="search" placeholder="Search all transactions…"
           :value="search" :oninput.debounce-150="e => _change({ search: e.target.value })">
-        <div :class="{'hidden': !(filtertype || datefrom || dateto || amtmin || amtmax)}" class="filter-inline-chips" data-testid="filter-chips">
+        <div :class="{'hidden': !(filtertype || datefrom || dateto || amtmin || amtmax || (filtertype === 'expense' && (expfiltercats.length || expfilterstatus)) || (filtertype === 'income' && (incfiltertype || incfiltermethods.length)))}" class="filter-inline-chips" data-testid="filter-chips">
           <span :if="filtertype" class="chip filter-inline-chip" :onclick="_change({ filtertype: '' })" :text="(filtertype === 'expense' ? 'Expenses' : 'Income') + ' ×'"></span>
+          <span :if="filtertype === 'expense'" :each="cat in expfiltercats" class="chip filter-inline-chip" :onclick="_change({ expfiltercats: expfiltercats.filter(x => x !== cat) })" :text="fmtCat(cat) + ' ×'"></span>
+          <span :if="filtertype === 'expense' && expfilterstatus" class="chip filter-inline-chip" :onclick="_change({ expfilterstatus: '' })" :text="fmtStatus(expfilterstatus) + ' ×'"></span>
+          <span :if="filtertype === 'income' && incfiltertype" class="chip filter-inline-chip" :onclick="_change({ incfiltertype: '' })" :text="incfiltertype + ' ×'"></span>
+          <span :if="filtertype === 'income'" :each="met in incfiltermethods" class="chip filter-inline-chip" :onclick="_change({ incfiltermethods: incfiltermethods.filter(x => x !== met) })" :text="met + ' ×'"></span>
           <span :if="amtmin || amtmax" class="chip filter-inline-chip" :onclick="_change({ amtmin: '', amtmax: '' })" :text="'$' + amtlo + '–$' + amthi + ' ×'"></span>
           <span :if="datefrom" class="chip filter-inline-chip" :onclick="_change({ datefrom: '' })" :text="'From ' + datefrom + ' ×'"></span>
           <span :if="dateto" class="chip filter-inline-chip" :onclick="_change({ dateto: '' })" :text="'To ' + dateto + ' ×'"></span>
         </div>
         <div class="filter-search-seg">
-          <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': panel || filtertype || datefrom || dateto || amtmin || amtmax}" :onclick="panel = !panel">Filter</button>
+          <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': panel || filtertype || datefrom || dateto || amtmin || amtmax || expfiltercats.length || expfilterstatus || incfiltertype || incfiltermethods.length}" :onclick="panel = !panel">Filter</button>
           <div class="filter-dropdown hidden" data-testid="filter-panel" :class="{'hidden': !panel}">
             <div class="field">
               <label>Type</label>
@@ -22,41 +26,48 @@
                 <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': filtertype === 'income'}" :onclick="_change({ filtertype: 'income' })">Income</span>
               </div>
             </div>
-            <div class="field">
-              <label>Amount range</label>
-              <div class="range-track">
-                <div class="range-hist" :if="amthist.length">
-                  <span :each="(h, i) in amthist" class="range-hist-bar" :style="'height:' + (h * 100) + '%'" :class="{'range-hist-bar-dim': i < (_amtToPos(amtlo) / 1000 * amthist.length) || i >= (_amtToPos(amthi) / 1000 * amthist.length)}"></span>
-                </div>
-                <div class="range-slider" :ref="el => { el.style.setProperty('--lh', (_amtToPos(amtlo) / 10) + '%'); el.style.setProperty('--rh', (_amtToPos(amthi) / 10) + '%') }">
-                  <input type="range" class="range-lo" min="0" max="1000" step="1"
-                    :ref="el => { el.value = _amtToPos(amtlo) }"
-                    :oninput="e => { var p = Math.min(+e.target.value, _amtToPos(amthi)); e.target.value = p; _rangeSync(e, p, true) }">
-                  <input type="range" class="range-hi" min="0" max="1000" step="1"
-                    :ref="el => { el.value = _amtToPos(amthi) }"
-                    :oninput="e => { var p = Math.max(+e.target.value, _amtToPos(amtlo)); e.target.value = p; _rangeSync(e, p, false) }">
-                </div>
-              </div>
-              <div style="display:flex;gap:var(--s-sm);align-items:center">
-                <span class="input-prefix"><span class="input-prefix-label">$</span><input type="number" min="0" placeholder="Min" :value="amtmin"
-                  :onchange="e => { var v = Math.max(0, Math.min(+e.target.value || 0, amthi)); _changeDebounced({ amtmin: e.target.value === '' ? '' : v }) }"></span>
-                <span class="dim">—</span>
-                <span class="input-prefix"><span class="input-prefix-label">$</span><input type="number" min="0" placeholder="Max" :value="amtmax"
-                  :onchange="e => { var v = Math.min(amtceil, Math.max(+e.target.value || 0, amtlo)); _changeDebounced({ amtmax: v >= amtceil ? '' : v }) }"></span>
+
+            <!-- Expense specific filters -->
+            <div :if="filtertype === 'expense'" class="field">
+              <label>Category</label>
+              <div class="tag-cloud">
+                <span :each="cat in expcats" class="tag" :class="catCls(cat) + (expfiltercats.includes(cat) ? ' tag-active' : '')"
+                  :onclick="_change({ expfiltercats: expfiltercats.includes(cat) ? expfiltercats.filter(x => x !== cat) : [].concat(expfiltercats, [cat]) })"
+                  :text="fmtCat(cat)"></span>
               </div>
             </div>
-            <div class="field">
-              <label>Date range</label>
-              <div style="display:flex;gap:var(--s-sm);align-items:center">
-                <input type="date" :value="datefrom" :onchange="e => _change({ datefrom: e.target.value })" style="flex:1">
-                <span class="dim">—</span>
-                <input type="date" :value="dateto" :onchange="e => _change({ dateto: e.target.value })" style="flex:1">
+            <div :if="filtertype === 'expense'" class="field">
+              <label>Status</label>
+              <select :value="expfilterstatus" :onchange="e => _change({ expfilterstatus: e.target.value })">
+                <option value="" :selected="!expfilterstatus">All statuses</option>
+                <option value="submitted" :selected="expfilterstatus === 'submitted'">Approval</option>
+                <option value="approved" :selected="expfilterstatus === 'approved'">Approved</option>
+                <option value="paid" :selected="expfilterstatus === 'paid'">Paid</option>
+                <option value="rejected" :selected="expfilterstatus === 'rejected'">Rejected</option>
+              </select>
+            </div>
+
+            <!-- Income specific filters -->
+            <div :if="filtertype === 'income'" class="field">
+              <label>Income Type</label>
+              <div class="seg-group" style="width:100%">
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': !incfiltertype}" :onclick="_change({ incfiltertype: '' })">All</span>
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': incfiltertype === 'donation'}" :onclick="_change({ incfiltertype: 'donation' })">Donations</span>
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': incfiltertype === 'other'}" :onclick="_change({ incfiltertype: 'other' })">Other</span>
+              </div>
+            </div>
+            <div :if="filtertype === 'income'" class="field">
+              <label>Payment Method</label>
+              <div class="tag-cloud">
+                <span :each="met in incmethods" class="tag" :class="incfiltermethods.includes(met) ? 'tag-active' : ''"
+                  :onclick="_change({ incfiltermethods: incfiltermethods.includes(met) ? incfiltermethods.filter(x => x !== met) : [].concat(incfiltermethods, [met]) })"
+                  :text="met"></span>
               </div>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:var(--s-sm);border-top:1px solid var(--c-border)">
-              <button class="btn-link" :if="filtertype || datefrom || dateto || amtmin || amtmax"
-                :onclick="_change({ filtertype: '', datefrom: '', dateto: '', amtmin: '', amtmax: '' }); panel = false" :text="'Clear all'"></button>
-              <span :if="!filtertype && !datefrom && !dateto && !amtmin && !amtmax"></span>
+              <button class="btn-link" :if="filtertype || datefrom || dateto || amtmin || amtmax || expfiltercats.length || expfilterstatus || incfiltertype || incfiltermethods.length"
+                :onclick="_change({ filtertype: '', expfiltercats: [], expfilterstatus: '', incfiltertype: '', incfiltermethods: [], datefrom: '', dateto: '', amtmin: '', amtmax: '' }); panel = false" :text="'Clear all'"></button>
+              <span :if="!filtertype && !datefrom && !dateto && !amtmin && !amtmax && !expfiltercats.length && !expfilterstatus && !incfiltertype && !incfiltermethods.length"></span>
               <button class="btn btn-primary btn-sm" :onclick="panel = false" :text="'Show ' + resultcount + ' results'"></button>
             </div>
           </div>

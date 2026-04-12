@@ -409,7 +409,7 @@ test.describe('overview donations', () => {
       buffer: pngBytes,
     })
     await expect(page.locator('.receipt-thumb')).toHaveCount(1)
-    await expect(page.locator('.receipt-add')).toHaveCount(1)
+    await expect(page.locator('.receipt-add-row:not(.hidden)')).toHaveCount(1)
     await expect(page.locator('#exp-vendor')).toHaveValue('Receipt Shop')
     await expect(page.locator('#exp-amount')).toHaveValue('18.25')
     await page.selectOption('#exp-cat', 'utilities')
@@ -421,7 +421,7 @@ test.describe('overview donations', () => {
     const reopenedModal = page.locator('.modal-overlay:visible').first()
     await expect(reopenedModal.getByText('Attach documents')).toBeVisible()
     await expect(reopenedModal.locator('.receipt-thumb')).toHaveCount(0)
-    await expect(reopenedModal.locator('.receipt-add:not(.hidden)')).toHaveCount(0)
+    await expect(reopenedModal.locator('.receipt-add-row:not(.hidden)')).toHaveCount(0)
   })
 
   test('recent paid expense quick edit preserves edited category and reopens with populated form', async ({ page }) => {

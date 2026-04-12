@@ -5,7 +5,7 @@
       <div class="filter-search-wrap" :onclick.outside="panel = false">
         <input class="filter-search filter-search-input" type="search" placeholder="Search expense, vendor, submitter…"
           :value="search" :oninput.debounce-150="e => _change({ search: e.target.value })">
-        <div :class="{'hidden': !(filtercats.length || filterstatus || datefrom || dateto || amtmin || amtmax)}" class="filter-inline-chips">
+        <div :class="{'hidden': !(filtercats.length || filterstatus || datefrom || dateto || amtmin || amtmax)}" class="filter-inline-chips" data-testid="filter-chips">
           <span :each="cat in filtercats" class="chip filter-inline-chip" :onclick="_change({ filtercats: filtercats.filter(x => x !== cat) })" :text="fmtCat(cat) + ' ×'"></span>
           <span :if="filterstatus" class="chip filter-inline-chip" :onclick="_change({ filterstatus: '' })" :text="fmtStatus(filterstatus) + ' ×'"></span>
           <span :if="amtmin || amtmax" class="chip filter-inline-chip" :onclick="_change({ amtmin: '', amtmax: '' })" :text="'$' + amtlo + '–$' + amthi + ' ×'"></span>
@@ -14,7 +14,7 @@
         </div>
         <div class="filter-search-seg">
           <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': panel || filtercats.length || filterstatus || datefrom || dateto || amtmin || amtmax}" :onclick="panel = !panel">Filter</button>
-          <div class="filter-dropdown hidden" :class="{'hidden': !panel}">
+          <div class="filter-dropdown hidden" data-testid="filter-panel" :class="{'hidden': !panel}">
             <div class="field">
               <label>Category</label>
               <div class="tag-cloud">

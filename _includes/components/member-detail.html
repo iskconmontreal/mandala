@@ -5,14 +5,14 @@
 <div :if="show" class="modal-overlay" :onkeydown.esc.document="emit('close')" :onclick="e => { if (e.target === e.currentTarget) emit('close') }">
   <div class="modal">
     <div class="modal-header">
-      <h2 :text="member?.name || '—'"></h2>
+      <h2 :text="member?.spiritual_name || member?.name || '—'"></h2>
       <button class="modal-close" type="button" aria-label="Close dialog" :onclick="emit('close')" :html="icon('close')"></button>
     </div>
     <div class="modal-body" style="display:flex; flex-direction:column; gap:var(--s-md)">
       <div style="display:flex; align-items:center; gap:var(--s-md); margin-bottom:var(--s-xs)">
         <img :if="photosrc" :src="photosrc" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--c-border);flex-shrink:0">
-        <div :if="!photosrc" style="width:64px;height:64px;border-radius:50%;background:var(--c-accent);display:flex;align-items:center;justify-content:center;color:white;font-size:1.4rem;font-weight:600;flex-shrink:0" :text="(member?.name?.[0]||'').toUpperCase()"></div>
-        <span :if="member?.spiritual_name" class="dim" style="font-size:var(--f-sm)" :text="member.spiritual_name"></span>
+        <div :if="!photosrc" style="width:64px;height:64px;border-radius:50%;background:var(--c-accent);display:flex;align-items:center;justify-content:center;color:white;font-size:1.4rem;font-weight:600;flex-shrink:0" :text="(member?.spiritual_name?.[0] || member?.name?.[0] || '').toUpperCase()"></div>
+        <span :if="member?.name && member?.spiritual_name" class="dim" style="font-size:var(--f-sm)" :text="member.name"></span>
       </div>
       <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
         <div><div class="stat-label">Email</div><div :text="member?.email || '—'"></div></div>
@@ -21,8 +21,8 @@
         <div :if="member?.services?.length"><div class="stat-label">Services</div><div style="display:flex; flex-wrap:wrap; gap:var(--s-xs)"><span class="badge" :each="sv in member.services" :text="sv"></span></div></div>
         <div><div class="stat-label">Joined</div><div :text="member?.joined || '—'"></div></div>
       </div>
-      <div :if="member?.spiritual_name || member?.diksa_guru" style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
-        <div :if="member?.spiritual_name"><div class="stat-label">Spiritual Name</div><div :text="member.spiritual_name"></div></div>
+      <div :if="member?.name || member?.diksa_guru" style="display:flex; gap:var(--s-lg); flex-wrap:wrap">
+        <div :if="member?.name"><div class="stat-label">Legal Name</div><div :text="member.name"></div></div>
         <div :if="member?.diksa_guru"><div class="stat-label">Diksa Guru</div><div :text="member.diksa_guru"></div></div>
       </div>
       <div :if="member?.notes" style="font-size:var(--f-sm); color:var(--c-text-dim)" :text="member.notes"></div>
@@ -35,7 +35,8 @@
         <div style="display:flex; gap:var(--s-lg); flex-wrap:wrap; font-size:var(--f-sm)">
           <div>
             <div class="stat-label">Role</div>
-            <select style="width:auto; font-size:var(--f-sm)" :onchange="e => changeRole(+e.target.value)">
+            <div :if="!can('roles:update')" style="margin-top:var(--s-xs)" :text="sysRoleName(userDetail.role_id)"></div>
+            <select :if="can('roles:update')" style="width:auto; font-size:var(--f-sm)" :onchange="e => changeRole(+e.target.value)">
               <option value="0" :selected="!userDetail.role_id">None</option>
               <option :each="r in sysroles" :value="r.id" :text="r.name" :selected="r.id === userDetail.role_id"></option>
             </select>
@@ -92,6 +93,12 @@
       this.inviting = false
       this.revoking = false
       this.rolePerms = []
+      this.can = window.appState ? window.appState.can : window.auth?.can || (() => false)
+
+      this.sysRoleName = function(id) {
+        var r = (this.sysroles || []).find(function(x) { return x.id === id })
+        return r ? r.name : 'None'
+      }
 
       this.onpropchange = function(k, v) {
         if (k === 'show' && v) {
@@ -121,7 +128,7 @@
 
       this.changeRole = function(roleId) {
         var self = this; self.rolePassword = ''; self.rolePasswordErr = null; self.pendingRoleId = null
-        self.api.updateUser(self.userDetail.id, { role_id: roleId }).then(function() {
+        self.api.updateUser(self.userDetail.id, { role_ids: roleId ? [roleId] : [] }).then(function() {
           self.userDetail = Object.assign({}, self.userDetail, { role_id: roleId })
           self.updateRolePerms()
         }).catch(function(e) {
@@ -133,7 +140,7 @@
       this.confirmRolePassword = function() {
         if (!this.rolePassword) return
         var self = this; self.rolePasswordErr = null
-        self.api.updateUser(self.userDetail.id, { role_id: self.pendingRoleId, password: self.rolePassword }).then(function() {
+        self.api.updateUser(self.userDetail.id, { role_ids: self.pendingRoleId ? [self.pendingRoleId] : [], password: self.rolePassword }).then(function() {
           self.userDetail = Object.assign({}, self.userDetail, { role_id: self.pendingRoleId })
           self.pendingRoleId = null; self.rolePassword = ''
           self.updateRolePerms()

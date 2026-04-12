@@ -159,14 +159,14 @@ preloads:
 </donation-form>
 
 <script type="module">
-  import sprae from '../lib/sprae.js'
-  import { setupProcessor } from '../lib/processor.js'
-  import { init, fmtAmt, fmtCat, rawAmt, toCents, toast, auth } from '../lib/app.js'
-  import { api, BASE } from '../lib/api.js'
-  import { greeting } from '../lib/greeting.js'
-  import { catCls, changedAt, fmtDate, fmtStatus, parseMemberNames, EXP_CATS, EXP_METHODS, DON_CATS, DON_METHODS, INCOME_TYPES, EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName } from '../lib/finance.js'
-  import { icon, methodIcon, statusIcon, activityIcon, actionIcon } from '../lib/icons.js'
-  import { formDefaults, createPrintDonation } from '../lib/form.js'
+  import sprae from 'sprae'
+  import { setupProcessor } from 'lib/processor.js'
+  import { init, fmtAmt, fmtCat, rawAmt, toCents, toast, auth } from 'lib/app.js'
+  import { api, BASE } from 'lib/api.js'
+  import { greeting } from 'lib/greeting.js'
+  import { catCls, changedAt, fmtDate, fmtStatus, parseMemberNames, EXP_CATS, EXP_METHODS, DON_CATS, DON_METHODS, INCOME_TYPES, EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName } from 'lib/finance.js'
+  import { icon, methodIcon, statusIcon, activityIcon, actionIcon } from 'lib/icons.js'
+  import { formDefaults, createPrintDonation } from 'lib/form.js'
 
   const now = new Date()
   const y = now.getFullYear()

@@ -10,7 +10,7 @@ preloads:
 </div>
 
 <!-- Stat cards as tabs -->
-<div class="card-tab-group">
+<div class="card-tab-group" data-testid="tab-group">
   <div class="card-tab" :class="{['card-tab-active']: activeTab === 'transactions'}"
     :onclick="e => { switchTab('transactions'); e.currentTarget.scrollIntoView({behavior:'smooth',inline:'nearest',block:'nearest'}) }">
     <div class="stat-label">Transactions</div>
@@ -160,12 +160,12 @@ preloads:
 </section>
 
 <!-- ===== NET TAB (all transactions) ===== -->
-<section :class="{'hidden': activeTab !== 'transactions'}" :scope="{showExport: false, showAddMenu: false}">
+<section :class="{'hidden': activeTab !== 'transactions'}" :scope="{showExport: false}">
 
   <div class="filter-bar">
     <transaction-filter-bar :search="netSearch" :filtertype="netFilterType"
       :amtmin="netAmtMin" :amtmax="netAmtMax" :amtlo="netAmtLo" :amthi="netAmtHi" :amtceil="netAmtCeil" :amthist="netAmtHist"
-      :datefrom="netDateFrom" :dateto="netDateTo" :resultcount="netFiltered.length"
+      :datefrom="netDateFrom" :dateto="netDateTo" :resultcount="netFilteredCount"
       :onchange="e => { if (!e.detail) return; patchState({ netSearch: e.detail.search ?? netSearch, netFilterType: e.detail.filtertype ?? netFilterType, netAmtMin: e.detail.amtmin ?? netAmtMin, netAmtMax: e.detail.amtmax ?? netAmtMax, netDateFrom: e.detail.datefrom ?? netDateFrom, netDateTo: e.detail.dateto ?? netDateTo }) }">
     </transaction-filter-bar>
     <div class="filter-bar-actions">
@@ -176,20 +176,15 @@ preloads:
           <a class="quick-add-item" :onclick="printTable(); showExport = false">Print / PDF</a>
         </div>
       </div>
-      <div style="position:relative">
-        <button class="btn btn-primary filter-bar-create" :onclick="showAddMenu = !showAddMenu" :onclick.outside="showAddMenu = false">+ Transaction</button>
-        <div :if="showAddMenu" class="quick-add" style="right:0;left:auto">
-          <a :if="can('expenses:create')" class="quick-add-item" :onclick="showExpForm = true; expFormDetail = null; expFormMode = 'create'; showAddMenu = false">Expense</a>
-          <a :if="can('income:create')" class="quick-add-item" :onclick="openDonCreate(); showAddMenu = false">Income</a>
-        </div>
-      </div>
+      <button :if="can('expenses:create')" class="btn btn-primary filter-bar-create" :onclick="showExpForm = true; expFormDetail = null; expFormMode = 'create'">+ Expense</button>
+      <button :if="can('income:create')" class="btn btn-primary filter-bar-create" :onclick="openDonCreate()">+ Income</button>
     </div>
   </div>
 
   <transaction-list
     :years="netYearGroups" :mopen="netMonthOpen" :mfresh="netMonthFresh" :search="netSearch" :loading="loading" :error="loadErr"
-    :quickloading="quickLoading" :myapprovals="myApprovals"
-    :empty="!loading && !netFiltered.length" :canapprove="can('expenses:approve')" :memberemails="memberEmails" :emailsending="emailSending"
+    :quickloading="quickLoading" :myapprovals="myApprovals" :filtertype="netFilterType"
+    :empty="!loading && !netFilteredCount" :canapprove="can('expenses:approve')" :memberemails="memberEmails" :emailsending="emailSending"
     :onviewexp.delay-0="e => { showExpForm = true; expFormDetail = e.detail; expFormMode = ((e.detail.status || 'submitted') === 'submitted' || can('expenses:approve')) ? 'edit' : 'view' }"
     :onviewinc.delay-0="e => openDonDetail(e.detail)"
     :onprintinc="e => printDonation(e.detail)"
@@ -231,14 +226,14 @@ preloads:
 </donation-form>
 
 <script type="module">
-  import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth, hl } from '../../lib/app.js'
-  import sprae, { batch } from '../../lib/sprae.js'
-  import { setupProcessor } from '../../lib/processor.js'
-  import { icon, actionIcon, statusIcon, methodIcon, activityIcon } from '../../lib/icons.js'
-  import { api, BASE } from '../../lib/api.js'
+  import { init, fmtCat, fmtAmt, rawAmt, toCents, toast, auth, hl } from 'lib/app.js'
+  import sprae, { batch } from 'sprae'
+  import { setupProcessor } from 'lib/processor.js'
+  import { icon, actionIcon, statusIcon, methodIcon, activityIcon } from 'lib/icons.js'
+  import { api, BASE } from 'lib/api.js'
 
-  import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, EXP_METHODS, AMT_MAX, catCls, catHex, catBgHex, fmtStatus, fmtDate, fmtMonthShort, fmtMonth, changedAt, parseMemberNames, EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName } from '../../lib/finance.js'
-  import { formDefaults, createPrintDonation } from '../../lib/form.js'
+  import { EXP_STATUSES, STATUS_ORDER, DON_METHODS, INCOME_TYPES, EXP_CATS, EXP_METHODS, AMT_MAX, catCls, catHex, catBgHex, fmtStatus, fmtDate, fmtMonthShort, fmtMonth, localMonthKey, changedAt, parseMemberNames, EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName, normTab, normIncomeType, normIncomeMethod, normIncomeMethods, normExpenseCats, normAmt, bucketOf, labelOf, sourceOf, incomeTypeMatch, incomeMethodMatch, dateOnly, expenseMonthKey, incomeMonthKey, monthRange, monthOpenState, monthKeysWithData, monthItemMap, buildMonthGroups, groupMonthsByYear, sortExpenses, sortIncome, HIST_BINS, amtHist, trend, trendDiff } from 'lib/finance.js'
+  import { formDefaults, createPrintDonation } from 'lib/form.js'
 
   // CE processor + registration (must be before init() so CEs are defined when sprae processes DOM)
   setupProcessor(sprae, {
@@ -277,34 +272,7 @@ preloads:
   const expenseMonthKeys = defaultMonthKeys
   const monthLabel = now.toLocaleString('default', { month: 'short' })
   const perPage = 20
-  const normTab = tab => tab === 'donations' ? 'income' : tab === 'net' ? 'transactions' : (['transactions', 'expenses', 'income'].includes(tab) ? tab : 'transactions')
   const normYear = value => years.includes(+value) ? +value : curYear
-  const normIncomeType = value => INCOME_TYPES.includes(String(value || '').toLowerCase()) ? String(value || '').toLowerCase() : ''
-  const normIncomeMethod = value => {
-    const method = String(value || '').toLowerCase()
-    return DON_METHODS.includes(method) ? method : ''
-  }
-  const normIncomeMethods = value => {
-    const list = Array.isArray(value) ? value : String(value || '').split(',')
-    return [...new Set(list.map(normIncomeMethod).filter(Boolean))]
-  }
-  const normExpenseCats = value => {
-    const list = Array.isArray(value) ? value : String(value || '').split(',')
-    return [...new Set(list.map(item => String(item || '').toLowerCase()).filter(cat => EXP_CATS.includes(cat)))]
-  }
-  const normAmt = v => { const n = parseInt(v, 10); return n > 0 ? n : '' }
-  const HIST_BINS = 20
-  function amtHist(items, ceil) {
-    if (!items.length || !ceil) return []
-    const bins = new Array(HIST_BINS).fill(0)
-    const ceilLog = Math.log(ceil + 1)
-    for (const r of items) { const a = (r.amount || 0) / 100; if (a > 0) bins[Math.min(Math.floor(Math.log(a + 1) / ceilLog * HIST_BINS), HIST_BINS - 1)]++ }
-    const max = Math.max(1, ...bins)
-    return bins.map(n => n / max)
-  }
-  const bucketOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
-  const labelOf = x => (x.type || 'donation') === 'donation' ? (x.category || 'general') : (x.type || 'other')
-  const sourceOf = (x, names) => x.member_id ? (names[x.member_id] || x.source_name || '—') : (x.source_name || 'Anonymous')
   const urlState = () => {
     const url = new URL(location.href)
     return {
@@ -334,95 +302,9 @@ preloads:
     }
   }
   const initUrl = urlState()
-  const incomeTypeMatch = (row, filter) => {
-    const type = row?.type || 'donation'
-    return !filter || type === filter
-  }
-  const incomeMethodMatch = (row, filters) => !filters?.length || filters.includes(normIncomeMethod(row?.method || 'cash'))
-  const monthKeyOf = value => String(value || '').slice(0, 7) || 'unknown'
   const currentMonthKey = todayIso.slice(0, 7)
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`
-  const monthOpenState = (keys, prev = {}) => {
-    const next = {}
-    for (const key of keys || []) {
-      if (key in (prev || {})) next[key] = !!prev[key]
-      else if (key === currentMonthKey || key === prevMonthKey) next[key] = true
-    }
-    return next
-  }
-  const expenseMonthKey = x => monthKeyOf(x?.expense_date)
-  const incomeMonthKey = x => monthKeyOf(x?.date_received || x?.created_at || x?.updated_at)
-  const monthRange = key => {
-    const [year, month] = key.split('-').map(Number)
-    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
-    return { dateFrom: `${key}-01`, dateTo: `${key}-${String(lastDay).padStart(2, '0')}` }
-  }
-  const monthKeysWithData = (baseKeys, items, keyOf) => {
-    const keys = new Set(baseKeys)
-    for (const item of items || []) {
-      const key = keyOf(item)
-      if (key && key !== 'unknown' && key <= currentMonthKey) keys.add(key)
-    }
-    return [...keys].filter(k => k === 'unknown' || k <= currentMonthKey).sort((a, b) => {
-      if (a === 'unknown') return 1
-      if (b === 'unknown') return -1
-      return b.localeCompare(a)
-    })
-  }
-  const monthItemMap = (keys, items, keyOf) => {
-    const map = Object.fromEntries((keys || []).map(key => [key, []]))
-    for (const item of items || []) {
-      const key = keyOf(item)
-      if (!map[key]) map[key] = []
-      map[key].push(item)
-    }
-    return map
-  }
-  const buildMonthGroups = ({ keys, itemsByKey, metaByKey = {}, filterItem = null, sortItems = list => list, useMeta = false }) => (keys || []).map(key => {
-    const raw = itemsByKey?.[key] || []
-    const items = sortItems(raw.filter(item => filterItem ? filterItem(item) : true))
-    const meta = metaByKey?.[key] || { count: 0, total: 0 }
-    const count = useMeta ? (meta.count || 0) : items.length
-    const total = useMeta ? (meta.total || 0) : items.reduce((sum, item) => sum + (item.amount || 0), 0)
-    return { key, items, count, total }
-  })
-  const groupMonthsByYear = months => {
-    const groups = []
-    for (const month of months || []) {
-      const key = month.key.includes('-') ? month.key.slice(0, 4) : 'unknown'
-      const prev = groups[groups.length - 1]
-      if (!prev || prev.key !== key) groups.push({ key, items: [month] })
-      else prev.items.push(month)
-    }
-    return groups
-  }
-  const expenseSortDate = x => changedAt(x) || x?.expense_date || ''
-  const sortExpenses = list => [...list].sort((a, b) => {
-    const st = (STATUS_ORDER[a?.status || 'submitted'] ?? 9) - (STATUS_ORDER[b?.status || 'submitted'] ?? 9)
-    if (st) return st
-    const ad = expenseSortDate(a)
-    const bd = expenseSortDate(b)
-    if (ad !== bd) return bd > ad ? 1 : -1
-    const ae = a?.expense_date || ''
-    const be = b?.expense_date || ''
-    if (ae !== be) return be > ae ? 1 : -1
-    return (b?.id || 0) - (a?.id || 0)
-  })
-  const incomeSortDate = x => x?.date_received || x?.created_at || changedAt(x) || ''
-  const incomeChangedDate = x => changedAt(x) || x?.created_at || ''
-  const sortIncome = list => [...list].sort((a, b) => {
-    const ad = incomeSortDate(a)
-    const bd = incomeSortDate(b)
-    if (ad !== bd) return bd > ad ? 1 : -1
-    const au = incomeChangedDate(a)
-    const bu = incomeChangedDate(b)
-    if (au !== bu) return bu > au ? 1 : -1
-    const ae = a?.date_received || ''
-    const be = b?.date_received || ''
-    if (ae !== be) return be > ae ? 1 : -1
-    return (b?.id || 0) - (a?.id || 0)
-  })
 
   function writeUrl(state, mode = 'replaceState') {
     const url = new URL(location.href)
@@ -520,14 +402,14 @@ preloads:
     expMonthLoading: {},
     expRangeLoaded: false,
     expSearchResults: null, expSearchLoading: false,
-    expMonthOpen: monthOpenState(expenseMonthKeys),
+    expMonthOpen: monthOpenState(expenseMonthKeys, {}, currentMonthKey, prevMonthKey),
     expMonthFresh: '',
     donMonthMeta: {},
     donMonthItems: {},
     donMonthLoaded: {},
     donMonthLoading: {},
     donRangeLoaded: false,
-    donMonthOpen: monthOpenState(defaultMonthKeys),
+    donMonthOpen: monthOpenState(defaultMonthKeys, {}, currentMonthKey, prevMonthKey),
     donMonthFresh: '',
     emailSending: {},
     actionAmt: '',
@@ -675,20 +557,7 @@ preloads:
       return { cls: d > 0 ? 'stat-ok' : 'stat-err', dir: d > 0 ? 'up' : 'down', num: sign + '$' + fmtAmt(Math.abs(d)), label: ' from last month' }
     },
 
-    trend(cur, prev, invert) {
-      if (!cur && !prev) return { cls: '', dir: '', num: '', label: 'No data yet' }
-      if (!prev) return { cls: '', dir: '', num: '', label: 'New this month' }
-      const pct = Math.round((cur - prev) / prev * 100)
-      if (pct === 0) return { cls: '', dir: '', num: '', label: 'Same as last month' }
-      const cls = (pct > 0) !== !!invert ? 'stat-ok' : 'stat-err'
-      return { cls, dir: pct > 0 ? 'up' : 'down', num: (pct > 0 ? '+' : '') + pct + '%', label: ' from last month' }
-    },
-    trendDiff(cur, prev) {
-      if (!cur && !prev) return { cls: '', dir: '', num: '', label: 'No data yet' }
-      const d = cur - prev
-      if (d === 0) return { cls: '', dir: '', num: '', label: 'Same as last month' }
-      return { cls: d > 0 ? 'stat-ok' : 'stat-err', dir: d > 0 ? 'up' : 'down', num: (d > 0 ? '+' : '') + d, label: ' from last month' }
-    },
+    trend, trendDiff,
 
     expSearch: initUrl.expSearch, expFilterCats: initUrl.expFilterCats, expFilterStatus: initUrl.expFilterStatus, expAmtMin: initUrl.expAmtMin, expAmtMax: initUrl.expAmtMax, expDateFrom: initUrl.expDateFrom, expDateTo: initUrl.expDateTo, expPage: 1,
     get expAmtLo() { return this.expAmtMin || 0 },
@@ -750,7 +619,7 @@ preloads:
     get expGrouped() {
       const q = this.expSearch
       if (q && q.length >= 2 && this.expSearchResults !== null) {
-        const keys = monthKeysWithData(this.expMonthKeys, this.expSearchResults, expenseMonthKey)
+        const keys = monthKeysWithData(this.expMonthKeys, this.expSearchResults, expenseMonthKey, currentMonthKey)
         return buildMonthGroups({
           keys,
           itemsByKey: monthItemMap(keys, this.expSearchResults.filter(r => this.expenseMatches(r, '')), expenseMonthKey),
@@ -936,7 +805,7 @@ preloads:
       return this.donSortBy ? this._doSort(this.donFiltered, this.donSortBy, this.donSortDir) : sortIncome(this.donFiltered)
     },
     get donMonthKeys() {
-      return monthKeysWithData(defaultMonthKeys, this.donations, incomeMonthKey)
+      return monthKeysWithData(defaultMonthKeys, this.donations, incomeMonthKey, currentMonthKey)
     },
     get donGrouped() {
       const hasMeta = Object.keys(this.donMonthMeta).length > 0
@@ -1058,18 +927,16 @@ preloads:
     get netAmtHi() { return this.netAmtMax || this.netAmtCeil },
     get netAmtCeil() { return Math.ceil(Math.max(AMT_MAX, ...this.netTransactions.map(r => r.amount || 0)) / 100) },
     get netAmtHist() { return amtHist(this.netTransactions, this.netAmtCeil) },
-    netMonthOpen: monthOpenState(defaultMonthKeys),
+    netMonthOpen: monthOpenState(defaultMonthKeys, {}, currentMonthKey, prevMonthKey),
     netMonthFresh: '',
     get netTransactions() {
-      const exp = this.expenses.map(x => ({ ...x, _isExp: true, _date: x.expense_date || x.created_at || '', _changedAt: changedAt(x) || x.expense_date || '' }))
-      const inc = this.donations.map(d => ({ ...d, _isExp: false, _date: d.date_received || d.created_at || '', _changedAt: changedAt(d) || d.date_received || '' }))
+      const exp = this.expenses.map(x => ({ ...x, _isExp: true, _date: dateOnly(x.expense_date) || x.created_at || '', _changedAt: changedAt(x) || x.expense_date || '' }))
+      const inc = this.donations.map(d => ({ ...d, _isExp: false, _date: dateOnly(d.date_received) || d.created_at || '', _changedAt: changedAt(d) || d.date_received || '' }))
       return [...exp, ...inc]
     },
     get netFiltered() {
       const q = this.netSearch?.toLowerCase() || ''
       return this.netTransactions.filter(tx => {
-        if (this.netFilterType === 'expense' && !tx._isExp) return false
-        if (this.netFilterType === 'income' && tx._isExp) return false
         if (this.netAmtMin && (tx.amount || 0) < this.netAmtMin * 100) return false
         if (this.netAmtMax && (tx.amount || 0) > this.netAmtMax * 100) return false
         const dt = (tx._date || '').slice(0, 10)
@@ -1080,19 +947,31 @@ preloads:
         return [tx.note, tx.method, tx.type, bucketOf(tx), sourceOf(tx, this.memberNames)].filter(Boolean).join(' ').toLowerCase().includes(q)
       })
     },
+    get netFilteredByType() {
+      const t = this.netFilterType
+      if (!t) return this.netFiltered
+      const isExp = t === 'expense'
+      return this.netFiltered.filter(tx => tx._isExp === isExp)
+    },
+    get netFilteredCount() {
+      return this.netFilteredByType.length
+    },
     get netMonthKeys() {
-      const keyOf = tx => (tx._date || '').slice(0, 7) || 'unknown'
-      return monthKeysWithData(defaultMonthKeys, this.netFiltered, keyOf)
+      const keyOf = tx => localMonthKey(tx._date)
+      return monthKeysWithData(defaultMonthKeys, this.netFiltered, keyOf, currentMonthKey)
     },
     get netGrouped() {
-      const keyOf = tx => (tx._date || '').slice(0, 7) || 'unknown'
+      const keyOf = tx => localMonthKey(tx._date)
       const keys = this.netMonthKeys
       const byKey = monthItemMap(keys, this.netFiltered, keyOf)
       return keys.map(key => {
         const items = (byKey[key] || []).sort((a, b) => (b._date || '').localeCompare(a._date || '') || (b._changedAt || '').localeCompare(a._changedAt || '') || (b.id || 0) - (a.id || 0))
-        const income = items.filter(tx => !tx._isExp).reduce((s, tx) => s + (tx.amount || 0), 0)
-        const expense = items.filter(tx => tx._isExp).reduce((s, tx) => s + (tx.amount || 0), 0)
-        return { key, items, count: items.length, total: income + expense, net: income - expense }
+        let incTotal = 0, expTotal = 0, incCount = 0, expCount = 0
+        for (const tx of items) {
+          if (tx._isExp) { expTotal += tx.amount || 0; expCount++ }
+          else { incTotal += tx.amount || 0; incCount++ }
+        }
+        return { key, items, count: items.length, total: incTotal + expTotal, net: incTotal - expTotal, incCount, expCount, incTotal, expTotal }
       })
     },
     get netYearGroups() {
@@ -1199,7 +1078,7 @@ preloads:
     exportCSV() {
       if (this.activeTab === 'transactions') {
         const rows = [['Date', 'Type', 'Description', 'Category', 'Amount', 'Note']]
-        for (const tx of this.netFiltered) {
+        for (const tx of this.netFilteredByType) {
           if (tx._isExp) rows.push([tx.expense_date?.slice(0, 10), 'Expense', tx.payee, tx.category, '-' + rawAmt(tx.amount), tx.note || ''])
           else rows.push([tx.date_received?.slice(0, 10), 'Income', sourceOf(tx, this.memberNames), labelOf(tx), '+' + rawAmt(tx.amount), tx.note || ''])
         }
@@ -1227,7 +1106,7 @@ preloads:
       if (table) {
         w.document.write(table.outerHTML)
       } else if (this.activeTab === 'net') {
-        const rows = this.netFiltered.map(tx => '<tr>'
+        const rows = this.netFilteredByType.map(tx => '<tr>'
           + '<td>' + ((tx._isExp ? tx.expense_date : tx.date_received)?.slice(0, 10) || '') + '</td>'
           + '<td>' + (tx._isExp ? 'Expense' : 'Income') + '</td>'
           + '<td>' + (tx._isExp ? (tx.payee || '') : sourceOf(tx, this.memberNames)) + '</td>'
@@ -1587,9 +1466,9 @@ preloads:
     s.expRefreshing = hasVisibleExpenses
     s.loadErr = null
     s.expPage = 1; s.donPage = 1; s.donorPage = 1
-    const nextExpMonthOpen = monthOpenState(s.expMonthKeys, s.expMonthOpen)
+    const nextExpMonthOpen = monthOpenState(s.expMonthKeys, s.expMonthOpen, currentMonthKey, prevMonthKey)
     const openExpKeys = Object.entries(nextExpMonthOpen).filter(([, open]) => open).map(([key]) => key)
-    const nextDonMonthOpen = monthOpenState(defaultMonthKeys, s.donMonthOpen)
+    const nextDonMonthOpen = monthOpenState(defaultMonthKeys, s.donMonthOpen, currentMonthKey, prevMonthKey)
     const openDonKeys = Object.entries(nextDonMonthOpen).filter(([, open]) => open).map(([key]) => key)
     try {
       const [mem, summary, donors] = await Promise.all([

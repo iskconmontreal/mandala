@@ -4,7 +4,7 @@
     <template>
 
 <!-- Modal -->
-<div :if="show" class="modal-overlay" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; _close() }">
+<div :if="show" class="modal-overlay" data-testid="expense-modal" :onkeydown.esc.document="e => { if (lightboxSrc || filePickerOpen) return; _close() }">
   <div class="modal modal-expense" :onclick.outside="e => { if (lightboxSrc || filePickerOpen) return; _close() }">
     <div class="expense-media-pane" :if="!detailExp || _attachments().length || receipts.length || (expMode === 'edit')"
       :ondragover="e => e.preventDefault()"

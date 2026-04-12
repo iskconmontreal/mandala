@@ -7,10 +7,10 @@
       <div :if="empty" class="dim" style="text-align:center;padding:var(--s-xl)">No income yet</div>
       <div :if="nomatch" class="dim" style="text-align:center;padding:var(--s-lg)">No income matches filters</div>
       <div :each="yr in years" class="finance-year-section">
-        <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
+        <div class="finance-year-sticky" data-testid="year-label" :if="yr.key !== 'unknown'" :text="yr.key"></div>
         <div class="finance-year-months">
           <div :each="(g, gi) in yr.items" :class="{'finance-month-wrap-open': mopen[g.key], 'finance-month-wrap-divider': gi > 0}">
-            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !g.count && !mloading?.[g.key]}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!g.count && !mloading?.[g.key]" :onclick="e => (g.count || mloading?.[g.key]) && _toggle(g.key)">
+            <button type="button" class="exp-group-header" data-testid="month-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !g.count && !mloading?.[g.key]}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!g.count && !mloading?.[g.key]" :onclick="e => (g.count || mloading?.[g.key]) && _toggle(g.key)">
               <span :if="mloading?.[g.key]" class="load-spinner" style="width:1rem;height:1rem"></span>
               <span :if="!mloading?.[g.key]" class="exp-group-chevron" :html="icon('chevron_down')"></span>
               <span class="exp-group-heading">
@@ -25,8 +25,8 @@
                 <span :each="seg in g.breakdown" class="exp-group-breakdown-seg" :title="seg.title" :style="seg.style"></span>
               </span>
             </button>
-            <div class="recent-inc-list finance-exp-list finance-inc-list-group" :class="{'finance-exp-list-open': mopen[g.key], 'finance-exp-list-fresh': mfresh === g.key}" :aria-hidden="mopen[g.key] ? 'false' : 'true'">
-              <div :each="d in g.items" class="recent-inc-item row-link finance-inc-item" :onclick="e => _emit('view', d)">
+            <div class="recent-inc-list finance-exp-list finance-inc-list-group" data-testid="month-items" :class="{'finance-exp-list-open': mopen[g.key], 'finance-exp-list-fresh': mfresh === g.key}" :aria-hidden="mopen[g.key] ? 'false' : 'true'">
+              <div :each="d in g.items" class="recent-inc-item row-link finance-inc-item" data-testid="income-item" :onclick="e => _emit('view', d)">
                 <span class="recent-inc-icon-col" :class="'recent-inc-icon-' + (d.method || 'cash')">
                   <span class="recent-inc-icon" :html="methodIcon(d.method || 'cash')"></span>
                 </span>

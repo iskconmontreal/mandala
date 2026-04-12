@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/tokens.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/login.css">
+    <script type="importmap">{"imports":{"sprae":"./lib/sprae.js","lib/":"./lib/"}}</script>
   </head>
 
   <body>
@@ -96,10 +97,10 @@
     </div>
 
     <script type="module">
-      import sprae from './lib/sprae.js'
-      import { auth } from './lib/auth.js'
-      import { api, BASE } from './lib/api.js'
-      import { ICONS } from './lib/icons.js'
+      import sprae from 'sprae'
+      import { auth } from 'lib/auth.js'
+      import { api, BASE } from 'lib/api.js'
+      import { ICONS } from 'lib/icons.js'
 
 
       // If already logged in, go to dashboard

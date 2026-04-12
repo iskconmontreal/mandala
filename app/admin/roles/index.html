@@ -78,8 +78,8 @@ title: Roles & Permissions
 </div>
 
 <script type="module">
-  import { init, fmtCat, auth, toast } from '../../../lib/app.js'
-  import { api } from '../../../lib/api.js'
+  import { init, fmtCat, auth, toast } from 'lib/app.js'
+  import { api } from 'lib/api.js'
 
   if (!auth.can('roles:update')) {
     location.replace(new URL('../../', location.href).href)

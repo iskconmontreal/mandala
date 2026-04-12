@@ -5,7 +5,7 @@
       <div class="filter-search-wrap" :onclick.outside="panel = false">
         <input class="filter-search filter-search-input" type="search" placeholder="Search all transactions…"
           :value="search" :oninput.debounce-150="e => _change({ search: e.target.value })">
-        <div :class="{'hidden': !(filtertype || datefrom || dateto || amtmin || amtmax)}" class="filter-inline-chips">
+        <div :class="{'hidden': !(filtertype || datefrom || dateto || amtmin || amtmax)}" class="filter-inline-chips" data-testid="filter-chips">
           <span :if="filtertype" class="chip filter-inline-chip" :onclick="_change({ filtertype: '' })" :text="(filtertype === 'expense' ? 'Expenses' : 'Income') + ' ×'"></span>
           <span :if="amtmin || amtmax" class="chip filter-inline-chip" :onclick="_change({ amtmin: '', amtmax: '' })" :text="'$' + amtlo + '–$' + amthi + ' ×'"></span>
           <span :if="datefrom" class="chip filter-inline-chip" :onclick="_change({ datefrom: '' })" :text="'From ' + datefrom + ' ×'"></span>
@@ -13,14 +13,14 @@
         </div>
         <div class="filter-search-seg">
           <button class="btn btn-filter filter-search-btn" :class="{'filter-search-btn-active': panel || filtertype || datefrom || dateto || amtmin || amtmax}" :onclick="panel = !panel">Filter</button>
-          <div class="filter-dropdown hidden" :class="{'hidden': !panel}">
+          <div class="filter-dropdown hidden" data-testid="filter-panel" :class="{'hidden': !panel}">
             <div class="field">
               <label>Type</label>
-              <select :onchange="e => _change({ filtertype: e.target.value })">
-                <option value="" :selected="!filtertype">All transactions</option>
-                <option value="expense" :selected="filtertype === 'expense'">Expenses only</option>
-                <option value="income" :selected="filtertype === 'income'">Income only</option>
-              </select>
+              <div class="seg-group" style="width:100%">
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': !filtertype}" :onclick="_change({ filtertype: '' })">All</span>
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': filtertype === 'expense'}" :onclick="_change({ filtertype: 'expense' })">Expenses</span>
+                <span class="seg" style="flex:1;text-align:center" :class="{'seg-active': filtertype === 'income'}" :onclick="_change({ filtertype: 'income' })">Income</span>
+              </div>
             </div>
             <div class="field">
               <label>Amount range</label>

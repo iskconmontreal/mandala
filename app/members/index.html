@@ -11,8 +11,13 @@ preloads:
 <section>
 
 <!-- Member modals -->
-<member-edit-form :show="showEdit" :member="editing" :roles="roles" :photosrc="photoSrc" :services="SERVICES"
-  :onsave="e => { showEdit = false; editing = null; if (e.detail?.member) openDetail(e.detail.member); load() }"
+<member-edit-form :show="showAdd" :roles="formRoles" :services="SERVICES"
+  :onsave="e => { showAdd = false; load() }"
+  :oncancel="() => { showAdd = false }">
+</member-edit-form>
+
+<member-edit-form :show="showEdit" :member="editing" :roles="formRoles" :photosrc="photoSrc" :services="SERVICES" :canmanage="can('members:manage')"
+  :onsave="e => { showEdit = false; editing = null; showDetail = false; detail = {}; load() }"
   :oncancel="() => { showEdit = false; editing = null }">
 </member-edit-form>
 
@@ -23,14 +28,18 @@ preloads:
 
 <!-- Filter bar -->
 <div class="filter-bar">
-  <button class="btn btn-primary btn-sm" :onclick="openAdd()">+ Member</button>
-  <input class="filter-search" type="search" placeholder="Search name, email or phone…"
-    :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1; load() }">
+  <div class="filter-search-wrap">
+    <input class="filter-search" type="search" placeholder="Search name, email or phone…"
+      :value="search" :oninput.debounce-150="e => { search = e.target.value; page = 1; load() }">
+  </div>
   <select :value="filterRole" :change="v => { filterRole = v; page = 1; load() }" style="width:auto">
     <option value="">All roles</option>
     <option :each="r in roles" :value="r" :text="r"></option>
   </select>
-  <button class="btn btn-outline btn-sm" :if="search || filterRole" :onclick="e => { search = ''; filterRole = ''; load() }">Clear</button>
+  <button class="btn btn-outline" :if="search || filterRole" :onclick="e => { search = ''; filterRole = ''; load() }">Clear</button>
+  <div class="filter-bar-actions">
+    <button class="btn btn-primary filter-bar-create" :onclick="openAdd()">+ Member</button>
+  </div>
 </div>
 
 <!-- Members list -->
@@ -87,11 +96,11 @@ preloads:
 {% include components/member-detail.html %}
 
 <script type="module">
-  import sprae from '../../lib/sprae.js'
-  import { setupProcessor } from '../../lib/processor.js'
-  import { init, SERVICES, auth, fmtCat, toast, hl, loadSystemRoles, uniq } from '../../lib/app.js'
-  import { icon } from '../../lib/icons.js'
-  import { api, BASE } from '../../lib/api.js'
+  import sprae from 'sprae'
+  import { setupProcessor } from 'lib/processor.js'
+  import { init, SERVICES, auth, fmtCat, toast, hl, loadSystemRoles, uniq } from 'lib/app.js'
+  import { icon } from 'lib/icons.js'
+  import { api, BASE } from 'lib/api.js'
 
   setupProcessor(sprae, { fmtCat, toast, icon, api, BASE, SERVICES })
 
@@ -223,6 +232,7 @@ preloads:
   }
 
   const s = init({
+    showAdd: false,
     showEdit: false,
     showDetail: false,
     editing: null,
@@ -231,7 +241,13 @@ preloads:
     sysRoles: [],
     members: [],
     total: 0,
-    roles: [],
+    roles: ['President', 'Treasurer', 'Accountant', 'Board Member', 'Volunteer', 'Viewer'],
+    get formRoles() {
+      const PRIVILEGED = ['President', 'Treasurer', 'Accountant']
+      return auth.can('roles:update')
+        ? this.roles
+        : this.roles.filter(r => !PRIVILEGED.includes(r))
+    },
     SERVICES, hl,
     loading: false,
     loadErr: null,
@@ -259,12 +275,7 @@ preloads:
       return fmtCat(scope) + ' — ' + action
     },
 
-    openAdd() {
-      s.editing = null
-      s.form = emptyForm(s.roles[0] || '')
-      s.formErr = null
-      s.showEdit = true
-    },
+    openAdd() { s.showAdd = true },
 
     async openDetail(m) {
       s.detail = m
@@ -345,7 +356,9 @@ preloads:
   load()
   loadSystemRoles().then(roles => {
     if (!roles.length) return
-    s.roles = roles.map(r => r.name)
+    const names = roles.map(r => r.name).filter(r => r !== 'Administrator')
+    if (!names.includes('President')) names.unshift('President')
+    s.roles = names
     roleNameById.clear()
     for (const r of roles) roleNameById.set(+r.id, r.name)
     if (!s.form.role) s.form.role = s.roles[0] || ''

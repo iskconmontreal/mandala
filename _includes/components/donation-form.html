@@ -3,7 +3,7 @@
     <style>:host { display: contents; }</style>
     <template>
 
-<div :if="show" class="modal-overlay" :onkeydown.esc.document="e => { _close() }">
+<div :if="show" class="modal-overlay" data-testid="income-modal" :onkeydown.esc.document="e => { _close() }">
   <div class="modal" :onclick.outside="e => { _close() }">
     <div class="modal-header">
       <h2 style="display:flex;align-items:center;gap:var(--s-sm)">

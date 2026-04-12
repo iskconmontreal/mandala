@@ -3,6 +3,11 @@
 <div class="page-header" style="display:flex; align-items:baseline; justify-content:space-between">
   <h1>Profile</h1>
   <button :if="!memberLoading && hasMember && !editing" class="btn btn-outline btn-sm" :onclick="startEdit()">Edit</button>
+  <div :if="!memberLoading && hasMember && editing" style="display:flex; gap:var(--s-sm)">
+    <div class="login-error" :if="saveErr" :text="saveErr"></div>
+    <button type="button" class="btn btn-outline btn-sm" :onclick="cancelEdit()">Cancel</button>
+    <button type="submit" form="profile-form" class="btn btn-primary btn-sm" :class="{'btn-loading': saving}">Save</button>
+  </div>
 </div>
 
 <!-- Loading -->
@@ -25,7 +30,7 @@
         <div style="font-size:var(--f-xl); font-weight:var(--f-wt-b); line-height:1.2" :text="displayName"></div>
         <div :if="m.spiritual_name && m.name" class="dim" style="font-size:var(--f-sm)" :text="m.name"></div>
         <div style="display:flex; flex-wrap:wrap; gap:var(--s-xs); margin-top:var(--s-xs)">
-          <span class="badge" :text="roleName"></span>
+          <span class="badge" :each="rn in roleNames" :text="rn"></span>
           <span class="badge" :each="sv in m.services || []" :text="sv"></span>
         </div>
       </div>
@@ -143,7 +148,7 @@
 
 <!-- ===== EDIT MODE ===== -->
 <div :if="!memberLoading && hasMember && editing">
-  <form :onsubmit.prevent="saveProfile()">
+  <form id="profile-form" :onsubmit.prevent="saveProfile()">
 
     <!-- Photo + Name -->
     <div class="card" style="margin-bottom:var(--s-lg)">
@@ -293,12 +298,6 @@
       </div>
     </div>
 
-    <div class="login-error" :if="saveErr" :text="saveErr" style="margin-bottom:var(--s-sm)"></div>
-
-    <div style="display:flex; justify-content:flex-end; gap:var(--s-sm); margin-bottom:var(--s-lg)">
-      <button type="button" class="btn btn-outline" :onclick="editing = false">Cancel</button>
-      <button type="submit" class="btn btn-primary" :class="{'btn-loading': saving}">Save</button>
-    </div>
   </form>
 </div>
 
@@ -330,24 +329,22 @@
   </div>
 </div>
 
-<!-- Permissions (collapsed, multi-column grid like roles page) -->
-<details :if="permissions.length">
-  <summary style="cursor:pointer; font-weight:600; color:var(--c-text-dim); margin-bottom:var(--s-sm)">Permissions</summary>
-  <div class="card">
-    <div class="perm-grid">
-      <div :each="scope in Object.keys(permGroups)" class="perm-row">
-        <span class="perm-scope" :text="permLabels[scope] || fmtCat(scope)"></span>
-        <span class="perm-actions">
-          <span class="badge" :each="action in permGroups[scope]" :text="action"></span>
-        </span>
-      </div>
+<!-- Permissions -->
+<div :if="permissions.length" class="card" style="margin-bottom:var(--s-lg)">
+  <h3 style="margin-bottom:var(--s-md)">Permissions</h3>
+  <div class="perm-grid">
+    <div :each="scope in Object.keys(permGroups)" class="perm-row">
+      <span class="perm-scope" :text="permLabels[scope] || fmtCat(scope)"></span>
+      <span class="perm-actions">
+        <span class="badge" :each="action in permGroups[scope]" :text="action"></span>
+      </span>
     </div>
   </div>
-</details>
+</div>
 
 <script type="module">
-  import { init, auth, fmtCat, toast } from '../lib/app.js'
-  import { api, BASE } from '../lib/api.js'
+  import { init, auth, fmtCat, toast, userRoleNames } from 'lib/app.js'
+  import { api, BASE } from 'lib/api.js'
 
   const u = auth.user
   let memberRaw = null
@@ -365,13 +362,7 @@
     photoSrc: null,
     photoPreview: null,
     photoFile: null,
-    roleName: (() => {
-      try {
-        const r = u?.role?.role
-        const parsed = typeof r === 'string' ? JSON.parse(r) : r
-        return parsed?.name || '—'
-      } catch { return '—' }
-    })(),
+    roleNames: userRoleNames(u),
     get displayName() {
       return this.m.spiritual_name || this.m.name || u?.meta?.spiritual_name || u?.meta?.name || u?.email?.split('@')[0] || '—'
     },
@@ -408,6 +399,8 @@
       s.saveErr = null
       s.editing = true
     },
+
+    cancelEdit() { s.editing = false },
 
     pickPhoto(e) {
       const file = e.target.files[0]

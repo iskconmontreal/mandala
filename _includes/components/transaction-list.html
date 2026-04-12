@@ -1,29 +1,30 @@
 <define-element>
-  <transaction-list years:array mopen:object mfresh:string="" loading:boolean="false" error:string="" search:string="" empty:boolean="false" canapprove:boolean="false" quickloading:object myapprovals:object memberemails:object emailsending:object>
-    <style>:host { display: contents; }</style>
+  <transaction-list years:array mopen:object mfresh:string="" loading:boolean="false" error:string="" search:string="" empty:boolean="false" canapprove:boolean="false" quickloading:object myapprovals:object memberemails:object emailsending:object filtertype:string="">
+    <style>:host { display: contents; } :host([filtertype="expense"]) .recent-inc-item { display: none !important; } :host([filtertype="income"]) .recent-exp-item { display: none !important; }</style>
     <template>
       <div :if="error" class="login-error" :text="error" style="margin:var(--s-md)"></div>
       <div :if="loading" class="dim" style="text-align:center;padding:var(--s-lg)">Loading…</div>
       <div :if="empty" class="dim" style="text-align:center;padding:var(--s-xl)">No transactions yet</div>
-      <div :each="yr in years" class="finance-year-section">
-        <div class="finance-year-sticky" :if="yr.key !== 'unknown'" :text="yr.key"></div>
+      <div :each="yr in years" class="finance-year-section" :if="!filtertype || yr.items.some(g => filtertype === 'expense' ? g.expCount : g.incCount)">
+        <div class="finance-year-sticky" data-testid="year-label" :if="yr.key !== 'unknown'" :text="yr.key"></div>
         <div class="finance-year-months">
-          <div :each="(g, gi) in yr.items" :class="{'finance-month-wrap-open': mopen[g.key], 'finance-month-wrap-divider': gi > 0}">
-            <button type="button" class="exp-group-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !g.count}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!g.count" :onclick="e => g.count && _toggle(g.key)">
+          <template :each="(g, gi) in yr.items">
+          <div :if="!filtertype || (filtertype === 'expense' ? g.expCount : g.incCount)" :class="{'finance-month-wrap-open': mopen[g.key], 'finance-month-wrap-divider': gi > 0}">
+            <button type="button" class="exp-group-header" data-testid="tx-month-header" :class="{'exp-group-header-open': mopen[g.key], 'exp-group-header-empty': !(filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count)}" :aria-expanded="mopen[g.key] ? 'true' : 'false'" :disabled="!(filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count)" :onclick="e => (filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count) && _toggle(g.key)">
               <span class="exp-group-chevron" :html="icon('chevron_down')"></span>
               <span class="exp-group-heading">
                 <span class="exp-group-label">
                   <span class="finance-month-label-desktop" :text="fmtMonthShort(g.key)"></span>
                   <span class="finance-month-label-mobile" :text="fmtMonth(g.key)"></span>
                 </span>
-                <span :if="g.count" class="exp-group-count" :text="g.count"></span>
+                <span :if="filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count" class="exp-group-count" :text="filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count"></span>
               </span>
-              <span class="exp-group-total" :class="g.count ? (g.net >= 0 ? 'stat-ok' : 'stat-err') : ''" :text="g.count ? ((g.net >= 0 ? '+' : '\u2212') + '$' + fmtAmt(Math.abs(g.net))) : '$0'"></span>
+              <span class="exp-group-total" :class="(filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count) ? (filtertype === 'expense' ? 'stat-err' : filtertype === 'income' ? 'stat-ok' : (g.net >= 0 ? 'stat-ok' : 'stat-err')) : ''" :text="(filtertype ? (filtertype === 'expense' ? g.expCount : g.incCount) : g.count) ? ((filtertype === 'expense' ? '\u2212' : filtertype === 'income' ? '+' : (g.net >= 0 ? '+' : '\u2212')) + '$' + fmtAmt(filtertype === 'expense' ? g.expTotal : filtertype === 'income' ? g.incTotal : Math.abs(g.net))) : '$0'"></span>
             </button>
-            <div class="recent-exp-list recent-inc-list finance-exp-list finance-inc-list-group finance-net-list" :class="{'finance-exp-list-open': mopen[g.key], 'finance-exp-list-fresh': mfresh === g.key}" :aria-hidden="mopen[g.key] ? 'false' : 'true'">
+            <div class="recent-exp-list recent-inc-list finance-exp-list finance-inc-list-group finance-net-list" data-testid="tx-month-items" :class="{'finance-exp-list-open': mopen[g.key], 'finance-exp-list-fresh': mfresh === g.key}" :aria-hidden="mopen[g.key] ? 'false' : 'true'">
               <template :each="tx in g.items">
                 <!-- Expense row -->
-                <div :if="tx._isExp" class="recent-exp-item row-link finance-net-item" :onclick="e => _emit('viewexp', tx)">
+                <div :if="tx._isExp && filtertype !== 'income'" class="recent-exp-item row-link finance-net-item" data-testid="tx-expense" :onclick="e => _emit('viewexp', tx)">
                   <span class="recent-exp-icon-col">
                     <span class="status-icon" :class="'status-' + (tx.status || 'submitted')" :html="statusIcon(tx.status || 'submitted')"></span>
                   </span>
@@ -60,7 +61,7 @@
                   </div>
                 </div>
                 <!-- Income row -->
-                <div :if="!tx._isExp" class="recent-inc-item row-link finance-net-item" :onclick="e => _emit('viewinc', tx)">
+                <div :if="!tx._isExp && filtertype !== 'expense'" class="recent-inc-item row-link finance-net-item" data-testid="tx-income" :onclick="e => _emit('viewinc', tx)">
                   <span class="recent-inc-icon-col" :class="'recent-inc-icon-' + (tx.method || 'cash')">
                     <span class="recent-inc-icon" :html="methodIcon(tx.method || 'cash')"></span>
                   </span>
@@ -93,6 +94,7 @@
               </template>
             </div>
           </div>
+          </template>
         </div>
       </div>
     </template>

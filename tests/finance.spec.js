@@ -2130,6 +2130,57 @@ test.describe('finance section', () => {
     await expect(page.locator('.receipt-thumb')).toHaveCount(2, { timeout: 5000 })
   })
 
+  test('remove receipt photo → add more photos → deleted item rows not recreated', async ({ page }) => {
+    let callCount = 0
+    await page.route(`${API}/**`, async route => {
+      const path = new URL(route.request().url()).pathname
+      const method = route.request().method()
+      if (path === '/api/documents/upload' && method === 'POST') {
+        callCount++
+        const vendors = ['Vendor A', 'Vendor B', 'Vendor C']
+        return route.fulfill({ json: {
+          extracted_data: { amount: `${10 * callCount}.00`, vendor: vendors[callCount - 1] || `Vendor${callCount}` },
+          attachment: { id: 400 + callCount, file_path: `uploads/finance/2026/r${callCount}.webp`, original_name: `r${callCount}.jpg`, mime_type: 'image/webp', file_size: 256, intent: '' },
+        } })
+      }
+      route.fulfill({ json: { items: [], total: 0 } })
+    })
+
+    const minJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9])
+    await openFinance(page)
+    await page.click('button:has-text("+ Expense")')
+
+    // Add two receipts → OCR creates two item rows
+    await page.setInputFiles('#exp-receipt-input', [
+      { name: 'a.jpg', mimeType: 'image/jpeg', buffer: minJpeg },
+      { name: 'b.jpg', mimeType: 'image/jpeg', buffer: minJpeg },
+    ])
+    await expect(page.locator('.receipt-thumb')).toHaveCount(2, { timeout: 5000 })
+    await expect(page.locator('.exp-items-table tbody tr')).toHaveCount(2, { timeout: 5000 })
+    await expect(page.locator('.exp-items-table tbody input[type="text"]').first()).toHaveValue('Vendor A')
+
+    // Remove first photo (deletes its item row)
+    await page.locator('.receipt-remove').first().click()
+    await expect(page.locator('.receipt-thumb')).toHaveCount(1)
+
+    // Item for removed photo must be gone
+    await expect(page.locator('.exp-items-table tbody tr')).toHaveCount(1)
+    await expect(page.locator('.exp-items-table tbody input[type="text"]').first()).not.toHaveValue('Vendor A')
+
+    // Add a third photo
+    await page.setInputFiles('#exp-receipt-input', { name: 'c.jpg', mimeType: 'image/jpeg', buffer: minJpeg })
+    await expect(page.locator('.receipt-thumb')).toHaveCount(2, { timeout: 5000 })
+    await expect(page.locator('.exp-items-table tbody tr')).toHaveCount(2, { timeout: 5000 })
+
+    // Deleted item (Vendor A) must NOT be recreated
+    const inputs = page.locator('.exp-items-table tbody input[type="text"]')
+    const count = await inputs.count()
+    const descs = await Promise.all(Array.from({ length: count }, (_, i) => inputs.nth(i).inputValue()))
+    expect(descs).not.toContain('Vendor A')
+    expect(descs).toContain('Vendor B')
+    expect(descs).toContain('Vendor C')
+  })
+
   test('delete saved attachment deferred until Update', async ({ page }) => {
     const expenses = [
       {

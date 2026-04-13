@@ -83,6 +83,30 @@ preloads:
 
     <div class="card">
       <div class="card-header" style="align-items:flex-start; gap:var(--s-md)">
+        <h3 style="margin:0">Tax receipt signatory</h3>
+      </div>
+      <div class="org-form-sections">
+        <div class="form-row">
+          <div class="field">
+            <label for="org-signatory-name">Authorized signatory name</label>
+            <input id="org-signatory-name" type="text" :value="form.receipt_signatory_name" :change="v => form.receipt_signatory_name = v" placeholder="John Doe">
+          </div>
+          <div class="field">
+            <label for="org-signatory-title">Title / designation</label>
+            <input id="org-signatory-title" type="text" :value="form.receipt_signatory_title" :change="v => form.receipt_signatory_title = v" placeholder="Treasurer">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="org-receipt-location">Location receipts issued</label>
+            <input id="org-receipt-location" type="text" :value="form.receipt_location" :change="v => form.receipt_location = v" :placeholder="[form.org_city, form.org_province].filter(Boolean).join(', ') || 'Montréal, QC'">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="align-items:flex-start; gap:var(--s-md)">
         <div>
           <h3 style="margin:0">Expense approval rules</h3>
           <div class="dim" style="font-size:var(--f-sm)">Controls how submitted expenses are reviewed.</div>
@@ -137,6 +161,20 @@ preloads:
     </div>
 
     <div class="card">
+      <div class="card-header"><h3 style="margin:0">Tax receipt signatory</h3></div>
+      <div class="org-view-grid">
+        <div class="org-view-block">
+          <div class="stat-label">Authorized signatory</div>
+          <div :class="{'org-empty': !form.receipt_signatory_name}" :text="[form.receipt_signatory_name, form.receipt_signatory_title].filter(Boolean).join(', ') || 'Not set'"></div>
+        </div>
+        <div class="org-view-block">
+          <div class="stat-label">Location issued</div>
+          <div :class="{'org-empty': !form.receipt_location}" :text="form.receipt_location || 'Not set'"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-header"><h3 style="margin:0">Expense approval rules</h3></div>
       <div class="org-rules-grid">
         <div class="org-rule-card">
@@ -171,6 +209,10 @@ preloads:
     fiscal_year_end: '',
     approval_threshold_cents: 0,
     required_approvals: 1,
+    receipt_signatory_name: '',
+    receipt_signatory_title: '',
+    receipt_signatory_id: '',
+    receipt_location: '',
   }
 
   function cleanText(v) { return String(v ?? '').trim() }
@@ -206,11 +248,15 @@ preloads:
       fiscal_year_end: cleanText(form.fiscal_year_end),
       approval_threshold_cents: threshold ? Math.max(0, toCents(threshold)) : 0,
       required_approvals: Math.max(1, parseInt(form.required_approvals, 10) || 1),
+      receipt_signatory_name: cleanText(form.receipt_signatory_name),
+      receipt_signatory_title: cleanText(form.receipt_signatory_title),
+      receipt_signatory_id: cleanText(form.receipt_signatory_id),
+      receipt_location: cleanText(form.receipt_location),
     }
   }
 
-  const RECEIPT_FIELDS = ['org_name', 'charity_bn', 'org_address', 'org_city', 'org_province', 'org_postal']
-  const FIELD_LABELS = { org_name: 'name', charity_bn: 'charity BN', org_address: 'address', org_city: 'city', org_province: 'province', org_postal: 'postal code' }
+  const RECEIPT_FIELDS = ['org_name', 'charity_bn', 'org_address', 'org_city', 'org_province', 'org_postal', 'receipt_signatory_name', 'receipt_location']
+  const FIELD_LABELS = { org_name: 'name', charity_bn: 'charity BN', org_address: 'address', org_city: 'city', org_province: 'province', org_postal: 'postal code', receipt_signatory_name: 'signatory name', receipt_location: 'location' }
 
   const s = init({
     orgEditor: canEditOrgSettings(auth.user),

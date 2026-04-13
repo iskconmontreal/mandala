@@ -1,5 +1,5 @@
 <define-element>
-  <transaction-list years:array mopen:object mfresh:string="" loading:boolean="false" error:string="" search:string="" empty:boolean="false" canapprove:boolean="false" quickloading:object myapprovals:object memberemails:object emailsending:object filtertype:string="">
+  <transaction-list years:array mopen:object mfresh:string="" loading:boolean="false" error:string="" search:string="" empty:boolean="false" canapprove:boolean="false" quickloading:object myapprovals:object memberemails:object emailsending:object filtertype:string="" canissuereceipt:boolean="false" receiptissuing:object>
     <style>:host { display: contents; } :host([filtertype="expense"]) .recent-inc-item { display: none !important; } :host([filtertype="income"]) .recent-exp-item { display: none !important; }</style>
     <template>
       <div :if="error" class="login-error" :text="error" style="margin:var(--s-md)"></div>
@@ -71,6 +71,7 @@
                         <div style="display:flex;align-items:baseline;gap:var(--s-xs);flex-wrap:wrap">
                           <div class="recent-inc-title" :html="hl(tx.source_name || tx.member_name || 'Anonymous', search || '')"></div>
                           <span :if="tx.id" class="recent-inc-title-sub dim" :text="'#' + tx.id"></span>
+                          <span :if="tx.tax_receipt_no" class="badge badge-ok" style="font-size:var(--f-xs)" :text="tx.tax_receipt_no"></span>
                         </div>
                       </div>
                       <div class="recent-inc-subtitle">
@@ -83,6 +84,8 @@
                     <button type="button" class="btn btn-sm btn-icon btn-outline" aria-label="Print receipt" :title="'Print receipt'" :onclick.stop="e => _emit('printinc', tx)" :html="printIcon"></button>
                     <span :if="emailsending?.[tx.id]" class="load-spinner" style="width:1rem;height:1rem;flex-shrink:0" aria-label="Sending..."></span>
                     <button type="button" class="btn btn-sm btn-icon btn-outline" :if="tx.member_id && memberemails?.[tx.member_id] && !emailsending?.[tx.id]" :title="'Email receipt to ' + memberemails[tx.member_id]" :onclick.stop="e => _emit('emailinc', tx)" :html="emailIcon"></button>
+                    <span :if="receiptissuing?.[tx.id]" class="load-spinner" style="width:1rem;height:1rem;flex-shrink:0" aria-label="Issuing…"></span>
+                    <button type="button" class="btn btn-sm btn-icon btn-outline" :if="canissuereceipt && tx.type === 'donation' && tx.member_id && !tx.tax_receipt_id && !receiptissuing?.[tx.id]" title="Issue tax receipt" :onclick.stop="e => _emit('issuereceipt', tx)" :html="receiptIcon"></button>
                   </span>
                   <div class="recent-inc-type">
                     <span class="badge" :class="catCls((tx.type || 'donation') === 'donation' ? (tx.category || 'general') : (tx.type || 'other'))" :text="fmtCat((tx.type || 'donation') === 'donation' ? (tx.category || 'general') : (tx.type || 'other'))"></span>

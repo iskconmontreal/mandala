@@ -98,6 +98,10 @@ test.describe('organization (president)', () => {
     fiscal_year_end: '03-31',
     approval_threshold_cents: 25000,
     required_approvals: 2,
+    receipt_signatory_name: 'Bhakta Das',
+    receipt_signatory_title: 'Treasurer',
+    receipt_signatory_id: '',
+    receipt_location: 'Montréal, QC',
   }
 
   let settings, lastPayload

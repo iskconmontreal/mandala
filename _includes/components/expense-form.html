@@ -139,7 +139,7 @@
             </div>
             <div class="field">
               <label>Date</label>
-              <input id="exp-date" type="date" :value="expForm.expense_date" :change="v => { expForm.expense_date = v; markDirty('date') }" :disabled="_policy().dateLocked" :placeholder="'Defaults to today'">
+              <input id="exp-date" type="date" :value="expForm.expense_date" :change="v => { expForm.expense_date = v; markDirty('date') }" :disabled="_policy().dateLocked">
             </div>
           </div>
           <div class="field">
@@ -247,7 +247,7 @@
     </template>
     <script>
       // --- Internal state ---
-      this.expForm = { payee: '', amount: '', category: '', expense_date: '', note: '', member_id: null, gst: '', pst: '', items: [{ desc: '', amount: '', gst: '', pst: '' }] }
+      this.expForm = { payee: '', amount: '', category: '', expense_date: new Date().toLocaleDateString('en-CA'), note: '', member_id: null, gst: '', pst: '', items: [{ desc: '', amount: '', gst: '', pst: '' }] }
       this.receipts = []
       this.expReceiptSlide = 0
       this.lightboxSrc = ''
@@ -398,7 +398,7 @@
         this.expDirty = false; this.pendingDeletes = new Set()
         this.actionNote = ''; this.payRef = ''; this.payMethod = ''; this.expRejecting = false
         this.expSaving = false; this.delConfirm = false; this.deleting = false; this.actioning = false; this.extracting = false
-        this.expForm = { payee: '', amount: '', category: '', expense_date: '', note: '', member_id: null, gst: '', pst: '', items: [{ desc: '', amount: '', gst: '', pst: '' }] }
+        this.expForm = { payee: '', amount: '', category: '', expense_date: new Date().toLocaleDateString('en-CA'), note: '', member_id: null, gst: '', pst: '', items: [{ desc: '', amount: '', gst: '', pst: '' }] }
         this.expHistory = []; this.expTimelineExpanded = false
         this.expCats = this.EXP_CATS.slice(); this.expMethods = this.EXP_METHODS.slice()
         this.expStatus = 'submitted'
@@ -580,6 +580,7 @@
       this.removeReceipt = function(r) {
         var i = r._uid != null ? this.receipts.findIndex(function(x) { return x._uid === r._uid }) : this.receipts.indexOf(r)
         if (i >= 0) this.receipts.splice(i, 1)
+        if (r._uid != null) _dismissedRids.add(r._uid)
         this.expReceiptSlide = Math.max(0, Math.min(this.expReceiptSlide || 0, this.receipts.length - 1))
         this._syncReceipts()
       }

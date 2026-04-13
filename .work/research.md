@@ -21,7 +21,7 @@
 
 ## Finance
 
-## Community
+## Community / Organization?
 
 * Members
 * Spiritual status
@@ -60,3 +60,7 @@
 ! Stats for the website: how many books distributed, how much donations accumulated
 
 * JPS gets inspired with numbers: how much prasadam for year, how many books, how many harinams.
+
+## OCR
+
+* https://github.com/zai-org/GLM-OCR, https://github.com/datalab-to/surya, https://github.com/antimatter15/ocrad.js, https://github.com/naptha/tesseract.js, https://github.com/yosuke-furukawa/okrabyte

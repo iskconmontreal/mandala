@@ -74,6 +74,43 @@ preloads:
       </table>
     </div>
   </div>
+
+  <div class="card" style="margin-top:var(--s-lg);padding:var(--s-lg)">
+    <div class="card-header" style="margin-bottom:var(--s-md)">
+      <h3 style="margin:0">Tax Receipts (<span :text="year"></span>)</h3>
+    </div>
+    <div :if="taxReceiptsLoading" class="dim" style="padding:var(--s-lg);text-align:center">Loading…</div>
+    <div class="table-wrap" :if="!taxReceiptsLoading">
+      <table>
+        <thead>
+          <tr>
+            <th>Receipt No.</th>
+            <th>Donor</th>
+            <th style="text-align:right">Eligible Amount</th>
+            <th>Date Issued</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr :each="r in taxReceipts">
+            <td><span class="badge badge-ok" style="font-size:var(--f-xs)" :text="r.receipt_no"></span></td>
+            <td :text="r.donor_name"></td>
+            <td style="text-align:right" :text="'$' + fmtAmt(r.eligible_amount || 0)"></td>
+            <td :text="fmtDate(r.date_issued)"></td>
+            <td>
+              <span style="display:flex;gap:var(--s-xs);justify-content:flex-end">
+                <button type="button" class="btn btn-sm btn-icon btn-outline" title="Print receipt" :onclick="printTaxReceipt(r)" :html="printIcon"></button>
+                <button type="button" class="btn btn-sm btn-icon btn-outline" title="Resend email" :onclick="resendTaxReceiptEmail(r)" :html="emailIcon"></button>
+              </span>
+            </td>
+          </tr>
+          <tr :if="!taxReceipts.length && !taxReceiptsLoading">
+            <td colspan="5" class="dim" style="text-align:center;padding:var(--s-xl)">No tax receipts issued for this year.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </section>
 
 <!-- ===== DONORS TAB ===== -->
@@ -150,10 +187,12 @@ preloads:
     :years="netYearGroups" :mopen="netMonthOpen" :mfresh="netMonthFresh" :search="netSearch" :loading="loading" :error="loadErr"
     :quickloading="quickLoading" :myapprovals="myApprovals" :filtertype="netFilterType"
     :empty="!loading && !netFilteredCount" :canapprove="can('expenses:approve')" :memberemails="memberEmails" :emailsending="emailSending"
+    :canissuereceipt="can('income:create')" :receiptissuing="receiptIssuing"
     :onviewexp.delay-0="e => { showExpForm = true; expFormDetail = e.detail; expFormMode = ((e.detail.status || 'submitted') === 'submitted' || can('expenses:approve')) ? 'edit' : 'view' }"
     :onviewinc.delay-0="e => openDonDetail(e.detail)"
     :onprintinc="e => printDonation(e.detail)"
     :onemailinc="e => emailDonationReceipt(e.detail)"
+    :onissuereceipt="e => issueReceipt(e.detail)"
     :onapprove="e => expenseQuickApprove(e.detail)"
     :onpay="e => expenseQuickPay(e.detail)"
     :onattach="e => attachExpense(e.detail)"
@@ -207,7 +246,7 @@ preloads:
     apiBase: BASE, api,
     EXP_CATS, EXP_METHODS, DON_METHODS, INCOME_TYPES,
     EXP_FIELDS, setErr, buildMetaHistory, eventBadge, eventLabel, eventDetail, actorName,
-    approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print'), emailIcon: actionIcon('email'),
+    approveIcon: actionIcon('approve'), payIcon: actionIcon('pay'), printIcon: actionIcon('print'), emailIcon: actionIcon('email'), receiptIcon: actionIcon('receipt'),
   }, {
     extras: {
       _emit: (name, detail) => {}, // placeholder — overridden per-instance below
@@ -357,6 +396,9 @@ preloads:
     donMonthOpen: monthOpenState(defaultMonthKeys, {}, currentMonthKey, prevMonthKey),
     donMonthFresh: '',
     emailSending: {},
+    receiptIssuing: {},
+    taxReceipts: [],
+    taxReceiptsLoading: false,
     actionAmt: '',
     freshId: null,
     isFresh(id) { return id && id === this.freshId },
@@ -972,6 +1014,7 @@ preloads:
       writeUrl(s, 'pushState')
       if (tab === 'transactions' && !s.expRangeLoaded) loadExpenseRange()
       if (tab === 'transactions' && !s.donRangeLoaded) loadIncomeRange()
+      if (tab === 'reports') loadTaxReceipts()
     },
 
     _hoverCat: null,
@@ -1167,6 +1210,56 @@ preloads:
         delete next[donation.id]
         s.emailSending = next
       })
+  }
+
+  s.issueReceipt = async donation => {
+    if (!donation?.id || !donation?.member_id) return
+    s.receiptIssuing = { ...s.receiptIssuing, [donation.id]: true }
+    try {
+      const year = donation.date_received
+        ? new Date(donation.date_received).getFullYear()
+        : new Date().getFullYear()
+      await api.issueTaxReceipt({ income_id: donation.id, member_id: donation.member_id, fiscal_year: year })
+      toast('Tax receipt issued', 'success')
+      loadAll()
+    } catch (e) {
+      toast(e.message || 'Failed to issue receipt')
+    } finally {
+      const next = { ...s.receiptIssuing }
+      delete next[donation.id]
+      s.receiptIssuing = next
+    }
+  }
+
+  s.printTaxReceipt = async receipt => {
+    if (!receipt?.id) return
+    try {
+      const html = await api.fetchHtml(`/api/tax-receipts/${receipt.id}/print`)
+      const frame = document.createElement('iframe')
+      frame.setAttribute('aria-hidden', 'true')
+      Object.assign(frame.style, { position: 'fixed', right: '0', bottom: '0', width: '0', height: '0', border: '0', opacity: '0' })
+      const drop = () => setTimeout(() => frame.remove(), 300)
+      frame.onload = () => {
+        const w = frame.contentWindow
+        if (!w) return drop()
+        w.addEventListener('afterprint', drop, { once: true })
+        setTimeout(() => { w.focus(); w.print(); setTimeout(drop, 1500) }, 250)
+      }
+      frame.srcdoc = html
+      document.body.append(frame)
+    } catch (e) {
+      toast(e.message || 'Failed to load receipt')
+    }
+  }
+
+  s.resendTaxReceiptEmail = async receipt => {
+    if (!receipt?.id) return
+    try {
+      await api.resendTaxReceipt(receipt.id)
+      toast('Receipt emailed', 'success')
+    } catch (e) {
+      toast(e.message || 'Failed to send email')
+    }
   }
 
   function refreshIncomeStats() {
@@ -1412,6 +1505,15 @@ preloads:
     })
   }
 
+  async function loadTaxReceipts() {
+    s.taxReceiptsLoading = true
+    try {
+      const res = await api.getTaxReceipts({ fiscal_year: s.year })
+      s.taxReceipts = res?.items || res || []
+    } catch { s.taxReceipts = [] }
+    finally { s.taxReceiptsLoading = false }
+  }
+
   async function loadAll() {
     const hasVisibleExpenses = !!(s.expenses.length || Object.keys(s.expMonthItems || {}).some(key => (s.expMonthItems[key] || []).length))
     s.loading = !hasVisibleExpenses
@@ -1579,5 +1681,6 @@ preloads:
   loadAll().then(() => {
     if (s.activeTab === 'transactions' && !s.expRangeLoaded) loadExpenseRange()
     if (s.activeTab === 'transactions' && !s.donRangeLoaded) loadIncomeRange()
+    if (s.activeTab === 'reports') loadTaxReceipts()
   })
 </script>

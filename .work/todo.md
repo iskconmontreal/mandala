@@ -3,6 +3,9 @@
 
 ## Backlog
 
+* [ ] Finances: distill categories list
+* [ ] Finances: Says email was sent (new donation) but it's the first time req
+
 * [x] Finances: Add expense > click anywhere > closes modal - should not (add test regression)
 * [x] Finances: Add expense > attach doc > cancel closes modal - should not.
 * [x] Finances: doesn't show photos: I have created expense #E-2026-0616 with 4 photos, but frontend doesn't show them in preview: https://api.iskconmontreal.ca/uploads/finance/2026/2026-04-12-3.webp 404

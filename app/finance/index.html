@@ -1193,7 +1193,19 @@ preloads:
     s.patchState({ donFilterType: '', donFilterMethods: [], donAmtMin: '', donAmtMax: '', donDateFrom: '', donDateTo: '', donPage: 1 })
   }
 
-  s.printDonation = createPrintDonation(s.memberNames)
+  // For officially issued donations, use the server-side print endpoint (authoritative data).
+  // For un-issued donations, fall back to client-side rendering.
+  s.printDonation = async donation => {
+    if (!donation) return
+    if (donation.tax_receipt_no) {
+      try {
+        const res = await api.getTaxReceipts({ income_id: donation.id })
+        const receipt = (res?.items || res || []).find(r => r.income_id === donation.id || r.receipt_no === donation.tax_receipt_no)
+        if (receipt?.id) { await s.printTaxReceipt(receipt); return }
+      } catch {}
+    }
+    createPrintDonation(s.memberNames)(donation)
+  }
   const wasReceiptEmailed = donation => Array.isArray(donation?.history) && donation.history.some(h => h?.action === 'receipt_emailed')
   s.emailDonationReceipt = donation => {
     if (!donation?.id) return

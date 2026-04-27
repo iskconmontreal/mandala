@@ -55,6 +55,14 @@
             <span :html="icon('user_organization')"></span>
             Organization
           </a>
+          <a :if="can('settings:manage')" href="{{ '/app/admin/camera.html' | relative_url }}" class="user-menu-item">
+            <span :html="icon('camera')"></span>
+            Camera
+          </a>
+          <a :if="can('settings:manage')" href="{{ '/app/admin/mixer.html' | relative_url }}" class="user-menu-item">
+            <span :html="icon('mixer')"></span>
+            Mixer
+          </a>
           <a :if="can('roles:update')" href="{{ '/app/admin/roles/' | relative_url }}" class="user-menu-item">
             <span :html="icon('user_roles')"></span>
             Roles

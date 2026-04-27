@@ -62,7 +62,14 @@ title: My Profile
   api.getMyMember().then(async member => {
     window.memberRaw = member
     const data = typeof member.data === 'string' ? JSON.parse(member.data) : (member.data || {})
-    s.m = data
+    // Top-level DB columns take base; data blob overrides (may have extended/newer values).
+    // Without this merge, volunteers created by admin have member.data=null → blank edit form.
+    const FIELDS = ['name','spiritual_name','email','phone','address','notes','status','joined',
+      'diksa_guru','guiding_devotee','services','rounds','rounds_years','four_regs_years',
+      'kc_years','temple','dob','gender','nationality','occupation','marriage_status',
+      'spouse','children','lives_in_temple','namahatta']
+    const base = Object.fromEntries(FIELDS.filter(k => member[k] != null).map(k => [k, member[k]]))
+    s.m = { ...base, ...data }
     s.hasMember = true
     s.memberLoading = false
 
